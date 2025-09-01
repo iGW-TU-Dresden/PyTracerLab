@@ -276,7 +276,7 @@
 <span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">differential_evolution</span>
@@ -436,9 +436,39 @@
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Random-Walk Metropolis–Hastings over free parameters.</span>
 
-<span class="sd">        Returns a dict with keys:</span>
-<span class="sd">          - &#39;param_names&#39;, &#39;samples&#39;, &#39;logpost&#39;, &#39;accept_rate&#39;,</span>
-<span class="sd">            &#39;posterior_mean&#39;, &#39;posterior_map&#39;, &#39;map_logpost&#39;, [&#39;sims&#39; if requested]</span>
+<span class="sd">        Run Metropolis–Hastings MCMC with a RW proposal distribution for</span>
+<span class="sd">        the free parameters. The method only returns effective samples</span>
+<span class="sd">        (after burn-in and thinning).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_samples : int</span>
+<span class="sd">            Number of accepted samples to draw.</span>
+<span class="sd">        burn_in : int, optional</span>
+<span class="sd">            Number of samples to discard as burn-in.</span>
+<span class="sd">        thin : int, optional</span>
+<span class="sd">            Thinning factor.</span>
+<span class="sd">        rw_scale : float, optional</span>
+<span class="sd">            Standard deviation of RW proposal distribution.</span>
+<span class="sd">        sigma : float | None, optional</span>
+<span class="sd">            Standard deviation of Gaussian likelihood.</span>
+<span class="sd">        log_prior : callable | None, optional</span>
+<span class="sd">            Log prior, if not uniform.</span>
+<span class="sd">        start : Sequence[float] | None, optional</span>
+<span class="sd">            Starting point for MCMC.</span>
+<span class="sd">        random_state : int | np.random.Generator | None, optional</span>
+<span class="sd">            Random seed.</span>
+<span class="sd">        return_sim : bool, optional</span>
+<span class="sd">            Return simulated series at each sample.</span>
+<span class="sd">        set_model_state : bool, optional</span>
+<span class="sd">            Set model state to the posterior median at the end.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary with keys: &#39;param_names&#39;, &#39;samples&#39;, &#39;logpost&#39;,</span>
+<span class="sd">            &#39;accept_rate&#39;, &#39;posterior_mean&#39;, &#39;posterior_map&#39;,</span>
+<span class="sd">            &#39;map_logpost&#39;, [&#39;sims&#39; if requested]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
@@ -553,14 +583,16 @@
 
         <span class="n">accept_rate</span> <span class="o">=</span> <span class="n">accepts</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">total_needed</span><span class="p">)</span>
         <span class="n">post_mean_free</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">post_median_free</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">map_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logposts</span><span class="p">))</span>
         <span class="n">post_map_free</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">map_idx</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
         <span class="n">posterior_mean</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys_free</span><span class="p">,</span> <span class="n">post_mean_free</span><span class="p">)}</span>
+        <span class="n">posterior_median</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys_free</span><span class="p">,</span> <span class="n">post_median_free</span><span class="p">)}</span>
         <span class="n">posterior_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys_free</span><span class="p">,</span> <span class="n">post_map_free</span><span class="p">)}</span>
 
         <span class="k">if</span> <span class="n">set_model_state</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="n">post_mean_free</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="n">post_median_free</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="n">out</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;param_names&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">keys_free</span><span class="p">),</span>
@@ -568,6 +600,7 @@
             <span class="s2">&quot;logpost&quot;</span><span class="p">:</span> <span class="n">logposts</span><span class="p">,</span>
             <span class="s2">&quot;accept_rate&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">accept_rate</span><span class="p">),</span>
             <span class="s2">&quot;posterior_mean&quot;</span><span class="p">:</span> <span class="n">posterior_mean</span><span class="p">,</span>
+            <span class="s2">&quot;posterior_median&quot;</span><span class="p">:</span> <span class="n">posterior_median</span><span class="p">,</span>
             <span class="s2">&quot;posterior_map&quot;</span><span class="p">:</span> <span class="n">posterior_map</span><span class="p">,</span>
             <span class="s2">&quot;map_logpost&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">logposts</span><span class="p">[</span><span class="n">map_idx</span><span class="p">]),</span>
         <span class="p">}</span>
@@ -575,6 +608,123 @@
             <span class="n">out</span><span class="p">[</span><span class="s2">&quot;sims&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sims</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">out</span></div>
 </div>
+
+
+
+<span class="c1">###</span>
+<span class="c1"># Solver registry for GUI</span>
+<span class="c1">###</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_de</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Differential Evolution and return a standardized payload for the GUI.&quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">params</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">maxiter</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;maxiter&quot;</span><span class="p">,</span> <span class="mi">10000</span><span class="p">))</span>
+    <span class="n">popsize</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;popsize&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+    <span class="n">mutation</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mutation&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.99</span><span class="p">))</span>
+    <span class="c1"># Ensure mutation is a 2-tuple</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mutation</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">mutation</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">mutation</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">mutation</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">mutation</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mutation</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.99</span><span class="p">)</span>
+    <span class="n">recombination</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recombination&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span>
+    <span class="n">tol</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tol&quot;</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">))</span>
+
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">sim</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">differential_evolution</span><span class="p">(</span>
+        <span class="n">maxiter</span><span class="o">=</span><span class="n">maxiter</span><span class="p">,</span>
+        <span class="n">popsize</span><span class="o">=</span><span class="n">popsize</span><span class="p">,</span>
+        <span class="n">mutation</span><span class="o">=</span><span class="n">mutation</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="n">recombination</span><span class="o">=</span><span class="n">recombination</span><span class="p">,</span>
+        <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;solver&quot;</span><span class="p">:</span> <span class="s2">&quot;de&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;sim&quot;</span><span class="p">:</span> <span class="n">sim</span><span class="p">,</span>
+        <span class="s2">&quot;envelope&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;meta&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Differential Evolution&quot;</span><span class="p">},</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_mcmc</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run MCMC and return standardized payload including percentiles and MAP simulation.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    - Uses moderate defaults; can be exposed in GUI later.</span>
+<span class="sd">    - Always returns simulations in the payload.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">params</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;n_samples&quot;</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+    <span class="n">burn_in</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;burn_in&quot;</span><span class="p">,</span> <span class="mi">2000</span><span class="p">))</span>
+    <span class="n">thin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;thin&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">rw_scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;rw_scale&quot;</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">))</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sigma&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">sigma</span><span class="p">)):</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">mcmc_sample</span><span class="p">(</span>
+        <span class="n">n_samples</span><span class="o">=</span><span class="n">n_samples</span><span class="p">,</span>
+        <span class="n">burn_in</span><span class="o">=</span><span class="n">burn_in</span><span class="p">,</span>
+        <span class="n">thin</span><span class="o">=</span><span class="n">thin</span><span class="p">,</span>
+        <span class="n">rw_scale</span><span class="o">=</span><span class="n">rw_scale</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="n">return_sim</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">set_model_state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">sims</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sims&quot;</span><span class="p">)</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;param_names&quot;</span><span class="p">]</span>
+    <span class="n">theta_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;posterior_median&quot;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">median_sim</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">_simulate_given_free</span><span class="p">(</span><span class="n">theta_median</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">sims</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sims</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Fallback: don&#39;t return envelope</span>
+        <span class="n">env_1_99</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">env_20_80</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">p_low</span><span class="p">,</span> <span class="n">p_high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">sims</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">99</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">env_1_99</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;low&quot;</span><span class="p">:</span> <span class="n">p_low</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">:</span> <span class="n">p_high</span><span class="p">}</span>
+        <span class="n">p_low</span><span class="p">,</span> <span class="n">p_high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">sims</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">80</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">env_20_80</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;low&quot;</span><span class="p">:</span> <span class="n">p_low</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">:</span> <span class="n">p_high</span><span class="p">}</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;solver&quot;</span><span class="p">:</span> <span class="s2">&quot;mcmc&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;sim&quot;</span><span class="p">:</span> <span class="n">median_sim</span><span class="p">,</span>
+        <span class="s2">&quot;envelope_1_99&quot;</span><span class="p">:</span> <span class="n">env_1_99</span><span class="p">,</span>
+        <span class="s2">&quot;envelope_20_80&quot;</span><span class="p">:</span> <span class="n">env_20_80</span><span class="p">,</span>
+        <span class="s2">&quot;meta&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;MCMC&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;posterior_median&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;posterior_median&quot;</span><span class="p">,</span> <span class="p">{}),</span>
+            <span class="s2">&quot;accept_rate&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;accept_rate&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+
+
+<span class="n">SOLVER_REGISTRY</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;de&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Differential Evolution&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">:</span> <span class="n">_run_de</span><span class="p">},</span>
+    <span class="s2">&quot;mcmc&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;MCMC&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">:</span> <span class="n">_run_mcmc</span><span class="p">},</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="available_solvers">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.available_solvers">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">available_solvers</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;List of (key, display name) for available solvers.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SOLVER_REGISTRY</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span></div>
+
+
+
+<div class="viewcode-block" id="run_solver">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.run_solver">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">run_solver</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a solver by registry key and return a standardized payload.&quot;&quot;&quot;</span>
+    <span class="n">rec</span> <span class="o">=</span> <span class="n">SOLVER_REGISTRY</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">rec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown solver key: </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">runner</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="n">rec</span><span class="p">[</span><span class="s2">&quot;run&quot;</span><span class="p">]</span>  <span class="c1"># type: ignore[assignment]</span>
+    <span class="k">return</span> <span class="n">runner</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span></div>
 
 </pre></div>
         </article>

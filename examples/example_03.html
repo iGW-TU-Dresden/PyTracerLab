@@ -310,10 +310,10 @@
 <span class="c1"># increase in tritium in the atmosphere</span>
 <span class="c1"># this is just a bell-shaped pulse</span>
 <span class="n">offset</span> <span class="o">=</span> <span class="mf">120.</span>
-<span class="n">scale</span> <span class="o">=</span> <span class="o">-</span> <span class="mf">0.0004</span> <span class="c1"># negative; closer to zero means wider pulse</span>
-<span class="n">input_series</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">scale</span> <span class="o">*</span> <span class="p">((</span><span class="n">timesteps</span> <span class="o">-</span> <span class="n">offset</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+<span class="n">scale</span> <span class="o">=</span> <span class="o">-</span> <span class="mf">0.001</span> <span class="c1"># negative; closer to zero means wider pulse</span>
+<span class="n">input_series</span> <span class="o">+=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">scale</span> <span class="o">*</span> <span class="p">((</span><span class="n">timesteps</span> <span class="o">-</span> <span class="n">offset</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
 <span class="c1"># add some noise to the data</span>
-<span class="n">input_series</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_series</span><span class="p">))</span>
+<span class="n">input_series</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="n">input_series</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_series</span><span class="p">))</span>
 </pre></div>
 </div>
 </div>
@@ -366,11 +366,11 @@
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># make reproducible</span>
-<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">2025</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">1234567</span><span class="p">)</span>
 
 <span class="c1"># define observations</span>
 <span class="c1"># randomly select a number of observations from the output series</span>
-<span class="n">n_obs</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">n_obs</span> <span class="o">=</span> <span class="mi">15</span>
 <span class="n">obs_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">),</span> <span class="n">n_obs</span><span class="p">)</span>
 <span class="c1"># select the corresponding timesteps and values</span>
 <span class="n">obs_timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[</span><span class="n">obs_idx</span><span class="p">]</span>
@@ -426,7 +426,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/a06a5ac9dc3d9aeb3910afd0cdcf34209efa06bb32be93e021eb4c0f22119bef.png" src="../_images/a06a5ac9dc3d9aeb3910afd0cdcf34209efa06bb32be93e021eb4c0f22119bef.png" />
+<img alt="../_images/584d4bb0f38638f71acd5b3e80c76d148de3356f94e63f144035655c0f35182b.png" src="../_images/584d4bb0f38638f71acd5b3e80c76d148de3356f94e63f144035655c0f35182b.png" />
 </div>
 </div>
 </section>

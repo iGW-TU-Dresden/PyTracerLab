@@ -273,8 +273,7 @@
         </div>
         <article role="main" id="furo-main-content">
           <h1>Source code for ISOSIMpy.gui.controller</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtCore</span><span class="w"> </span><span class="kn">import</span> <span class="n">QObject</span><span class="p">,</span> <span class="n">pyqtSignal</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtCore</span><span class="w"> </span><span class="kn">import</span> <span class="n">QObject</span><span class="p">,</span> <span class="n">pyqtSignal</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model</span><span class="w"> </span><span class="kn">import</span> <span class="n">model</span> <span class="k">as</span> <span class="n">mm</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model</span><span class="w"> </span><span class="kn">import</span> <span class="n">solver</span> <span class="k">as</span> <span class="n">ms</span>
@@ -284,8 +283,9 @@
 <div class="viewcode-block" id="Controller">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Controller</span><span class="p">(</span><span class="n">QObject</span><span class="p">):</span>
-    <span class="n">simulated</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
-    <span class="n">calibrated</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+    <span class="c1"># Use generic object payloads to support arrays or dicts from different solvers</span>
+    <span class="n">simulated</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+    <span class="n">calibrated</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
     <span class="n">status</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
     <span class="n">error</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
 
@@ -390,11 +390,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">build_model</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">return</span>
-            <span class="c1"># This currently only includes the Differential Evolution solver</span>
-            <span class="n">solver</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ml</span><span class="p">)</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">sim</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">differential_evolution</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">last_simulation</span> <span class="o">=</span> <span class="n">sim</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">calibrated</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+            <span class="c1"># Run selected solver via registry and emit standardized payload</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="s2">&quot;solver_key&quot;</span><span class="p">,</span> <span class="s2">&quot;de&quot;</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="s2">&quot;solver_params&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">run_solver</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ml</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">last_simulation</span> <span class="o">=</span> <span class="n">payload</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calibrated</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;Calibration finished.&quot;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
