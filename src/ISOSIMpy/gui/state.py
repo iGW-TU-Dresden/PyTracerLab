@@ -12,6 +12,27 @@ ArrayLike = np.ndarray
 class AppState:
     is_monthly: bool = True
     tracer: str = "Tritium"
+    # Selected solver (registry key); default to Differential Evolution
+    solver_key: str = "de"
+    # Per-solver parameters
+    solver_params: Dict[str, dict] = field(
+        default_factory=lambda: {
+            "de": {
+                "maxiter": 10000,
+                "popsize": 15,
+                "mutation": (0.5, 1.0),
+                "recombination": 0.7,
+                "tol": 0.01,
+            },
+            "mcmc": {
+                "n_samples": 10000,
+                "burn_in": 2000,
+                "thin": 2,
+                "rw_scale": 0.05,
+                "sigma": None,
+            },
+        }
+    )
     input_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
     target_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
     selected_units: List[str] = field(default_factory=list)  # unique registry keys for params tab
@@ -23,5 +44,6 @@ class AppState:
     # params[prefix][key] = {"val":..., "lb":..., "ub":..., "fixed":0/1}
     steady_state_input: float = 0.0
     n_warmup_half_lives: int = 2
-    last_simulation: Optional[ArrayLike] = None
+    # Can be either a plain ndarray (legacy) or a payload dict from solver.run_solver
+    last_simulation: Optional[object] = None
     last_times: Optional[ArrayLike] = None

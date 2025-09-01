@@ -1,4 +1,3 @@
-import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from ..model import model as mm
@@ -7,8 +6,9 @@ from ..model.registry import UNIT_REGISTRY
 
 
 class Controller(QObject):
-    simulated = pyqtSignal(np.ndarray)
-    calibrated = pyqtSignal(np.ndarray)
+    # Use generic object payloads to support arrays or dicts from different solvers
+    simulated = pyqtSignal(object)
+    calibrated = pyqtSignal(object)
     status = pyqtSignal(str)
     error = pyqtSignal(str)
 
@@ -105,11 +105,12 @@ class Controller(QObject):
             self.build_model()
             if self.ml is None:
                 return
-            # This currently only includes the Differential Evolution solver
-            solver = ms.Solver(model=self.ml)
-            _, sim = solver.differential_evolution()
-            self.state.last_simulation = sim
-            self.calibrated.emit(sim)
+            # Run selected solver via registry and emit standardized payload
+            key = getattr(self.state, "solver_key", "de")
+            params = getattr(self.state, "solver_params", {}).get(key, {})
+            payload = ms.run_solver(self.ml, key, params)
+            self.state.last_simulation = payload
+            self.calibrated.emit(payload)
             self.status.emit("Calibration finished.")
         except Exception as e:
             self.error.emit(str(e))

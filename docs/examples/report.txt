@@ -6,20 +6,17 @@ Model settings
 Time step (dt):          1 month
 Decay constant (lambda): 0.004683698296836982
 Warmup steps:            1470 (auto)
-Units count:             3
+Units count:             2
 
 Global fit
 ----------
-MSE: 5.80564e-05
+MSE: 0.000281959
 
 Parameters by unit
 ------------------
 [epm1] fraction=0.200
-  epm1.eta        value=1.78444, initial=1.1, bounds=(1, 2), fixed=False
-  epm1.mtt        value=366.24, initial=120, bounds=(0, 10000), fixed=False
+  epm1.eta        value=1.38278, initial=1.1, bounds=(1, 2), fixed=False
+  epm1.mtt        value=519.747, initial=120, bounds=(0, 10000), fixed=False
 
-[pm1] fraction=0.600
-  pm1.mtt         value=785.062, initial=120, bounds=(0, 10000), fixed=False
-
-[pm2] fraction=0.200
-  pm2.mtt         value=60.4997, initial=120, bounds=(0, 10000), fixed=False
+[pm1] fraction=0.800
+  pm1.mtt         value=57.5878, initial=120, bounds=(0, 10000), fixed=False

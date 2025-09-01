@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 import numpy as np
 from scipy.optimize import differential_evolution
@@ -154,9 +154,39 @@ class Solver:
     ):
         """Random-Walk Metropolis–Hastings over free parameters.
 
-        Returns a dict with keys:
-          - 'param_names', 'samples', 'logpost', 'accept_rate',
-            'posterior_mean', 'posterior_map', 'map_logpost', ['sims' if requested]
+        Run Metropolis–Hastings MCMC with a RW proposal distribution for
+        the free parameters. The method only returns effective samples
+        (after burn-in and thinning).
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of accepted samples to draw.
+        burn_in : int, optional
+            Number of samples to discard as burn-in.
+        thin : int, optional
+            Thinning factor.
+        rw_scale : float, optional
+            Standard deviation of RW proposal distribution.
+        sigma : float | None, optional
+            Standard deviation of Gaussian likelihood.
+        log_prior : callable | None, optional
+            Log prior, if not uniform.
+        start : Sequence[float] | None, optional
+            Starting point for MCMC.
+        random_state : int | np.random.Generator | None, optional
+            Random seed.
+        return_sim : bool, optional
+            Return simulated series at each sample.
+        set_model_state : bool, optional
+            Set model state to the posterior median at the end.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys: 'param_names', 'samples', 'logpost',
+            'accept_rate', 'posterior_mean', 'posterior_map',
+            'map_logpost', ['sims' if requested]
         """
         rng = (
             np.random.default_rng(random_state)
@@ -271,14 +301,16 @@ class Solver:
 
         accept_rate = accepts / float(total_needed)
         post_mean_free = samples.mean(axis=0)
+        post_median_free = np.median(samples, axis=0)
         map_idx = int(np.argmax(logposts))
         post_map_free = samples[map_idx].copy()
 
         posterior_mean = {k: float(v) for k, v in zip(keys_free, post_mean_free)}
+        posterior_median = {k: float(v) for k, v in zip(keys_free, post_median_free)}
         posterior_map = {k: float(v) for k, v in zip(keys_free, post_map_free)}
 
         if set_model_state:
-            self.model.set_vector(post_mean_free.tolist(), which="value", free_only=True)
+            self.model.set_vector(post_median_free.tolist(), which="value", free_only=True)
 
         out = {
             "param_names": list(keys_free),
@@ -286,9 +318,121 @@ class Solver:
             "logpost": logposts,
             "accept_rate": float(accept_rate),
             "posterior_mean": posterior_mean,
+            "posterior_median": posterior_median,
             "posterior_map": posterior_map,
             "map_logpost": float(logposts[map_idx]),
         }
         if return_sim:
             out["sims"] = np.asarray(sims, dtype=float)
         return out
+
+
+###
+# Solver registry for GUI
+###
+
+
+def _run_de(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, object]:
+    """Run Differential Evolution and return a standardized payload for the GUI."""
+    p = params or {}
+    maxiter = int(p.get("maxiter", 10000))
+    popsize = int(p.get("popsize", 100))
+    mutation = p.get("mutation", (0.5, 1.99))
+    # Ensure mutation is a 2-tuple
+    if isinstance(mutation, (list, tuple)) and len(mutation) == 2:
+        mutation = (float(mutation[0]), float(mutation[1]))
+    else:
+        mutation = (0.5, 1.99)
+    recombination = float(p.get("recombination", 0.5))
+    tol = float(p.get("tol", 1e-3))
+
+    sol = Solver(model=model)
+    _, sim = sol.differential_evolution(
+        maxiter=maxiter,
+        popsize=popsize,
+        mutation=mutation,  # type: ignore[arg-type]
+        recombination=recombination,
+        tol=tol,
+    )
+    return {
+        "solver": "de",
+        "sim": sim,
+        "envelope": None,
+        "meta": {"name": "Differential Evolution"},
+    }
+
+
+def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, object]:
+    """Run MCMC and return standardized payload including percentiles and MAP simulation.
+
+    Notes
+    -----
+    - Uses moderate defaults; can be exposed in GUI later.
+    - Always returns simulations in the payload.
+    """
+    p = params or {}
+    n_samples = int(p.get("n_samples", 1000))
+    burn_in = int(p.get("burn_in", 2000))
+    thin = int(p.get("thin", 1))
+    rw_scale = float(p.get("rw_scale", 0.05))
+    sigma = p.get("sigma", None)
+    if sigma is not None and not (isinstance(sigma, (int, float)) and np.isfinite(sigma)):
+        sigma = None
+
+    sol = Solver(model=model)
+    res = sol.mcmc_sample(
+        n_samples=n_samples,
+        burn_in=burn_in,
+        thin=thin,
+        rw_scale=rw_scale,
+        sigma=sigma,  # type: ignore[arg-type]
+        return_sim=True,
+        set_model_state=False,
+    )
+
+    sims = res.get("sims")
+    keys = res["param_names"]
+    theta_median = np.array([res["posterior_median"][k] for k in keys], dtype=float)
+    median_sim = sol._simulate_given_free(theta_median)
+
+    if sims is None or sims.size == 0:
+        # Fallback: don't return envelope
+        env_1_99 = None
+        env_20_80 = None
+    else:
+        p_low, p_high = np.percentile(sims, [1, 99], axis=0)
+        env_1_99 = {"low": p_low, "high": p_high}
+        p_low, p_high = np.percentile(sims, [20, 80], axis=0)
+        env_20_80 = {"low": p_low, "high": p_high}
+
+    return {
+        "solver": "mcmc",
+        "sim": median_sim,
+        "envelope_1_99": env_1_99,
+        "envelope_20_80": env_20_80,
+        "meta": {
+            "name": "MCMC",
+            "posterior_median": res.get("posterior_median", {}),
+            "accept_rate": res.get("accept_rate"),
+        },
+    }
+
+
+SOLVER_REGISTRY: Dict[str, Dict[str, object]] = {
+    "de": {"name": "Differential Evolution", "run": _run_de},
+    "mcmc": {"name": "MCMC", "run": _run_mcmc},
+}
+
+
+def available_solvers() -> List[Tuple[str, str]]:
+    """List of (key, display name) for available solvers."""
+    return [(k, v["name"]) for k, v in SOLVER_REGISTRY.items()]
+
+
+def run_solver(model: Model, key: str, params: Dict[str, Any] | None = None) -> Dict[str, object]:
+    """Run a solver by registry key and return a standardized payload."""
+    rec = SOLVER_REGISTRY.get(key)
+    if rec is None:
+        raise ValueError(f"Unknown solver key: {key}")
+    runner: Callable[..., Dict[str, object]] = rec["run"]  # type: ignore[assignment]
+    return runner(model, params or {})
