@@ -35,8 +35,8 @@ class ParametersTab(QWidget):
         self._clear_grid()
         self.editors.clear()
 
-        unit_names = list(self.state.selected_units or [])
-        if not unit_names:
+        instances = list(getattr(self.state, "design_instances", []) or [])
+        if not instances:
             hint = QLabel(
                 "No units selected. Select units in the Model Design tab to edit their parameters."
             )
@@ -61,22 +61,28 @@ class ParametersTab(QWidget):
         self.grid.setColumnStretch(4, 0)  # checkbox
 
         row = 1
-        for unit_name in unit_names:
+        # Count instances per unit type to display ordinal labels
+        counts: dict[str, int] = {}
+        for inst in instances:
+            unit_name = inst["name"]
+            prefix = inst["prefix"]
+            counts[unit_name] = counts.get(unit_name, 0) + 1
+            ordinal = counts[unit_name]
+
             cls = self.registry[unit_name]
-            prefix = cls.PREFIX
             self.state.params.setdefault(prefix, {})
 
             for meta in getattr(cls, "PARAMS", []):
                 key = meta["key"]
                 initial = self.state.params[prefix].get(key)
 
-                # Row label
+                # Row label includes instance number for clarity
                 pname = meta.get("label", key)
-                row_label = QLabel(f"{unit_name} - {pname}")
+                row_label = QLabel(f"{unit_name} ({ordinal}) - {pname}")
                 row_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
                 self.grid.addWidget(row_label, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
 
-                # Editor
+                # Editor bound to the instance prefix
                 ed = ParameterEditor(prefix, meta, initial)
 
                 # Place fields in strict columns

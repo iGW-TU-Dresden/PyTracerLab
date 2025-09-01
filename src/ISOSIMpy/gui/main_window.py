@@ -12,7 +12,10 @@ from .tabs.simulation import SimulationTab
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
+        # Initialize the window
         self.setWindowTitle("ISOSIMpy")
+        self.resize(800, 600)
+
         self.state = AppState()
         self.ctrl = Controller(self.state)
 

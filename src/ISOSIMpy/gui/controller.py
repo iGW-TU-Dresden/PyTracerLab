@@ -40,28 +40,49 @@ class Controller(QObject):
                 n_warmup_half_lives=self.state.n_warmup_half_lives,
             )
 
-            for unit_name in self.state.selected_units:
+            # Build per-instance units based on the detailed design
+            instances = getattr(self.state, "design_instances", [])
+            for inst in instances:
+                unit_name: str = inst["name"]
+                prefix: str = inst["prefix"]
+                frac: float = float(inst.get("fraction", 0.0))
+
                 cls = UNIT_REGISTRY[unit_name]
-                prefix = getattr(cls, "PREFIX", unit_name.lower())
                 spec = getattr(cls, "PARAMS", [])
-                kwargs = {p["key"]: self.state.params[prefix][p["key"]]["val"] for p in spec}
+
+                # Parameter values with safe defaults
+                kwargs = {}
+                for p in spec:
+                    key = p["key"]
+                    default_val = p.get("default")
+                    rec = self.state.params.get(prefix, {}).get(key)
+                    kwargs[key] = rec["val"] if rec is not None else default_val
+
                 unit = cls(**kwargs)
-                bounds = [
-                    (
-                        self.state.params[prefix][p["key"]]["lb"],
-                        self.state.params[prefix][p["key"]]["ub"],
-                    )
-                    for p in spec
-                ]
+
+                # Bounds with safe defaults
+                bounds = []
+                for p in spec:
+                    key = p["key"]
+                    default_lb, default_ub = p.get("bounds", (None, None))
+                    rec = self.state.params.get(prefix, {}).get(key)
+                    lb = rec["lb"] if rec is not None else default_lb
+                    ub = rec["ub"] if rec is not None else default_ub
+                    bounds.append((lb, ub))
+
                 self.ml.add_unit(
                     unit=unit,
-                    fraction=self.state.unit_fractions.get(prefix, 0.0),
+                    fraction=frac,
                     prefix=prefix,
                     bounds=bounds,
                 )
+
+                # Fixed flags
                 for p in spec:
-                    if self.state.params[prefix][p["key"]].get("fixed", False):
-                        self.ml.set_fixed(f"{prefix}.{p['key']}", True)
+                    key = p["key"]
+                    rec = self.state.params.get(prefix, {}).get(key)
+                    if rec is not None and rec.get("fixed", False):
+                        self.ml.set_fixed(f"{prefix}.{key}", True)
 
         except Exception as e:
             self.error.emit(str(e))

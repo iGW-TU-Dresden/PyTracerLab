@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator, QFont
 from PyQt5.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QGridLayout,
     QLabel,
     QLineEdit,
@@ -24,8 +25,8 @@ class ModelDesignTab(QWidget):
         super().__init__(parent)
         self.state = state
         self.registry = registry
-        self.boxes = {}
-        self.fracs = {}
+        # rows of (combobox, fraction editor)
+        self.rows = []
 
         # ensure attributes exist on state
         if not hasattr(self.state, "unit_fractions"):
@@ -42,7 +43,7 @@ class ModelDesignTab(QWidget):
         outer.setSpacing(8)
 
         # Title
-        title = QLabel("Include units and set fractions:")
+        title = QLabel("Select up to 4 units and set fractions:")
         title_font = QFont(title.font())
         title_font.setBold(True)
         title.setFont(title_font)
@@ -75,12 +76,15 @@ class ModelDesignTab(QWidget):
         fm = probe.fontMetrics()
         frac_width = fm.horizontalAdvance(" -0.0000 ") + 18
 
-        ### Unit rows
+        ### Unit rows (up to 4 selections)
         row = 1
-        for name, cls in self.registry.items():
-            cb = QCheckBox(name, self)
-            cb.setChecked(False)
-            self.boxes[name] = cb
+        unit_names = list(self.registry.keys())
+        placeholder = "— Select —"
+        for i in range(4):
+            combo = QComboBox(self)
+            combo.addItem(placeholder, userData=None)
+            for nm in unit_names:
+                combo.addItem(nm, userData=nm)
 
             fx = QLineEdit(self)
             fx.setText("0.0000")
@@ -89,14 +93,16 @@ class ModelDesignTab(QWidget):
             fx.setMaximumWidth(frac_width)
             fx.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             fx.setEnabled(False)
-            self.fracs[cls.PREFIX] = fx
 
-            grid.addWidget(cb, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+            grid.addWidget(combo, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
             grid.addWidget(fx, row, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
 
-            cb.toggled.connect(partial(self._on_toggle, prefix=cls.PREFIX))
+            combo.currentIndexChanged.connect(
+                partial(self._on_combo_changed, combo=combo, frac_edit=fx)
+            )
             fx.textChanged.connect(self._update)
 
+            self.rows.append({"combo": combo, "frac": fx})
             row += 1
 
         # spacer between sections
@@ -152,13 +158,22 @@ class ModelDesignTab(QWidget):
         grid.addWidget(self.warmup_value, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
         self.warmup_value.textChanged.connect(self._update)
 
+        # Try to restore previous design if present
+        if hasattr(self.state, "design_units") and self.state.design_units:
+            for (name, frac), r in zip(self.state.design_units, self.rows):
+                # set combo selection
+                idx = r["combo"].findData(name)
+                r["combo"].setCurrentIndex(idx if idx != -1 else 0)
+                # set fraction and enable
+                r["frac"].setText(f"{float(frac):.4f}")
+                r["frac"].setEnabled(idx != -1 and idx != 0)
+
         self._update()
 
-    # Enable/disable unit fraction field
-    def _on_toggle(self, checked: bool, prefix: str):
-        fx = self.fracs.get(prefix)
-        if fx is not None:
-            fx.setEnabled(checked)
+    def _on_combo_changed(self, index: int, combo: QComboBox, frac_edit: QLineEdit):
+        # Enable fraction only when a real unit is selected
+        selected = combo.currentData()
+        frac_edit.setEnabled(selected is not None)
         self._update()
 
     def _on_ss_toggle(self, checked: bool):
@@ -167,18 +182,43 @@ class ModelDesignTab(QWidget):
         self._update()
 
     def _update(self):
-        # Selected units
-        self.state.selected_units = [n for n, cb in self.boxes.items() if cb.isChecked()]
-
-        # Fractions
-        for prefix, w in self.fracs.items():
-            if not w.isEnabled():
-                self.state.unit_fractions[prefix] = 0.0
+        # Gather selected units (up to 4) and their fractions
+        design_units = []  # list of (unit_name, fraction)
+        for r in self.rows:
+            name = r["combo"].currentData()
+            if name is None:
                 continue
             try:
-                self.state.unit_fractions[prefix] = float(w.text()) if w.text() else 0.0
+                frac = float(r["frac"].text()) if r["frac"].text() else 0.0
             except ValueError:
-                pass
+                frac = 0.0
+            design_units.append((name, frac))
+
+        # Persist basic list
+        self.state.design_units = design_units
+
+        # Build per-instance descriptors with unique prefixes (e.g., pm1, pm2, ...)
+        counts: dict[str, int] = {}
+        instances = []
+        for name, frac in design_units:
+            counts[name] = counts.get(name, 0) + 1
+            cls = self.registry[name]
+            base = getattr(cls, "PREFIX", name.lower())
+            inst_prefix = f"{base}{counts[name]}"
+            instances.append({"name": name, "prefix": inst_prefix, "fraction": float(frac)})
+        self.state.design_instances = instances
+
+        # Maintain selected_units for any legacy consumers (unique types)
+        seen = set()
+        unique_units = []
+        for name, _ in design_units:
+            if name not in seen:
+                seen.add(name)
+                unique_units.append(name)
+        self.state.selected_units = unique_units
+
+        # Fractions per instance prefix for controller
+        self.state.unit_fractions = {inst["prefix"]: inst["fraction"] for inst in instances}
 
         # Steady-state
         if self.ss_checkbox.isChecked():

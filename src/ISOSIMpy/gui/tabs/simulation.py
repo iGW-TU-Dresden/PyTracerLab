@@ -64,7 +64,7 @@ class SimulationTab(QWidget):
         obs = self.state.target_series[1] if self.state.target_series else None
         fig, ax = plt.subplots(figsize=(8, 4))
         if obs is not None:
-            ax.scatter(times, obs, label="Observations", marker="x", zorder=100)
+            ax.scatter(times, obs, label="Observations", marker="x", zorder=100, c="red")
         ax.plot(times, self.state.last_simulation, label="Simulation", c="k")
         ax.set_yscale("log")
         ax.legend()
