@@ -1,7 +1,5 @@
 # Using ISOSIMpy
-
 ## Using the Graphical User Interface
-
 In general, using the Graphical User Interface (GUI) is stricter and less versatile than using the package it is built on. Specifically, the app assumes a certain structure of time series data, is not scalable well to handle many different datasets, and offers limited post-processing functionality. Nevertheless, the GUI is a highly user-friendly option to performing analysis of groundwater residence time distributions using lumped parameter models.
 
 The GUI is structured into different **Tabs**. Those **Tabs** represent the typical workflow and should be considered in their present order. The individual **Tabs** are described in more detail below.
@@ -63,6 +61,21 @@ In this **Tab**, simulations can be performed, model parameters can be calibrate
 
 (preparing-datasets)=
 ## Preparing Datasets
+Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in ISOSIMpy.
+
+### Montly Data
+Monthly tracer input series should have the following format:
+
+```plaintext
+# Date, Value
+1996-01, 1.03
+1996-02, 2.12
+1996-03, 0.08
+...
+2009-11, 0.05
+```
+
+Instead of "# Date, Value", any other description can be used. **The first line in the file is skipped when reading!**
 
 (model-warmup)=
 ## Model Warmup
