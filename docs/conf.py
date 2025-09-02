@@ -34,6 +34,9 @@ autodoc_default_options = {"members": True, "undoc-members": False, "show-inheri
 
 napoleon_google_docstring = False  # True if using Google style
 napoleon_numpy_docstring = True  # True if using NumPy style
+# Render class attribute docs from "Attributes" sections as plain ivar fields
+# (prevents duplicate attribute targets alongside autodoc's member listing)
+napoleon_use_ivar = True
 
 myst_enable_extensions = [
     "colon_fence",
@@ -80,6 +83,6 @@ autosummary_imported_members = False
 # Disambiguate short type names in NumPy-style docstrings
 napoleon_type_aliases = {
     "Unit": "ISOSIMpy.model.units.Unit",
-    "Model": "ISOSIMpy.model.model.Model",
+    "Model": "ISOSIMpy.model.Model",  # prefer public alias to avoid ambiguity
     "Solver": "ISOSIMpy.model.solver.Solver",
 }

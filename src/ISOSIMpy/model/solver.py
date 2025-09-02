@@ -442,7 +442,7 @@ def run_solver(model: Model, key: str, params: Dict[str, Any] | None = None) -> 
 
     Parameters
     ----------
-    model : Model
+    model : ISOSIMpy.model.Model
         Model instance with inputs, targets, and parameter registry.
     key : str
         Solver registry key (e.g., ``"de"`` or ``"mcmc"``).
