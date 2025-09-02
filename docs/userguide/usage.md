@@ -61,6 +61,8 @@ In this **Tab**, simulations can be performed, model parameters can be calibrate
 
 ![An example report after parameter inference (calibration).](report.png)
 
+(preparing-datasets)=
 ## Preparing Datasets
 
+(model-warmup)=
 ## Model Warmup
