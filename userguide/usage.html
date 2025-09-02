@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Concepts" href="concepts.html" /><link rel="prev" title="User Guide" href="index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Verwendung von ISOSIMpy" href="usage_de.html" /><link rel="prev" title="User Guide" href="index.html" />
         <link rel="prefetch" href="../_static/logo.png" as="image" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
@@ -207,6 +207,7 @@
 <ul class="current">
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">User Guide</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of User Guide</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Using ISOSIMpy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage_de.html">Verwendung von ISOSIMpy</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts.html">Concepts</a></li>
 </ul>
 </li>
@@ -281,16 +282,89 @@
         <article role="main" id="furo-main-content">
           <section id="using-isosimpy">
 <h1>Using ISOSIMpy<a class="headerlink" href="#using-isosimpy" title="Link to this heading">¶</a></h1>
-<section id="using-the-executable">
-<h2>Using the Executable<a class="headerlink" href="#using-the-executable" title="Link to this heading">¶</a></h2>
-<p>In general, using the executable is stricter and less versatile than using the package it is built on. Specifically, the app assumes a certain structure of time series data.</p>
-<p>The app is structured into different <strong>Tabs</strong>. Those <strong>Tabs</strong> represent the typical workflow and should be considered in their present order:</p>
-<ol class="arabic simple">
-<li><p>Tab <strong>Input</strong>: select CSVs for input and target time series (two columns: date, value). Choose monthly or yearly; choose tracer (Tritium / C-14).</p></li>
-<li><p>Tab <strong>Model Design</strong>: check EPM/PM.</p></li>
-<li><p>Tab <strong>Parameters</strong>: edit bounds, initial values, fixed flags, and unit mixes; steady state and warmup.</p></li>
-<li><p>Tab <strong>Simulation</strong>: run simulation or calibration, view plot and results.</p></li>
-</ol>
+<section id="using-the-graphical-user-interface">
+<h2>Using the Graphical User Interface<a class="headerlink" href="#using-the-graphical-user-interface" title="Link to this heading">¶</a></h2>
+<p>In general, using the Graphical User Interface (GUI) is stricter and less versatile than using the package it is built on. Specifically, the app assumes a certain structure of time series data, is not scalable well to handle many different datasets, and offers limited post-processing functionality. Nevertheless, the GUI is a highly user-friendly option to performing analysis of groundwater residence time distributions using lumped parameter models.</p>
+<p>The GUI is structured into different <strong>Tabs</strong>. Those <strong>Tabs</strong> represent the typical workflow and should be considered in their present order. The individual <strong>Tabs</strong> are described in more detail below.</p>
+<section id="the-input-tab">
+<h3>1. The Input Tab<a class="headerlink" href="#the-input-tab" title="Link to this heading">¶</a></h3>
+<p>In this <strong>Tab</strong>, datasets are loaded and the most basic settings for subsequent modelling are made.</p>
+<ul class="simple">
+<li><p>select temporal resolution (yearly or monthly data in time series and model simulations)</p></li>
+<li><p>select tracer ($^3\mathrm{H}$ or $^14\mathrm{C}$)</p></li>
+<li><p>select and load tracer input time series file using the file dialog that opens up; see <a class="reference internal" href="#preparing-datasets">here</a> for details on how to prepare tracer input time series files</p></li>
+<li><p>select and load tracer observation time series file using the file dialog that opens up; see <a class="reference internal" href="#preparing-datasets">here</a> for details on how to prepare tracer observation time series files</p></li>
+</ul>
+<p><strong>Note</strong>: the same units of tracer concentration should be used in both the tracer input data and the observation data. Units are not checked internally. <strong>If units are not equal, unwanted and wrong results are obtained!</strong></p>
+<p><img alt="An image of the Input Tab." src="../_images/tab01.png" /></p>
+</section>
+<section id="the-model-tab">
+<h3>2. The Model Tab<a class="headerlink" href="#the-model-tab" title="Link to this heading">¶</a></h3>
+<p>In this <strong>Tab</strong>, the different model parts are selected that are included in the simulations.</p>
+<ul class="simple">
+<li><p>select up to 4 model units to be used in parallel</p>
+<ul>
+<li><p>available units:</p>
+<ul>
+<li><p>Piston-Flow Model (<strong>PM</strong>)</p></li>
+<li><p>Exponential Model (<strong>EM</strong>)</p></li>
+<li><p>Exponential Piston-Flow Model (<strong>EPM</strong>)</p></li>
+<li><p>Dispersion Model (<strong>DM</strong>)</p></li>
+</ul>
+</li>
+<li><p>each unit is associated with a corresponding fraction of the total system response or output; the fractions of all active units need to sum to units, otherwise an error is raised, and the model will not run</p></li>
+</ul>
+</li>
+<li><p>specify if there is a steady state tracer input that should be considered for the time prior to the start of the datasets</p></li>
+<li><p>specify the warmup time span</p>
+<ul>
+<li><p>this prepends the steady state tracer input for the time of the number of tracer half lives specified here</p></li>
+<li><p>model warmup helps to remove unwanted irregularities that can appear in early phases of simulations; see <a class="reference internal" href="#model-warmup">here</a> for more details</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Note</strong>: the steady state input value is interpreted in the same units that are used in the tracer input and observation datasets. Units are not checked internally. <strong>If units are not equal, unwanted and wrong results are obtained!</strong></p>
+<p><img alt="An image of the Model Tab." src="../_images/tab02.png" /></p>
+</section>
+<section id="the-parameters-tab">
+<h3>3. The Parameters Tab<a class="headerlink" href="#the-parameters-tab" title="Link to this heading">¶</a></h3>
+<p>In this <strong>Tab</strong>, settings are made regarding model parameters, how they are bounded during calibration, and what current values they take.</p>
+<ul class="simple">
+<li><p>specify the lower bound, current value, upper bound, and calibration status for all model parameters; different model parameters are organized in rows</p>
+<ul>
+<li><p>the value that is specified for a parameter will be used as its value for simple simulation and as the initial value for calibration</p></li>
+<li><p>parameters that are set to <em>fixed</em> remain at their specified value during calibration</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Note</strong>: parameter time units are always in months. Half lives are internally converted but other parameters having time units are interpreted in months.</p>
+<p><img alt="An image of the Parameters Tab." src="../_images/tab03.png" /></p>
+</section>
+<section id="the-simulation-tab">
+<h3>4. The Simulation Tab<a class="headerlink" href="#the-simulation-tab" title="Link to this heading">¶</a></h3>
+<p>In this <strong>Tab</strong>, simulations can be performed, model parameters can be calibrated automatically, results can be plotted, and reports can be generated.</p>
+<ul class="simple">
+<li><p>perform a model simulation using the current parameters</p></li>
+<li><p>perform model calibration</p>
+<ul>
+<li><p>select a solver</p></li>
+<li><p>change solver parameters (requires at lease a basic understanding of the solvers)</p></li>
+<li><p>run automatic calibration</p></li>
+</ul>
+</li>
+<li><p>plot results of current simulation / calibrated model simulation</p></li>
+<li><p>write a report including the calibrated parameters, error metrics, and other model details to a text file; uses a file dialog to store the report file</p></li>
+</ul>
+<p><img alt="An image of the Simulation Tab." src="../_images/tab04.png" /></p>
+<p><img alt="An example plot after parameter inference (calibration) using an MCMC sampler." src="../_images/plot.png" /></p>
+<p><img alt="An example report after parameter inference (calibration)." src="../_images/report.png" /></p>
+</section>
+</section>
+<section id="preparing-datasets">
+<span id="id1"></span><h2>Preparing Datasets<a class="headerlink" href="#preparing-datasets" title="Link to this heading">¶</a></h2>
+</section>
+<section id="model-warmup">
+<span id="id2"></span><h2>Model Warmup<a class="headerlink" href="#model-warmup" title="Link to this heading">¶</a></h2>
 </section>
 </section>
 
@@ -299,12 +373,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="concepts.html">
+          <a class="next-page" href="usage_de.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Concepts</div>
+                <div class="title">Verwendung von ISOSIMpy</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -350,7 +424,15 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Using ISOSIMpy</a><ul>
-<li><a class="reference internal" href="#using-the-executable">Using the Executable</a></li>
+<li><a class="reference internal" href="#using-the-graphical-user-interface">Using the Graphical User Interface</a><ul>
+<li><a class="reference internal" href="#the-input-tab">1. The Input Tab</a></li>
+<li><a class="reference internal" href="#the-model-tab">2. The Model Tab</a></li>
+<li><a class="reference internal" href="#the-parameters-tab">3. The Parameters Tab</a></li>
+<li><a class="reference internal" href="#the-simulation-tab">4. The Simulation Tab</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#preparing-datasets">Preparing Datasets</a></li>
+<li><a class="reference internal" href="#model-warmup">Model Warmup</a></li>
 </ul>
 </li>
 </ul>
