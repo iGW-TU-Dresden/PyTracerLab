@@ -1,3 +1,5 @@
+"""Application entry point for the ISOSIMpy GUI."""
+
 import sys
 
 from PyQt5.QtWidgets import QApplication
@@ -6,6 +8,7 @@ from .main_window import MainWindow
 
 
 def main():
+    """Launch the Qt application and show the main window."""
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()

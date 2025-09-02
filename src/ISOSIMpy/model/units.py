@@ -1,3 +1,5 @@
+"""Base classes for model units."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -146,6 +148,102 @@ class EPMUnit(Unit):
         cutoff = self.mtt * (1.0 - 1.0 / self.eta)
         h = np.where(tau < cutoff, 0.0, h_prelim)
         # radioactive/first-order decay applied to transit time
+        h *= np.exp(-lambda_ * tau)
+        return h
+
+
+@dataclass
+class DMUnit(Unit):
+    """Dispersion Model (DM) unit.
+
+    Parameters
+    ----------
+    mtt : float
+        Mean travel time.
+    DP : float
+        Dispersion parameter. Represents the inverse of the Peclet number.
+        Also represents the ratio of the dispersion coefficient to the
+        velocity and outlet / sampling position
+    PREFIX : str
+        Prefix for local parameter names. Helper for GUI.
+    PARAMS : List[Dict[str, Any]]
+        List of (default) parameter definitions. Helper for GUI.
+    """
+
+    mtt: float
+    DP: float
+    PREFIX = "dm"
+    PARAMS = [
+        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (1.0, 10000.0)},
+        {"key": "DP", "label": "Dispersion Param.", "default": 1.0, "bounds": (0.0001, 10.0)},
+    ]
+
+    def param_values(self) -> Dict[str, float]:
+        """Get parameter values.
+
+        Returns
+        -------
+        Dict[str, float]
+            Mapping from local parameter name to value.
+        """
+        return {"mtt": float(self.mtt), "DP": float(self.DP)}
+
+    def set_param_values(self, values: Dict[str, float]) -> None:
+        """Set one or more local parameter values.
+
+        Parameters
+        ----------
+        values : Dict[str, float]
+            Mapping from local parameter name to new value. Keys not present
+            are ignored.
+        """
+        if "mtt" in values:
+            self.mtt = float(values["mtt"])
+        if "DP" in values:
+            self.DP = float(values["DP"])
+
+    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+        """DM impulse response with decay.
+
+        The continuous-time DM response (without decay) is
+        ``h(τ) = (1/mtt) * 1 / (sqrt(K)) * exp((1 - τ / mtt)^2 / K)`` with
+        ``K = 4 pi DP (τ / mtt)``. We also apply an exponential decay
+        term ``exp(-λ τ)``.
+
+        Parameters
+        ----------
+        tau : ndarray
+            Non-negative time axis (same spacing as simulation time grid).
+        dt : float
+            Time step size of the discretization.
+        lambda_ : float
+            Decay constant (1 / time units of ``tau``).
+
+        Returns
+        -------
+        ndarray
+            Impulse response evaluated at ``tau``.
+        """
+        # Check for edge cases
+        if self.DP <= 0.0 or self.mtt <= 0.0:
+            return np.zeros_like(tau)
+
+        # The transfer function breaks down at τ=0
+        # We therefore prepare a result array for h and fill it up, starting
+        # with the non-zero values
+        h = np.zeros_like(tau)
+        K = np.zeros_like(tau)
+
+        # Compute K-term
+        K[1:] = 4 * np.pi * self.DP * tau[1:] / self.mtt
+
+        # Base DM shape
+        h[1:] = (
+            (1 / self.mtt)
+            * (1 / np.sqrt(K[1:]))
+            * np.exp(((1 - (tau[1:] / self.mtt)) ** 2) / K[1:])
+        )
+        # Radioactive/first-order decay applied to transit time
         h *= np.exp(-lambda_ * tau)
         return h
 

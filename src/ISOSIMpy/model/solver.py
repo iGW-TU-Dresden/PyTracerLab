@@ -1,3 +1,5 @@
+"""Optimization wrapper for :class:`~ISOSIMpy.model.model.Model`."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -425,12 +427,40 @@ SOLVER_REGISTRY: Dict[str, Dict[str, object]] = {
 
 
 def available_solvers() -> List[Tuple[str, str]]:
-    """List of (key, display name) for available solvers."""
+    """List available solvers.
+
+    Returns
+    -------
+    list of (str, str)
+        Pairs of registry key and human-readable display name.
+    """
     return [(k, v["name"]) for k, v in SOLVER_REGISTRY.items()]
 
 
 def run_solver(model: Model, key: str, params: Dict[str, Any] | None = None) -> Dict[str, object]:
-    """Run a solver by registry key and return a standardized payload."""
+    """Run a registered solver and return a standardized payload.
+
+    Parameters
+    ----------
+    model : Model
+        Model instance with inputs, targets, and parameter registry.
+    key : str
+        Solver registry key (e.g., ``"de"`` or ``"mcmc"``).
+    params : dict, optional
+        Solver-specific keyword parameters.
+
+    Returns
+    -------
+    dict
+        Standardized payload consumed by the GUI, including at minimum
+        the simulated series under the ``"sim"`` key; for MCMC also
+        uncertainty envelopes and metadata.
+
+    Raises
+    ------
+    ValueError
+        If the solver key is not registered.
+    """
     rec = SOLVER_REGISTRY.get(key)
     if rec is None:
         raise ValueError(f"Unknown solver key: {key}")

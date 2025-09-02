@@ -1,3 +1,5 @@
+"""Qt controller that builds the model and runs simulations/solvers."""
+
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from ..model import model as mm
@@ -6,6 +8,24 @@ from ..model.registry import UNIT_REGISTRY
 
 
 class Controller(QObject):
+    """Bridge between GUI state and the computational model.
+
+    Orchestrates model construction from GUI state, runs simulations and
+    calibrations, and emits signals with results or errors.
+
+    Signals
+    -------
+    simulated : object
+        Emitted after a forward simulation; carries a NumPy array.
+    calibrated : object
+        Emitted after calibration; carries a payload ``dict`` with simulation
+        and optional envelopes/metadata.
+    status : str
+        Short user-facing status messages.
+    error : str
+        Error messages suitable for display.
+    """
+
     # Use generic object payloads to support arrays or dicts from different solvers
     simulated = pyqtSignal(object)
     calibrated = pyqtSignal(object)
@@ -13,6 +33,7 @@ class Controller(QObject):
     error = pyqtSignal(str)
 
     def __init__(self, state):
+        """Initialize the controller with a shared :class:`AppState`."""
         super().__init__()
         self.state = state
         self.ml = None
@@ -23,6 +44,12 @@ class Controller(QObject):
         return 0.693 / (5700.0 * (12.0 if self.state.is_monthly else 1.0))
 
     def build_model(self):
+        """Construct a :class:`~ISOSIMpy.model.model.Model` from current state.
+
+        Creates per-instance units (including bounds and fixed flags) based on
+        the detailed design in ``state.design_instances`` and the per-instance
+        parameters in ``state.params``.
+        """
         try:
             # We usually work in months (dt = 1.0); for yearly calculations
             # We therefore have to use dt = 12.0
@@ -89,6 +116,7 @@ class Controller(QObject):
             self.ml = None
 
     def simulate(self):
+        """Run a forward simulation and emit the result via ``simulated``."""
         try:
             self.build_model()
             if self.ml is None:
@@ -101,6 +129,11 @@ class Controller(QObject):
             self.error.emit(str(e))
 
     def calibrate(self):
+        """Run the selected solver and emit a standardized payload.
+
+        The solver is chosen from ``state.solver_key`` and configured using
+        ``state.solver_params``.
+        """
         try:
             self.build_model()
             if self.ml is None:
@@ -116,6 +149,7 @@ class Controller(QObject):
             self.error.emit(str(e))
 
     def write_report(self, filename):
+        """Write a plain-text model report to ``filename`` using current state."""
         if self.ml is None:
             return
         if self.state.is_monthly:

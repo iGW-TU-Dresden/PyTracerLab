@@ -1,3 +1,5 @@
+"""Main window for the ISOSIMpy GUI, assembling all tabs."""
+
 from PyQt5.QtWidgets import QMessageBox, QTabWidget, QVBoxLayout, QWidget
 
 from ..model.registry import UNIT_REGISTRY
@@ -10,7 +12,10 @@ from .tabs.simulation import SimulationTab
 
 
 class MainWindow(QWidget):
+    """Top-level application window hosting the main tabs."""
+
     def __init__(self):
+        """Create the main window and wire up tabs and controller."""
         super().__init__()
         # Initialize the window
         self.setWindowTitle("ISOSIMpy")

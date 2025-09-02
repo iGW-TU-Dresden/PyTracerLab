@@ -1,15 +1,17 @@
+"""Solver parameter settings window."""
+
 from __future__ import annotations
 
 from typing import Any, Dict
 
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5.QtWidgets import (
     QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QLineEdit,
-    QSpinBox,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -17,6 +19,12 @@ from PyQt5.QtWidgets import (
 
 
 class SolverParamsDialog(QDialog):
+    """Tabbed dialog for editing DE and MCMC solver parameters.
+
+    The dialog reads current values from ``state.solver_params`` and writes
+    back updated values on accept.
+    """
+
     def __init__(self, state, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Solver Parameters")
@@ -26,24 +34,52 @@ class SolverParamsDialog(QDialog):
 
         # DE tab
         self._de_widgets = {}
+
         de_box = QGroupBox("Differential Evolution")
         de_form = QFormLayout(de_box)
-        w_maxiter = QSpinBox()
-        w_maxiter.setRange(1, 1_000_000)
-        w_popsize = QSpinBox()
-        w_popsize.setRange(1, 10_000)
-        w_mut_lo = QDoubleSpinBox()
-        w_mut_lo.setDecimals(4)
-        w_mut_lo.setRange(0.0, 3.0)
-        w_mut_hi = QDoubleSpinBox()
-        w_mut_hi.setDecimals(4)
-        w_mut_hi.setRange(0.0, 3.0)
-        w_recomb = QDoubleSpinBox()
-        w_recomb.setDecimals(4)
-        w_recomb.setRange(0.0, 1.0)
-        w_tol = QDoubleSpinBox()
-        w_tol.setDecimals(9)
-        w_tol.setRange(1e-12, 1.0)
+
+        w_maxiter = QLineEdit()
+        maxiter_validator = QIntValidator(1, 1_000_000, self)
+        w_maxiter.setValidator(maxiter_validator)
+        w_maxiter.setAlignment(Qt.AlignRight)
+
+        w_popsize = QLineEdit()
+        popsize_validator = QIntValidator(1, 10_000, self)
+        w_popsize.setValidator(popsize_validator)
+        w_popsize.setAlignment(Qt.AlignRight)
+
+        w_mut_lo = QLineEdit()
+        mut_lo_val = QDoubleValidator(self)
+        mut_lo_val.setNotation(QDoubleValidator.StandardNotation)
+        mut_lo_val.setDecimals(4)
+        mut_lo_val.setRange(0.0, 3.0, 4)
+        w_mut_lo.setValidator(mut_lo_val)
+        w_mut_lo.setAlignment(Qt.AlignRight)
+
+        w_mut_hi = QLineEdit()
+        mut_hi_val = QDoubleValidator(self)
+        mut_hi_val.setNotation(QDoubleValidator.StandardNotation)
+        mut_hi_val.setDecimals(4)
+        mut_hi_val.setRange(0.0, 3.0, 4)
+        w_mut_hi.setValidator(mut_hi_val)
+        w_mut_hi.setAlignment(Qt.AlignRight)
+
+        w_recomb = QLineEdit()
+        recomb_val = QDoubleValidator(self)
+        recomb_val.setNotation(QDoubleValidator.StandardNotation)
+        recomb_val.setDecimals(4)
+        recomb_val.setRange(0.0, 1.0, 4)
+        w_recomb.setValidator(recomb_val)
+        w_recomb.setAlignment(Qt.AlignRight)
+
+        w_tol = QLineEdit()
+        tol_val = QDoubleValidator(self)
+        tol_val.setNotation(QDoubleValidator.StandardNotation)
+        tol_val.setDecimals(9)
+        tol_val.setRange(1e-12, 1.0, 9)
+        w_tol.setValidator(tol_val)
+        w_tol.setAlignment(Qt.AlignRight)
+
         self._de_widgets = {
             "maxiter": w_maxiter,
             "popsize": w_popsize,
@@ -61,19 +97,41 @@ class SolverParamsDialog(QDialog):
 
         # MCMC tab
         self._mcmc_widgets = {}
+
         mcmc_box = QGroupBox("MCMC")
         mcmc_form = QFormLayout(mcmc_box)
-        w_nsamp = QSpinBox()
-        w_nsamp.setRange(1, 1_000_000)
-        w_burn = QSpinBox()
-        w_burn.setRange(0, 1_000_000)
-        w_thin = QSpinBox()
-        w_thin.setRange(1, 10_000)
-        w_rw = QDoubleSpinBox()
-        w_rw.setDecimals(6)
-        w_rw.setRange(1e-9, 10.0)
+
+        w_nsamp = QLineEdit()
+        nsamp_validator = QIntValidator(1, 1_000_000, self)
+        w_nsamp.setValidator(nsamp_validator)
+        w_nsamp.setAlignment(Qt.AlignRight)
+
+        w_burn = QLineEdit()
+        burn_validator = QIntValidator(0, 1_000_000, self)
+        w_burn.setValidator(burn_validator)
+        w_burn.setAlignment(Qt.AlignRight)
+
+        w_thin = QLineEdit()
+        thin_validator = QIntValidator(1, 10_000, self)
+        w_thin.setValidator(thin_validator)
+        w_thin.setAlignment(Qt.AlignRight)
+
+        w_rw = QLineEdit()
+        rw_val = QDoubleValidator(self)
+        rw_val.setNotation(QDoubleValidator.StandardNotation)
+        rw_val.setDecimals(6)
+        rw_val.setRange(1e-9, 10.0, 6)
+        w_rw.setValidator(rw_val)
+        w_rw.setAlignment(Qt.AlignRight)
+
         w_sigma = QLineEdit()
+        sigma_val = QDoubleValidator(self)
+        sigma_val.setNotation(QDoubleValidator.StandardNotation)
+        sigma_val.setDecimals(12)
+        sigma_val.setRange(-1e100, 1e100, 12)
+        w_sigma.setValidator(sigma_val)
         w_sigma.setPlaceholderText("leave empty to infer")
+
         self._mcmc_widgets = {
             "n_samples": w_nsamp,
             "burn_in": w_burn,
@@ -115,78 +173,103 @@ class SolverParamsDialog(QDialog):
         self._load_from_state()
 
     def _load_from_state(self) -> None:
+        """Populate the UI from ``state.solver_params`` with safe defaults."""
         # Load DE
         de = getattr(self.state, "solver_params", {}).get("de") or {}
-        self._de_widgets["maxiter"].setValue(int(de.get("maxiter", 10000)))
-        self._de_widgets["popsize"].setValue(int(de.get("popsize", 100)))
+        self._de_widgets["maxiter"].setText(str(int(de.get("maxiter", 10000))))
+        self._de_widgets["popsize"].setText(str(int(de.get("popsize", 100))))
         mut = de.get("mutation", (0.5, 1.99))
         try:
             lo, hi = float(mut[0]), float(mut[1])  # type: ignore[index]
         except Exception:
             lo, hi = 0.5, 1.99
-        self._de_widgets["mutation_lo"].setValue(lo)
-        self._de_widgets["mutation_hi"].setValue(hi)
-        self._de_widgets["recombination"].setValue(float(de.get("recombination", 0.5)))
-        self._de_widgets["tol"].setValue(float(de.get("tol", 1e-3)))
+        self._de_widgets["mutation_lo"].setText(str(lo))
+        self._de_widgets["mutation_hi"].setText(str(hi))
+        self._de_widgets["recombination"].setText(str(float(de.get("recombination", 0.5))))
+        self._de_widgets["tol"].setText(str(float(de.get("tol", 1e-3))))
 
         # Load MCMC
         mc = getattr(self.state, "solver_params", {}).get("mcmc") or {}
-        self._mcmc_widgets["n_samples"].setValue(int(mc.get("n_samples", 1000)))
-        self._mcmc_widgets["burn_in"].setValue(int(mc.get("burn_in", 2000)))
-        self._mcmc_widgets["thin"].setValue(int(mc.get("thin", 1)))
-        self._mcmc_widgets["rw_scale"].setValue(float(mc.get("rw_scale", 0.05)))
+        self._mcmc_widgets["n_samples"].setText(str(int(mc.get("n_samples", 1000))))
+        self._mcmc_widgets["burn_in"].setText(str(int(mc.get("burn_in", 2000))))
+        self._mcmc_widgets["thin"].setText(str(int(mc.get("thin", 1))))
+        self._mcmc_widgets["rw_scale"].setText(str(float(mc.get("rw_scale", 0.05))))
         sigma_val = mc.get("sigma", None)
         self._mcmc_widgets["sigma"].setText("" if sigma_val is None else str(sigma_val))
 
     def _default_params(self) -> Dict[str, Dict[str, Any]]:
+        """Return built-in defaults for DE and MCMC parameters."""
         return {
             "de": {
-                "maxiter": 10000,
-                "popsize": 100,
-                "mutation": (0.5, 1.99),
-                "recombination": 0.5,
-                "tol": 1e-3,
+                "maxiter": 1000,
+                "popsize": 15,
+                "mutation": (0.5, 1.0),
+                "recombination": 0.7,
+                "tol": 1e-2,
             },
             "mcmc": {
-                "n_samples": 1000,
+                "n_samples": 10000,
                 "burn_in": 2000,
-                "thin": 1,
+                "thin": 2,
                 "rw_scale": 0.05,
                 "sigma": None,
             },
         }
 
     def _load_defaults(self) -> None:
+        """Reset the UI to built-in defaults (does not modify state)."""
         defaults = self._default_params()
         de = defaults["de"]
-        self._de_widgets["maxiter"].setValue(int(de["maxiter"]))
-        self._de_widgets["popsize"].setValue(int(de["popsize"]))
-        self._de_widgets["mutation_lo"].setValue(float(de["mutation"][0]))
-        self._de_widgets["mutation_hi"].setValue(float(de["mutation"][1]))
-        self._de_widgets["recombination"].setValue(float(de["recombination"]))
-        self._de_widgets["tol"].setValue(float(de["tol"]))
+        self._de_widgets["maxiter"].setText(str(int(de["maxiter"])))
+        self._de_widgets["popsize"].setText(str(int(de["popsize"])))
+        self._de_widgets["mutation_lo"].setText(str(float(de["mutation"][0])))
+        self._de_widgets["mutation_hi"].setText(str(float(de["mutation"][1])))
+        self._de_widgets["recombination"].setText(str(float(de["recombination"])))
+        self._de_widgets["tol"].setText(str(float(de["tol"])))
 
         mc = defaults["mcmc"]
-        self._mcmc_widgets["n_samples"].setValue(int(mc["n_samples"]))
-        self._mcmc_widgets["burn_in"].setValue(int(mc["burn_in"]))
-        self._mcmc_widgets["thin"].setValue(int(mc["thin"]))
-        self._mcmc_widgets["rw_scale"].setValue(float(mc["rw_scale"]))
+        self._mcmc_widgets["n_samples"].setText(str(int(mc["n_samples"])))
+        self._mcmc_widgets["burn_in"].setText(str(int(mc["burn_in"])))
+        self._mcmc_widgets["thin"].setText(str(int(mc["thin"])))
+        self._mcmc_widgets["rw_scale"].setText(str(float(mc["rw_scale"])))
         self._mcmc_widgets["sigma"].setText("")
 
     def _on_reset(self) -> None:
+        """Handle the reset button by reloading built-in defaults."""
         self._load_defaults()
 
     def accept(self) -> None:  # noqa: D401
+        """Validate and save parameters back to ``state.solver_params``."""
         # Save DE
+        defaults = self._default_params()
+
+        def _to_int(edit: QLineEdit, default_val: int) -> int:
+            txt = edit.text().strip()
+            try:
+                val = int(txt)
+            except Exception:
+                return default_val
+            return val
+
+        def _to_float(edit: QLineEdit, default_val: float) -> float:
+            txt = edit.text().strip()
+            try:
+                val = float(txt)
+            except Exception:
+                return default_val
+            return val
+
         de = {
-            "maxiter": int(self._de_widgets["maxiter"].value()),
-            "popsize": int(self._de_widgets["popsize"].value()),
+            "maxiter": _to_int(self._de_widgets["maxiter"], int(defaults["de"]["maxiter"])),
+            "popsize": _to_int(self._de_widgets["popsize"], int(defaults["de"]["popsize"])),
             "mutation": (
-                float(self._de_widgets["mutation_lo"].value()),
-                float(self._de_widgets["mutation_hi"].value()),
+                _to_float(self._de_widgets["mutation_lo"], float(defaults["de"]["mutation"][0])),
+                _to_float(self._de_widgets["mutation_hi"], float(defaults["de"]["mutation"][1])),
             ),
-            "recombination": float(self._de_widgets["recombination"].value()),
-            "tol": float(self._de_widgets["tol"].value()),
+            "recombination": _to_float(
+                self._de_widgets["recombination"], float(defaults["de"]["recombination"])
+            ),
+            "tol": _to_float(self._de_widgets["tol"], float(defaults["de"]["tol"])),
         }
 
         # Save MCMC
@@ -200,10 +283,14 @@ class SolverParamsDialog(QDialog):
             except ValueError:
                 sigma_val = None
         mcmc = {
-            "n_samples": int(self._mcmc_widgets["n_samples"].value()),
-            "burn_in": int(self._mcmc_widgets["burn_in"].value()),
-            "thin": int(self._mcmc_widgets["thin"].value()),
-            "rw_scale": float(self._mcmc_widgets["rw_scale"].value()),
+            "n_samples": _to_int(
+                self._mcmc_widgets["n_samples"], int(defaults["mcmc"]["n_samples"])
+            ),
+            "burn_in": _to_int(self._mcmc_widgets["burn_in"], int(defaults["mcmc"]["burn_in"])),
+            "thin": _to_int(self._mcmc_widgets["thin"], int(defaults["mcmc"]["thin"])),
+            "rw_scale": _to_float(
+                self._mcmc_widgets["rw_scale"], float(defaults["mcmc"]["rw_scale"])
+            ),
             "sigma": sigma_val,
         }
 

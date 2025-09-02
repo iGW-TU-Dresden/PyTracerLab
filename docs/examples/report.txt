@@ -10,13 +10,13 @@ Units count:             2
 
 Global fit
 ----------
-MSE: 0.000281959
+MSE: 0.00197369
 
 Parameters by unit
 ------------------
 [epm1] fraction=0.200
-  epm1.eta        value=1.38278, initial=1.1, bounds=(1, 2), fixed=False
-  epm1.mtt        value=519.747, initial=120, bounds=(0, 10000), fixed=False
+  epm1.eta        value=1.0863, initial=1.1, bounds=(1, 2), fixed=False
+  epm1.mtt        value=312.477, initial=120, bounds=(0, 10000), fixed=False
 
 [pm1] fraction=0.800
-  pm1.mtt         value=57.5878, initial=120, bounds=(0, 10000), fixed=False
+  pm1.mtt         value=5841.39, initial=120, bounds=(0, 10000), fixed=False

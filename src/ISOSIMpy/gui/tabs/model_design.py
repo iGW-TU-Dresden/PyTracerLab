@@ -1,3 +1,5 @@
+"""Tab to design the model layout: unit types, fractions, warmup."""
+
 from functools import partial
 
 from PyQt5.QtCore import Qt, pyqtSignal
@@ -19,6 +21,13 @@ from PyQt5.QtWidgets import (
 
 
 class ModelDesignTab(QWidget):
+    """Tab to select unit types, assign fractions, and set warmup options.
+
+    Emits ``selection_changed`` whenever unit selection, fractions, or
+    warmup settings change. Updates fields in :class:`AppState` used by the
+    parameters tab and controller.
+    """
+
     selection_changed = pyqtSignal()
 
     def __init__(self, state, registry, parent=None):
@@ -87,7 +96,7 @@ class ModelDesignTab(QWidget):
                 combo.addItem(nm, userData=nm)
 
             fx = QLineEdit(self)
-            fx.setText("0.0000")
+            fx.setText("0.00")
             fx.setAlignment(Qt.AlignRight)
             fx.setValidator(validator)
             fx.setMaximumWidth(frac_width)
@@ -123,7 +132,7 @@ class ModelDesignTab(QWidget):
         self.ss_checkbox.setChecked(bool(self.state.steady_state_enabled))
 
         self.ss_value = QLineEdit(self)
-        self.ss_value.setText(f"{float(self.state.steady_state_input):.4f}")
+        self.ss_value.setText(f"{float(self.state.steady_state_input):.2f}")
         self.ss_value.setAlignment(Qt.AlignRight)
         self.ss_value.setValidator(validator)
         self.ss_value.setMaximumWidth(frac_width)

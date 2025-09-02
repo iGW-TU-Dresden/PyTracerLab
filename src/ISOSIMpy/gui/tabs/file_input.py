@@ -1,3 +1,5 @@
+"""Tab for frequency/tracer selection and CSV input loading."""
+
 from datetime import datetime
 
 import numpy as np
@@ -14,9 +16,18 @@ from PyQt5.QtWidgets import (
 
 
 class FileInputTab(QWidget):
+    """Tab to choose frequency, tracer, and load input/observation CSV files.
+
+    Signals
+    -------
+    changed
+        Emitted whenever user selections or loaded files change.
+    """
+
     changed = pyqtSignal()
 
     def __init__(self, state, parent=None):
+        """Create the tab and wire UI controls to update ``state``."""
         super().__init__(parent)
         self.state = state
         lay = QVBoxLayout(self)
@@ -80,6 +91,20 @@ class FileInputTab(QWidget):
         self.changed.emit()
 
     def _read_csv(self, path, monthly=True):
+        """Read a two-column CSV of timestamps and values.
+
+        Parameters
+        ----------
+        path : str
+            File path to read.
+        monthly : bool
+            Interpret timestamp format as ``"%Y-%m"`` if ``True`` else ``"%Y"``.
+
+        Returns
+        -------
+        tuple(ndarray, ndarray)
+            Parsed datetimes and corresponding float values.
+        """
         data = np.genfromtxt(
             path, delimiter=",", dtype=["<U7", float], encoding="utf-8", skip_header=1
         )

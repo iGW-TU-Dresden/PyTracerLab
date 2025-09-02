@@ -1,3 +1,5 @@
+"""Tab to run simulations/calibrations and visualize results."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import pyqtSignal
@@ -17,6 +19,18 @@ from .solver_params import SolverParamsDialog
 
 
 class SimulationTab(QWidget):
+    """Tab to select solvers, run simulation/calibration, and plot results.
+
+    Signals
+    -------
+    simulate_requested
+        Trigger a forward simulation using the current model.
+    calibrate_requested
+        Trigger running the selected solver to calibrate parameters.
+    report_requested : str
+        Trigger writing a report to the provided file path.
+    """
+
     simulate_requested = pyqtSignal()
     calibrate_requested = pyqtSignal()
     report_requested = pyqtSignal(str)  # carries the file path
@@ -106,6 +120,7 @@ class SimulationTab(QWidget):
         self.state.last_simulation = payload
 
     def show_status(self, msg):
+        """Display a non-blocking status message dialog."""
         QMessageBox.information(self, "Status", msg)
 
     def _plot(self):
@@ -151,7 +166,7 @@ class SimulationTab(QWidget):
                         np.asarray(env_20_80["low"], dtype=float),
                         np.asarray(env_20_80["high"], dtype=float),
                         color="0.7",
-                        alpha=0.6,
+                        alpha=0.7,
                         label="20–80% percentile",
                     )
             if sim is not None:

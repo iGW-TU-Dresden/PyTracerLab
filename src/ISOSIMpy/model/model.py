@@ -1,3 +1,5 @@
+"""Model container with a parameter registry."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -227,6 +229,12 @@ class Model:
         return self._n_warmup
 
     def _warmup(self) -> None:
+        """Prepend a steady-state warmup to input/target and set bookkeeping.
+
+        Uses ``n_warmup_half_lives`` and the decay constant to determine the
+        warmup length. If ``steady_state_input`` is not provided or length is
+        non-positive, no warmup is applied.
+        """
         t12 = 0.693 / self.lambda_
         self._n_warmup = int(t12) * self.n_warmup_half_lives
         if self.steady_state_input is None or self._n_warmup <= 0:
@@ -242,6 +250,13 @@ class Model:
         self._is_warm = True
 
     def _check(self) -> None:
+        """Ensure warmup is applied and mixture fractions are properly normalized.
+
+        Raises
+        ------
+        ValueError
+            If the sum of unit fractions deviates too much from 1.0.
+        """
         if not self._is_warm:
             self._warmup()
         s = sum(self.unit_fractions) if self.unit_fractions else 0.0

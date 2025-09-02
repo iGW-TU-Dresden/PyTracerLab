@@ -1,12 +1,32 @@
+"""Reusable GUI widgets used across tabs (parameter editors)."""
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtWidgets import QCheckBox, QGridLayout, QLabel, QLineEdit, QSizePolicy, QWidget
 
 
 class ParameterEditor(QWidget):
-    """
-    Composite editor for a single parameter with (lb, val, ub, fixed).
-    Exposes the QLineEdits as .lb, .val, .ub so external grids can place them.
+    """Composite editor for a single parameter.
+
+    Renders four controls for lower bound, value, upper bound, and a fixed
+    checkbox. The line edits are accessible via attributes ``lb``, ``val``,
+    and ``ub`` so that parent layouts can place them in a grid.
+
+    Parameters
+    ----------
+    prefix : str
+        Instance prefix used to namespace parameters (e.g., ``"epm1"``).
+    meta : dict
+        Parameter metadata with keys ``"key"``, ``"label"``, ``"bounds"``,
+        and ``"default"``.
+    initial : dict, optional
+        Optional initial record with keys ``"val"``, ``"lb"``, ``"ub"``, and
+        ``"fixed"``.
+
+    Notes
+    -----
+    The widget is self-contained but can also be embedded into an external
+    grid via its exposed sub-widgets.
     """
 
     def __init__(self, prefix: str, meta: dict, initial: dict | None = None, parent=None):
@@ -67,6 +87,8 @@ class ParameterEditor(QWidget):
         grid.addWidget(self.fixed, 0, 4)
 
     def to_dict(self):
+        """Return the current editor state as a serializable dict."""
+
         # Convert safely; fall back to current text->float conversion
         def _f(edit: QLineEdit):
             txt = edit.text().strip()

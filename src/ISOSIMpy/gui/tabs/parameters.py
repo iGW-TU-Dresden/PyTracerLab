@@ -1,3 +1,5 @@
+"""Tab that renders and persists unit parameter editors."""
+
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import QGridLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
@@ -5,6 +7,14 @@ from .widgets import ParameterEditor
 
 
 class ParametersTab(QWidget):
+    """Tab that renders parameter editors for each selected unit instance.
+
+    Signals
+    -------
+    ready
+        Emitted after the grid is built or refreshed.
+    """
+
     ready = pyqtSignal()
 
     def __init__(self, state, registry, parent=None):
@@ -32,6 +42,7 @@ class ParametersTab(QWidget):
                 w.setParent(None)
 
     def refresh(self):
+        """Rebuild the parameter grid from current design instances."""
         self._clear_grid()
         self.editors.clear()
 
@@ -97,6 +108,7 @@ class ParametersTab(QWidget):
         self.ready.emit()
 
     def commit(self):
+        """Persist edited parameter values/bounds/fixed flags into state."""
         for ed in self.editors:
             self.state.params.setdefault(ed.prefix, {})
             self.state.params[ed.prefix][ed.key] = ed.to_dict()
