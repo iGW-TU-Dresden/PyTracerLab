@@ -43,7 +43,8 @@ class SimulationTab(QWidget):
 
         # Solver selection row
         row = QHBoxLayout()
-        row.addWidget(QLabel("Solver:"))
+        lbl_solver = QLabel("Solver:")
+        row.addWidget(lbl_solver)
         self.cb_solver = QComboBox()
         self._solver_keys = []
         for key, name in ms.available_solvers():
@@ -59,35 +60,55 @@ class SimulationTab(QWidget):
         row.addWidget(self.cb_solver)
         row.addStretch(1)
 
+        # Simulation label
+        lbl_sim = QLabel("Simulation")
+        lbl_sim.setStyleSheet("font-weight: 600;")
+
         # Simulation button
         b_sim = QPushButton("Run Simulation")
         b_sim.clicked.connect(self.simulate_requested)
 
+        # Calibration label
+        lbl_cal = QLabel("Calibration")
+        lbl_cal.setStyleSheet("font-weight: 600;")
+
         # Edit solver parameters button
-        b_edit = QPushButton("Edit solver parameters")
+        b_edit = QPushButton("Edit Solver Parameters")
         b_edit.clicked.connect(self._edit_solver_params)
 
         # Calibration button
         b_cal = QPushButton("Run Calibration")
         b_cal.clicked.connect(self.calibrate_requested)
 
+        # Plotting label
+        lbl_plot = QLabel("Plotting")
+        lbl_plot.setStyleSheet("font-weight: 600;")
+
         # Plot button
         b_plot = QPushButton("Plot Results")
         b_plot.clicked.connect(self._plot)
+
+        # Report label
+        lbl_report = QLabel("Report")
+        lbl_report.setStyleSheet("font-weight: 600;")
 
         # Report button
         b_report = QPushButton("Write Report")
         b_report.clicked.connect(self._choose_report_file)
 
         # Add widgets
+        lay.addWidget(lbl_sim)
         lay.addWidget(b_sim)
         lay.addStretch(1)
+        lay.addWidget(lbl_cal)
         lay.addLayout(row)
         lay.addWidget(b_edit)
         lay.addWidget(b_cal)
         lay.addStretch(1)
+        lay.addWidget(lbl_plot)
         lay.addWidget(b_plot)
         lay.addStretch(1)
+        lay.addWidget(lbl_report)
         lay.addWidget(b_report)
 
     def _on_solver_changed(self, idx: int):
@@ -175,6 +196,8 @@ class SimulationTab(QWidget):
             # Legacy: just a single simulation array
             ax.plot(times, np.asarray(payload, dtype=float), label="Simulation", c="k")
 
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Tracer Concentration")
         ax.set_yscale("log")
         ax.legend()
         fig.tight_layout()

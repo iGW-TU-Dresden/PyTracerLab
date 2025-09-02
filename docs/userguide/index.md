@@ -6,5 +6,6 @@
 :hidden:
 
 usage
+usage_de
 concepts
 ```
