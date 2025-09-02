@@ -281,19 +281,43 @@
         <article role="main" id="furo-main-content">
           <section id="module-ISOSIMpy.gui.controller">
 <span id="isosimpy-gui-controller-module"></span><h1>ISOSIMpy.gui.controller module<a class="headerlink" href="#module-ISOSIMpy.gui.controller" title="Link to this heading">¶</a></h1>
+<p>Qt controller that builds the model and runs simulations/solvers.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ISOSIMpy.gui.controller.</span></span><span class="sig-name descname"><span class="pre">Controller</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/gui/controller.html#Controller"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.gui.controller.Controller" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">QObject</span></code></p>
+<p>Bridge between GUI state and the computational model.</p>
+<p>Orchestrates model construction from GUI state, runs simulations and
+calibrations, and emits signals with results or errors.</p>
+<section id="signals">
+<h2>Signals<a class="headerlink" href="#signals" title="Link to this heading">¶</a></h2>
+<dl class="simple">
+<dt>simulated<span class="classifier">object</span></dt><dd><p>Emitted after a forward simulation; carries a NumPy array.</p>
+</dd>
+<dt>calibrated<span class="classifier">object</span></dt><dd><p>Emitted after calibration; carries a payload <code class="docutils literal notranslate"><span class="pre">dict</span></code> with simulation
+and optional envelopes/metadata.</p>
+</dd>
+<dt>status<span class="classifier">str</span></dt><dd><p>Short user-facing status messages.</p>
+</dd>
+<dt>error<span class="classifier">str</span></dt><dd><p>Error messages suitable for display.</p>
+</dd>
+</dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller.build_model">
 <span class="sig-name descname"><span class="pre">build_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/gui/controller.html#Controller.build_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.gui.controller.Controller.build_model" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Construct a <a class="reference internal" href="ISOSIMpy.model.model.html#ISOSIMpy.model.model.Model" title="ISOSIMpy.model.model.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> from current state.</p>
+<p>Creates per-instance units (including bounds and fixed flags) based on
+the detailed design in <code class="docutils literal notranslate"><span class="pre">state.design_instances</span></code> and the per-instance
+parameters in <code class="docutils literal notranslate"><span class="pre">state.params</span></code>.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller.calibrate">
 <span class="sig-name descname"><span class="pre">calibrate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/gui/controller.html#Controller.calibrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.gui.controller.Controller.calibrate" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Run the selected solver and emit a standardized payload.</p>
+<p>The solver is chosen from <code class="docutils literal notranslate"><span class="pre">state.solver_key</span></code> and configured using
+<code class="docutils literal notranslate"><span class="pre">state.solver_params</span></code>.</p>
+</dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller.calibrated">
@@ -310,7 +334,8 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller.simulate">
 <span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/gui/controller.html#Controller.simulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.gui.controller.Controller.simulate" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Run a forward simulation and emit the result via <code class="docutils literal notranslate"><span class="pre">simulated</span></code>.</p>
+</dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller.simulated">
@@ -327,8 +352,10 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="ISOSIMpy.gui.controller.Controller.write_report">
 <span class="sig-name descname"><span class="pre">write_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/gui/controller.html#Controller.write_report"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.gui.controller.Controller.write_report" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Write a plain-text model report to <code class="docutils literal notranslate"><span class="pre">filename</span></code> using current state.</p>
+</dd></dl>
 
+</section>
 </dd></dl>
 
 </section>

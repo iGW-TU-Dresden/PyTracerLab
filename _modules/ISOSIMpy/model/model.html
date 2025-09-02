@@ -273,7 +273,9 @@
         </div>
         <article role="main" id="furo-main-content">
           <h1>Source code for ISOSIMpy.model.model</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span></span><span class="sd">&quot;&quot;&quot;Model container with a parameter registry.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
@@ -531,6 +533,12 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_warmup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepend a steady-state warmup to input/target and set bookkeeping.</span>
+
+<span class="sd">        Uses ``n_warmup_half_lives`` and the decay constant to determine the</span>
+<span class="sd">        warmup length. If ``steady_state_input`` is not provided or length is</span>
+<span class="sd">        non-positive, no warmup is applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t12</span> <span class="o">=</span> <span class="mf">0.693</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">lambda_</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">t12</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_warmup_half_lives</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
@@ -546,6 +554,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_is_warm</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure warmup is applied and mixture fractions are properly normalized.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the sum of unit fractions deviates too much from 1.0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_warm</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_warmup</span><span class="p">()</span>
         <span class="n">s</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unit_fractions</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">unit_fractions</span> <span class="k">else</span> <span class="mf">0.0</span>

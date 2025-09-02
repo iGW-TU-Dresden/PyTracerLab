@@ -273,7 +273,9 @@
         </div>
         <article role="main" id="furo-main-content">
           <h1>Source code for ISOSIMpy.model.solver</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span></span><span class="sd">&quot;&quot;&quot;Optimization wrapper for :class:`~ISOSIMpy.model.model.Model`.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
@@ -711,7 +713,13 @@
 <div class="viewcode-block" id="available_solvers">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.available_solvers">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">available_solvers</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;List of (key, display name) for available solvers.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;List available solvers.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of (str, str)</span>
+<span class="sd">        Pairs of registry key and human-readable display name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SOLVER_REGISTRY</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span></div>
 
 
@@ -719,7 +727,29 @@
 <div class="viewcode-block" id="run_solver">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.run_solver">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">run_solver</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a solver by registry key and return a standardized payload.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a registered solver and return a standardized payload.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : ISOSIMpy.model.Model</span>
+<span class="sd">        Model instance with inputs, targets, and parameter registry.</span>
+<span class="sd">    key : str</span>
+<span class="sd">        Solver registry key (e.g., ``&quot;de&quot;`` or ``&quot;mcmc&quot;``).</span>
+<span class="sd">    params : dict, optional</span>
+<span class="sd">        Solver-specific keyword parameters.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Standardized payload consumed by the GUI, including at minimum</span>
+<span class="sd">        the simulated series under the ``&quot;sim&quot;`` key; for MCMC also</span>
+<span class="sd">        uncertainty envelopes and metadata.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the solver key is not registered.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">rec</span> <span class="o">=</span> <span class="n">SOLVER_REGISTRY</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">rec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown solver key: </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>

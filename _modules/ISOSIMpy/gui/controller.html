@@ -273,7 +273,9 @@
         </div>
         <article role="main" id="furo-main-content">
           <h1>Source code for ISOSIMpy.gui.controller</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtCore</span><span class="w"> </span><span class="kn">import</span> <span class="n">QObject</span><span class="p">,</span> <span class="n">pyqtSignal</span>
+<span></span><span class="sd">&quot;&quot;&quot;Qt controller that builds the model and runs simulations/solvers.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtCore</span><span class="w"> </span><span class="kn">import</span> <span class="n">QObject</span><span class="p">,</span> <span class="n">pyqtSignal</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model</span><span class="w"> </span><span class="kn">import</span> <span class="n">model</span> <span class="k">as</span> <span class="n">mm</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model</span><span class="w"> </span><span class="kn">import</span> <span class="n">solver</span> <span class="k">as</span> <span class="n">ms</span>
@@ -283,6 +285,24 @@
 <div class="viewcode-block" id="Controller">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Controller</span><span class="p">(</span><span class="n">QObject</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bridge between GUI state and the computational model.</span>
+
+<span class="sd">    Orchestrates model construction from GUI state, runs simulations and</span>
+<span class="sd">    calibrations, and emits signals with results or errors.</span>
+
+<span class="sd">    Signals</span>
+<span class="sd">    -------</span>
+<span class="sd">    simulated : object</span>
+<span class="sd">        Emitted after a forward simulation; carries a NumPy array.</span>
+<span class="sd">    calibrated : object</span>
+<span class="sd">        Emitted after calibration; carries a payload ``dict`` with simulation</span>
+<span class="sd">        and optional envelopes/metadata.</span>
+<span class="sd">    status : str</span>
+<span class="sd">        Short user-facing status messages.</span>
+<span class="sd">    error : str</span>
+<span class="sd">        Error messages suitable for display.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="c1"># Use generic object payloads to support arrays or dicts from different solvers</span>
     <span class="n">simulated</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
     <span class="n">calibrated</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
@@ -290,6 +310,7 @@
     <span class="n">error</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the controller with a shared :class:`AppState`.&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="o">=</span> <span class="kc">None</span>
@@ -302,6 +323,12 @@
 <div class="viewcode-block" id="Controller.build_model">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller.build_model">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a :class:`~ISOSIMpy.model.model.Model` from current state.</span>
+
+<span class="sd">        Creates per-instance units (including bounds and fixed flags) based on</span>
+<span class="sd">        the detailed design in ``state.design_instances`` and the per-instance</span>
+<span class="sd">        parameters in ``state.params``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># We usually work in months (dt = 1.0); for yearly calculations</span>
             <span class="c1"># We therefore have to use dt = 12.0</span>
@@ -371,6 +398,7 @@
 <div class="viewcode-block" id="Controller.simulate">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller.simulate">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a forward simulation and emit the result via ``simulated``.&quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">build_model</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -386,6 +414,11 @@
 <div class="viewcode-block" id="Controller.calibrate">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller.calibrate">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">calibrate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the selected solver and emit a standardized payload.</span>
+
+<span class="sd">        The solver is chosen from ``state.solver_key`` and configured using</span>
+<span class="sd">        ``state.solver_params``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">build_model</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -404,6 +437,7 @@
 <div class="viewcode-block" id="Controller.write_report">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller.write_report">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">write_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a plain-text model report to ``filename`` using current state.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_monthly</span><span class="p">:</span>

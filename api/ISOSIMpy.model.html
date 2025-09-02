@@ -325,6 +325,16 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ISOSIMpy.model.units.html">ISOSIMpy.model.units module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit"><code class="docutils literal notranslate"><span class="pre">DMUnit</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.DP"><code class="docutils literal notranslate"><span class="pre">DMUnit.DP</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.PARAMS"><code class="docutils literal notranslate"><span class="pre">DMUnit.PARAMS</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.PREFIX"><code class="docutils literal notranslate"><span class="pre">DMUnit.PREFIX</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.get_impulse_response"><code class="docutils literal notranslate"><span class="pre">DMUnit.get_impulse_response()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.mtt"><code class="docutils literal notranslate"><span class="pre">DMUnit.mtt</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.param_values"><code class="docutils literal notranslate"><span class="pre">DMUnit.param_values()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.DMUnit.set_param_values"><code class="docutils literal notranslate"><span class="pre">DMUnit.set_param_values()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit"><code class="docutils literal notranslate"><span class="pre">EMUnit</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit.PARAMS"><code class="docutils literal notranslate"><span class="pre">EMUnit.PARAMS</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit.PREFIX"><code class="docutils literal notranslate"><span class="pre">EMUnit.PREFIX</span></code></a></li>
@@ -366,6 +376,97 @@
 </section>
 <section id="module-ISOSIMpy.model">
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-ISOSIMpy.model" title="Link to this heading">¶</a></h2>
+<p>Public API for the <a class="reference internal" href="#module-ISOSIMpy.model" title="ISOSIMpy.model"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ISOSIMpy.model</span></code></a> package.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ISOSIMpy.model.</span></span><span class="sig-name descname"><span class="pre">DMUnit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mtt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">DP</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#DMUnit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.DMUnit" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="ISOSIMpy.model.units.html#ISOSIMpy.model.units.Unit" title="ISOSIMpy.model.units.Unit"><code class="xref py py-class docutils literal notranslate"><span class="pre">Unit</span></code></a></p>
+<p>Dispersion Model (DM) unit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mtt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Mean travel time.</p></li>
+<li><p><strong>DP</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Dispersion parameter. Represents the inverse of the Peclet number.
+Also represents the ratio of the dispersion coefficient to the
+velocity and outlet / sampling position</p></li>
+<li><p><strong>PREFIX</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Prefix for local parameter names. Helper for GUI.</p></li>
+<li><p><strong>PARAMS</strong> (<em>List</em><em>[</em><em>Dict</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>Any</em><em>]</em><em>]</em>) – List of (default) parameter definitions. Helper for GUI.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.DP">
+<span class="sig-name descname"><span class="pre">DP</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><a class="headerlink" href="#ISOSIMpy.model.DMUnit.DP" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.PARAMS">
+<span class="sig-name descname"><span class="pre">PARAMS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[{'bounds':</span> <span class="pre">(1.0,</span> <span class="pre">10000.0),</span> <span class="pre">'default':</span> <span class="pre">120.0,</span> <span class="pre">'key':</span> <span class="pre">'mtt',</span> <span class="pre">'label':</span> <span class="pre">'Mean</span> <span class="pre">Transit</span> <span class="pre">Time'},</span> <span class="pre">{'bounds':</span> <span class="pre">(0.0001,</span> <span class="pre">10.0),</span> <span class="pre">'default':</span> <span class="pre">1.0,</span> <span class="pre">'key':</span> <span class="pre">'DP',</span> <span class="pre">'label':</span> <span class="pre">'Dispersion</span> <span class="pre">Param.'}]</span></em><a class="headerlink" href="#ISOSIMpy.model.DMUnit.PARAMS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.PREFIX">
+<span class="sig-name descname"><span class="pre">PREFIX</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'dm'</span></em><a class="headerlink" href="#ISOSIMpy.model.DMUnit.PREFIX" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.get_impulse_response">
+<span class="sig-name descname"><span class="pre">get_impulse_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><span class="pre">numpy.ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#DMUnit.get_impulse_response"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.DMUnit.get_impulse_response" title="Link to this definition">¶</a></dt>
+<dd><p>DM impulse response with decay.</p>
+<p>The continuous-time DM response (without decay) is
+<code class="docutils literal notranslate"><span class="pre">h(τ)</span> <span class="pre">=</span> <span class="pre">(1/mtt)</span> <span class="pre">*</span> <span class="pre">1</span> <span class="pre">/</span> <span class="pre">(sqrt(K))</span> <span class="pre">*</span> <span class="pre">exp((1</span> <span class="pre">-</span> <span class="pre">τ</span> <span class="pre">/</span> <span class="pre">mtt)^2</span> <span class="pre">/</span> <span class="pre">K)</span></code> with
+<code class="docutils literal notranslate"><span class="pre">K</span> <span class="pre">=</span> <span class="pre">4</span> <span class="pre">pi</span> <span class="pre">DP</span> <span class="pre">(τ</span> <span class="pre">/</span> <span class="pre">mtt)</span></code>. We also apply an exponential decay
+term <code class="docutils literal notranslate"><span class="pre">exp(-λ</span> <span class="pre">τ)</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tau</strong> (<em>ndarray</em>) – Non-negative time axis (same spacing as simulation time grid).</p></li>
+<li><p><strong>dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Time step size of the discretization.</p></li>
+<li><p><strong>lambda</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a>) – Decay constant (1 / time units of <code class="docutils literal notranslate"><span class="pre">tau</span></code>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Impulse response evaluated at <code class="docutils literal notranslate"><span class="pre">tau</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.mtt">
+<span class="sig-name descname"><span class="pre">mtt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></em><a class="headerlink" href="#ISOSIMpy.model.DMUnit.mtt" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.param_values">
+<span class="sig-name descname"><span class="pre">param_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#DMUnit.param_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.DMUnit.param_values" title="Link to this definition">¶</a></dt>
+<dd><p>Get parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping from local parameter name to value.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)">float</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.DMUnit.set_param_values">
+<span class="sig-name descname"><span class="pre">set_param_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.13)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#DMUnit.set_param_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.DMUnit.set_param_values" title="Link to this definition">¶</a></dt>
+<dd><p>Set one or more local parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>values</strong> (<em>Dict</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>]</em>) – Mapping from local parameter name to new value. Keys not present
+are ignored.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
 <dl class="py class">
 <dt class="sig sig-object py" id="ISOSIMpy.model.EMUnit">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ISOSIMpy.model.</span></span><span class="sig-name descname"><span class="pre">EMUnit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mtt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#EMUnit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.EMUnit" title="Link to this definition">¶</a></dt>
@@ -987,6 +1088,16 @@ are ignored.</p>
 <li><a class="reference internal" href="#">ISOSIMpy.model package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
 <li><a class="reference internal" href="#module-ISOSIMpy.model">Module contents</a><ul>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit"><code class="docutils literal notranslate"><span class="pre">DMUnit</span></code></a><ul>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.DP"><code class="docutils literal notranslate"><span class="pre">DMUnit.DP</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.PARAMS"><code class="docutils literal notranslate"><span class="pre">DMUnit.PARAMS</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.PREFIX"><code class="docutils literal notranslate"><span class="pre">DMUnit.PREFIX</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.get_impulse_response"><code class="docutils literal notranslate"><span class="pre">DMUnit.get_impulse_response()</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.mtt"><code class="docutils literal notranslate"><span class="pre">DMUnit.mtt</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.param_values"><code class="docutils literal notranslate"><span class="pre">DMUnit.param_values()</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.DMUnit.set_param_values"><code class="docutils literal notranslate"><span class="pre">DMUnit.set_param_values()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#ISOSIMpy.model.EMUnit"><code class="docutils literal notranslate"><span class="pre">EMUnit</span></code></a><ul>
 <li><a class="reference internal" href="#ISOSIMpy.model.EMUnit.PARAMS"><code class="docutils literal notranslate"><span class="pre">EMUnit.PARAMS</span></code></a></li>
 <li><a class="reference internal" href="#ISOSIMpy.model.EMUnit.PREFIX"><code class="docutils literal notranslate"><span class="pre">EMUnit.PREFIX</span></code></a></li>

@@ -273,7 +273,9 @@
         </div>
         <article role="main" id="furo-main-content">
           <h1>Source code for ISOSIMpy.gui.state</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span></span><span class="sd">&quot;&quot;&quot;Shared GUI state container used across tabs and controller.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -287,6 +289,40 @@
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.state.html#ISOSIMpy.gui.state.AppState">[docs]</a>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AppState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Central application state used by GUI components.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    is_monthly : bool</span>
+<span class="sd">        Whether input/target series are monthly (else yearly).</span>
+<span class="sd">    tracer : str</span>
+<span class="sd">        Selected tracer name (e.g., ``&quot;Tritium&quot;``, ``&quot;Carbon-14&quot;``).</span>
+<span class="sd">    solver_key : str</span>
+<span class="sd">        Selected solver registry key (``&quot;de&quot;`` or ``&quot;mcmc&quot;``).</span>
+<span class="sd">    solver_params : dict</span>
+<span class="sd">        Per-solver configuration dictionary.</span>
+<span class="sd">    input_series : tuple(ndarray, ndarray) | None</span>
+<span class="sd">        Timestamps and input values.</span>
+<span class="sd">    target_series : tuple(ndarray, ndarray) | None</span>
+<span class="sd">        Timestamps and observation values (optional).</span>
+<span class="sd">    selected_units : list of str</span>
+<span class="sd">        Unique unit types (legacy support for parameters tab).</span>
+<span class="sd">    design_units : list of (str, float)</span>
+<span class="sd">        Flat list of chosen units and fractions (can repeat unit types).</span>
+<span class="sd">    unit_fractions : dict[str, float]</span>
+<span class="sd">        Per-instance fraction mapping keyed by unique instance prefix.</span>
+<span class="sd">    params : dict</span>
+<span class="sd">        Nested parameter values/bounds/fixed flags per instance prefix.</span>
+<span class="sd">    steady_state_input : float</span>
+<span class="sd">        Value for optional steady-state warmup input.</span>
+<span class="sd">    n_warmup_half_lives : int</span>
+<span class="sd">        Warmup length in half-lives of the tracer.</span>
+<span class="sd">    last_simulation : object | None</span>
+<span class="sd">        Last simulation result or solver payload for plotting.</span>
+<span class="sd">    last_times : ndarray | None</span>
+<span class="sd">        Cached timestamps for plotting (if needed).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">is_monthly</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">tracer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Tritium&quot;</span>
     <span class="c1"># Selected solver (registry key); default to Differential Evolution</span>
@@ -320,7 +356,7 @@
     <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
     <span class="c1"># params[prefix][key] = {&quot;val&quot;:..., &quot;lb&quot;:..., &quot;ub&quot;:..., &quot;fixed&quot;:0/1}</span>
     <span class="n">steady_state_input</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="n">n_warmup_half_lives</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">n_warmup_half_lives</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
     <span class="c1"># Can be either a plain ndarray (legacy) or a payload dict from solver.run_solver</span>
     <span class="n">last_simulation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">last_times</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
