@@ -38,10 +38,17 @@ class Controller(QObject):
         self.state = state
         self.ml = None
 
-    def _lambda(self) -> float:
-        if self.state.tracer == "Tritium":
-            return 0.693 / (12.33 * (12.0 if self.state.is_monthly else 1.0))
-        return 0.693 / (5700.0 * (12.0 if self.state.is_monthly else 1.0))
+    def _lambda_for_tracer(self, tracer_name: str) -> float:
+        name = (tracer_name or "").strip()
+        # Accept a few common spellings
+        is_month = 12.0 if self.state.is_monthly else 1.0
+        if name.lower() in {"tritium", "h-3", "h3", "3h"}:
+            half_life_years = 12.33
+        else:
+            # Carbon-14 defaults
+            # Accept labels like "Carbon-14", "14-C", "c-14", "14c"
+            half_life_years = 5700.0
+        return 0.693 / (half_life_years * is_month)
 
     def build_model(self):
         """Construct a :class:`~ISOSIMpy.model.model.Model` from current state.
@@ -54,7 +61,25 @@ class Controller(QObject):
             # We usually work in months (dt = 1.0); for yearly calculations
             # We therefore have to use dt = 12.0
             dt = 1.0 if self.state.is_monthly else 12.0
-            lam = self._lambda()
+            # Determine tracer set from state (dual-tracer aware)
+            tracer_names = []
+            t1 = getattr(self.state, "tracer1", None)
+            t2 = getattr(self.state, "tracer2", None)
+            if t1:
+                tracer_names.append(t1)
+            elif hasattr(self.state, "tracer") and getattr(self.state, "tracer"):
+                # legacy single-tracer fallback
+                tracer_names.append(getattr(self.state, "tracer"))
+            if t2 and str(t2).lower() not in {"none", ""}:
+                tracer_names.append(t2)
+
+            lam = (
+                [self._lambda_for_tracer(n) for n in tracer_names]
+                if len(tracer_names) >= 1
+                else [self._lambda_for_tracer("Tritium")]
+            )
+            if len(lam) == 1:
+                lam = lam[0]
 
             x = self.state.input_series
             y = self.state.target_series

@@ -6,6 +6,7 @@ import numpy as np
 from PyQt5.QtCore import QSize, pyqtSignal
 from PyQt5.QtWidgets import (
     QButtonGroup,
+    QComboBox,
     QFileDialog,
     QLabel,
     QPushButton,
@@ -46,19 +47,18 @@ class FileInputTab(QWidget):
         lay.addWidget(self.monthly)
         lay.addWidget(self.yearly)
 
-        ### Tracer Selection radio buttons
-        self.t_h3 = QRadioButton("Tritium")
-        self.t_h3.setChecked(True)
-        self.t_c14 = QRadioButton("Carbon-14")
-        g2 = QButtonGroup(self)
-        g2.addButton(self.t_h3)
-        g2.addButton(self.t_c14)
-        # Set title, add widgets
-        lbl = QLabel("Tracer")
+        ### Tracer Selection dropdowns (dual-tracer)
+        lbl = QLabel("Tracers")
         lbl.setStyleSheet("font-weight: 600;")
         lay.addWidget(lbl)
-        lay.addWidget(self.t_h3)
-        lay.addWidget(self.t_c14)
+        self.cb_t1 = QComboBox()
+        self.cb_t1.addItems(["Tritium", "Carbon-14"])  # primary cannot be None
+        self.cb_t2 = QComboBox()
+        self.cb_t2.addItems(["None", "Tritium", "Carbon-14"])  # optional second tracer
+        lay.addWidget(QLabel("Tracer 1"))
+        lay.addWidget(self.cb_t1)
+        lay.addWidget(QLabel("Tracer 2"))
+        lay.addWidget(self.cb_t2)
 
         ### Input and target series selection buttons
         self.lbl_in = QLabel("No input series selected")
@@ -80,18 +80,23 @@ class FileInputTab(QWidget):
 
         # Signal connections
         self.monthly.toggled.connect(self._freq_changed)
-        self.t_h3.toggled.connect(self._tracer_changed)
+        self.cb_t1.currentTextChanged.connect(self._tracer_changed)
+        self.cb_t2.currentTextChanged.connect(self._tracer_changed)
 
     def _freq_changed(self, checked):
         self.state.is_monthly = checked
         self.changed.emit()
 
-    def _tracer_changed(self, checked):
-        self.state.tracer = "Tritium" if checked else "Carbon-14"
+    def _tracer_changed(self):
+        self.state.tracer1 = self.cb_t1.currentText()
+        t2 = self.cb_t2.currentText()
+        self.state.tracer2 = None if t2 == "None" else t2
+        # legacy compatibility
+        self.state.tracer = self.state.tracer1
         self.changed.emit()
 
     def _read_csv(self, path, monthly=True):
-        """Read a two-column CSV of timestamps and values.
+        """Read a CSV with first column timestamps and remaining one or two tracer columns.
 
         Parameters
         ----------
@@ -103,15 +108,46 @@ class FileInputTab(QWidget):
         Returns
         -------
         tuple(ndarray, ndarray)
-            Parsed datetimes and corresponding float values.
+            Parsed datetimes and corresponding float matrix of shape (N, K).
         """
-        data = np.genfromtxt(
-            path, delimiter=",", dtype=["<U7", float], encoding="utf-8", skip_header=1
-        )
+        import csv
+
         fmt = "%Y-%m" if monthly else "%Y"
-        ts = np.array([datetime.strptime(row[0], fmt) for row in data])
-        vals = np.array([float(row[1]) for row in data])
-        return ts, vals
+        times = []
+        rows: list[list[float]] = []
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            r = csv.reader(f)
+            _ = next(r, None)  # skip header
+            for rec in r:
+                if not rec:
+                    continue
+                try:
+                    t = datetime.strptime(rec[0].strip(), fmt)
+                except Exception:
+                    # skip malformed timestamps
+                    continue
+                times.append(t)
+                vals = []
+                for tok in rec[1:]:
+                    tok = tok.strip()
+                    if tok == "" or tok.lower() == "nan":
+                        vals.append(np.nan)
+                    else:
+                        try:
+                            vals.append(float(tok))
+                        except Exception:
+                            vals.append(np.nan)
+                rows.append(vals)
+        if len(times) == 0:
+            return np.array([]), np.array([])
+        # Ensure at least one value column
+        max_cols = max((len(r) for r in rows), default=0)
+        if max_cols == 0:
+            vals_arr = np.full((len(times), 1), np.nan)
+        else:
+            # Pad rows to equal length
+            vals_arr = np.array([ri + [np.nan] * (max_cols - len(ri)) for ri in rows], dtype=float)
+        return np.array(times, dtype=object), vals_arr
 
     def _open_input(self):
         file, _ = QFileDialog.getOpenFileName(
@@ -119,7 +155,9 @@ class FileInputTab(QWidget):
         )
         if file:
             self.state.input_series = self._read_csv(file, self.state.is_monthly)
-            self.lbl_in.setText(f"Loaded: {file}")
+            shape = self.state.input_series[1].shape if self.state.input_series else None
+            cols = shape[1] if (shape is not None and len(shape) == 2) else 1
+            self.lbl_in.setText(f"Loaded: {file} (columns: {cols})")
             self.changed.emit()
 
     def _open_target(self):
@@ -128,5 +166,7 @@ class FileInputTab(QWidget):
         )
         if file:
             self.state.target_series = self._read_csv(file, self.state.is_monthly)
-            self.lbl_tg.setText(f"Loaded: {file}")
+            shape = self.state.target_series[1].shape if self.state.target_series else None
+            cols = shape[1] if (shape is not None and len(shape) == 2) else 1
+            self.lbl_tg.setText(f"Loaded: {file} (columns: {cols})")
             self.changed.emit()

@@ -150,11 +150,32 @@ class SimulationTab(QWidget):
             return
         times = self.state.input_series[0]
         obs = self.state.target_series[1] if self.state.target_series else None
-        fig, ax = plt.subplots(figsize=(8, 4))
 
-        # Observations
+        # Coerce obs to 2D for consistent handling
         if obs is not None:
-            ax.scatter(times, obs, label="Observations", marker="x", zorder=100, c="red")
+            obs_arr = np.asarray(obs, dtype=float)
+            if obs_arr.ndim == 1:
+                obs_arr = obs_arr.reshape(-1, 1)
+        else:
+            obs_arr = None
+
+        # Prepare axes: one subplot per tracer (up to 2 for now)
+        n_tr = 1 if (obs_arr is None or obs_arr.shape[1] == 1) else obs_arr.shape[1]
+        fig, axes = plt.subplots(n_tr, 1, figsize=(8, 3.5 * n_tr), sharex=True)
+        if n_tr == 1:
+            axes = [axes]
+
+        # Observations per tracer
+        if obs_arr is not None:
+            for j in range(obs_arr.shape[1]):
+                axes[j].scatter(
+                    times,
+                    obs_arr[:, j],
+                    label="Observations",
+                    marker="x",
+                    zorder=100,
+                    c="red",
+                )
 
         payload = self.state.last_simulation
         if isinstance(payload, dict):
@@ -164,41 +185,59 @@ class SimulationTab(QWidget):
             label = "Simulation"
             if payload.get("solver") == "mcmc":
                 label = "Median simulation"
+                # Handle envelopes for single or dual tracer
                 if (
                     isinstance(env_1_99, dict)
                     and env_1_99.get("low") is not None
                     and env_1_99.get("high") is not None
                 ):
-                    ax.fill_between(
-                        times,
-                        np.asarray(env_1_99["low"], dtype=float),
-                        np.asarray(env_1_99["high"], dtype=float),
-                        color="0.7",
-                        alpha=0.4,
-                        label="1–99% percentile",
-                    )
+                    low = np.asarray(env_1_99["low"], dtype=float)
+                    high = np.asarray(env_1_99["high"], dtype=float)
+                    if low.ndim == 1:
+                        low = low.reshape(-1, 1)
+                        high = high.reshape(-1, 1)
+                    for j in range(low.shape[1]):
+                        axes[j].fill_between(
+                            times,
+                            low[:, j],
+                            high[:, j],
+                            color="0.7",
+                            alpha=0.4,
+                            label="1–99% percentile",
+                        )
                 if (
                     isinstance(env_20_80, dict)
                     and env_20_80.get("low") is not None
                     and env_20_80.get("high") is not None
                 ):
-                    ax.fill_between(
-                        times,
-                        np.asarray(env_20_80["low"], dtype=float),
-                        np.asarray(env_20_80["high"], dtype=float),
-                        color="0.7",
-                        alpha=0.7,
-                        label="20–80% percentile",
-                    )
+                    low = np.asarray(env_20_80["low"], dtype=float)
+                    high = np.asarray(env_20_80["high"], dtype=float)
+                    if low.ndim == 1:
+                        low = low.reshape(-1, 1)
+                        high = high.reshape(-1, 1)
+                    for j in range(low.shape[1]):
+                        axes[j].fill_between(
+                            times,
+                            low[:, j],
+                            high[:, j],
+                            color="0.7",
+                            alpha=0.7,
+                            label="20–80% percentile",
+                        )
             if sim is not None:
-                ax.plot(times, np.asarray(sim, dtype=float), label=label, c="k")
+                sim_arr = np.asarray(sim, dtype=float)
+                if sim_arr.ndim == 1:
+                    sim_arr = sim_arr.reshape(-1, 1)
+                for j in range(sim_arr.shape[1]):
+                    axes[j].plot(times, sim_arr[:, j], label=label, c="k")
         else:
             # Legacy: just a single simulation array
-            ax.plot(times, np.asarray(payload, dtype=float), label="Simulation", c="k")
+            axes[0].plot(times, np.asarray(payload, dtype=float), label="Simulation", c="k")
 
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Tracer Concentration")
-        ax.set_yscale("log")
-        ax.legend()
+        for j, ax in enumerate(axes):
+            ax.set_ylabel(f"Tracer {j+1}")
+            ax.set_yscale("log")
+            ax.legend()
+        axes[-1].set_xlabel("Time")
         fig.tight_layout()
         plt.show()

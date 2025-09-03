@@ -95,6 +95,21 @@ class SolverParamsDialog(QDialog):
         de_form.addRow("recombination", w_recomb)
         de_form.addRow("tol", w_tol)
 
+        # Optional sigma per tracer (used for weighting in DE objective)
+        de_sigma1 = QLineEdit()
+        de_sigma2 = QLineEdit()
+        sig_val_de = QDoubleValidator(self)
+        sig_val_de.setNotation(QDoubleValidator.StandardNotation)
+        sig_val_de.setDecimals(12)
+        sig_val_de.setRange(0.0, 1e100, 12)
+        for w in (de_sigma1, de_sigma2):
+            w.setValidator(sig_val_de)
+            w.setAlignment(Qt.AlignRight)
+        self._de_widgets["sigma1"] = de_sigma1
+        self._de_widgets["sigma2"] = de_sigma2
+        de_form.addRow("sigma 1 (optional)", de_sigma1)
+        de_form.addRow("sigma 2 (optional)", de_sigma2)
+
         # MCMC tab
         self._mcmc_widgets = {}
 
@@ -124,26 +139,31 @@ class SolverParamsDialog(QDialog):
         w_rw.setValidator(rw_val)
         w_rw.setAlignment(Qt.AlignRight)
 
-        w_sigma = QLineEdit()
+        w_sigma1 = QLineEdit()
+        w_sigma2 = QLineEdit()
         sigma_val = QDoubleValidator(self)
         sigma_val.setNotation(QDoubleValidator.StandardNotation)
         sigma_val.setDecimals(12)
-        sigma_val.setRange(-1e100, 1e100, 12)
-        w_sigma.setValidator(sigma_val)
-        w_sigma.setPlaceholderText("leave empty to infer")
+        sigma_val.setRange(0.0, 1e100, 12)
+        for w in (w_sigma1, w_sigma2):
+            w.setValidator(sigma_val)
+            w.setAlignment(Qt.AlignRight)
+            w.setPlaceholderText("leave empty to infer")
 
         self._mcmc_widgets = {
             "n_samples": w_nsamp,
             "burn_in": w_burn,
             "thin": w_thin,
             "rw_scale": w_rw,
-            "sigma": w_sigma,
+            "sigma1": w_sigma1,
+            "sigma2": w_sigma2,
         }
         mcmc_form.addRow("n_samples", w_nsamp)
         mcmc_form.addRow("burn_in", w_burn)
         mcmc_form.addRow("thin", w_thin)
         mcmc_form.addRow("rw_scale", w_rw)
-        mcmc_form.addRow("sigma", w_sigma)
+        mcmc_form.addRow("sigma 1", w_sigma1)
+        mcmc_form.addRow("sigma 2", w_sigma2)
 
         # Pack tabs
         w_de = QVBoxLayout()
@@ -187,6 +207,23 @@ class SolverParamsDialog(QDialog):
         self._de_widgets["mutation_hi"].setText(str(hi))
         self._de_widgets["recombination"].setText(str(float(de.get("recombination", 0.5))))
         self._de_widgets["tol"].setText(str(float(de.get("tol", 1e-3))))
+        de_sigma = de.get("sigma", None)
+        if isinstance(de_sigma, (list, tuple)):
+            try:
+                self._de_widgets["sigma1"].setText(str(float(de_sigma[0])))
+                self._de_widgets["sigma2"].setText(str(float(de_sigma[1])))
+            except Exception:
+                self._de_widgets["sigma1"].setText("")
+                self._de_widgets["sigma2"].setText("")
+        elif de_sigma is None:
+            self._de_widgets["sigma1"].setText("")
+            self._de_widgets["sigma2"].setText("")
+        else:
+            try:
+                self._de_widgets["sigma1"].setText(str(float(de_sigma)))
+            except Exception:
+                self._de_widgets["sigma1"].setText("")
+            self._de_widgets["sigma2"].setText("")
 
         # Load MCMC
         mc = getattr(self.state, "solver_params", {}).get("mcmc") or {}
@@ -195,7 +232,22 @@ class SolverParamsDialog(QDialog):
         self._mcmc_widgets["thin"].setText(str(int(mc.get("thin", 1))))
         self._mcmc_widgets["rw_scale"].setText(str(float(mc.get("rw_scale", 0.05))))
         sigma_val = mc.get("sigma", None)
-        self._mcmc_widgets["sigma"].setText("" if sigma_val is None else str(sigma_val))
+        if isinstance(sigma_val, (list, tuple)):
+            try:
+                self._mcmc_widgets["sigma1"].setText(str(float(sigma_val[0])))
+                self._mcmc_widgets["sigma2"].setText(str(float(sigma_val[1])))
+            except Exception:
+                self._mcmc_widgets["sigma1"].setText("")
+                self._mcmc_widgets["sigma2"].setText("")
+        elif sigma_val is None:
+            self._mcmc_widgets["sigma1"].setText("")
+            self._mcmc_widgets["sigma2"].setText("")
+        else:
+            try:
+                self._mcmc_widgets["sigma1"].setText(str(float(sigma_val)))
+            except Exception:
+                self._mcmc_widgets["sigma1"].setText("")
+            self._mcmc_widgets["sigma2"].setText("")
 
     def _default_params(self) -> Dict[str, Dict[str, Any]]:
         """Return built-in defaults for DE and MCMC parameters."""
@@ -206,6 +258,7 @@ class SolverParamsDialog(QDialog):
                 "mutation": (0.5, 1.0),
                 "recombination": 0.7,
                 "tol": 1e-2,
+                "sigma": None,
             },
             "mcmc": {
                 "n_samples": 10000,
@@ -226,13 +279,18 @@ class SolverParamsDialog(QDialog):
         self._de_widgets["mutation_hi"].setText(str(float(de["mutation"][1])))
         self._de_widgets["recombination"].setText(str(float(de["recombination"])))
         self._de_widgets["tol"].setText(str(float(de["tol"])))
+        if "sigma1" in self._de_widgets:
+            self._de_widgets["sigma1"].setText("")
+        if "sigma2" in self._de_widgets:
+            self._de_widgets["sigma2"].setText("")
 
         mc = defaults["mcmc"]
         self._mcmc_widgets["n_samples"].setText(str(int(mc["n_samples"])))
         self._mcmc_widgets["burn_in"].setText(str(int(mc["burn_in"])))
         self._mcmc_widgets["thin"].setText(str(int(mc["thin"])))
         self._mcmc_widgets["rw_scale"].setText(str(float(mc["rw_scale"])))
-        self._mcmc_widgets["sigma"].setText("")
+        self._mcmc_widgets["sigma1"].setText("")
+        self._mcmc_widgets["sigma2"].setText("")
 
     def _on_reset(self) -> None:
         """Handle the reset button by reloading built-in defaults."""
@@ -272,15 +330,55 @@ class SolverParamsDialog(QDialog):
             "tol": _to_float(self._de_widgets["tol"], float(defaults["de"]["tol"])),
         }
 
-        # Save MCMC
-        sigma_txt = self._mcmc_widgets["sigma"].text().strip()
-        sigma_val: float | None
-        if sigma_txt == "":
+        # Build DE sigma from optional fields
+        ds1 = self._de_widgets.get("sigma1")
+        ds2 = self._de_widgets.get("sigma2")
+        if ds1 is not None and ds2 is not None:
+            t1 = ds1.text().strip()
+            t2 = ds2.text().strip()
+            if t1 == "" and t2 == "":
+                de_sigma = None
+            elif t1 != "" and t2 == "":
+                try:
+                    de_sigma = float(t1)
+                except Exception:
+                    de_sigma = None
+            else:
+                try:
+                    s1 = float(t1) if t1 != "" else None
+                    s2 = float(t2) if t2 != "" else None
+                    if s1 is None and s2 is None:
+                        de_sigma = None
+                    elif s2 is None:
+                        de_sigma = float(s1)  # type: ignore[arg-type]
+                    else:
+                        de_sigma = (s1, s2)
+                except Exception:
+                    de_sigma = None
+            de["sigma"] = de_sigma
+
+        # Save MCMC (sigma1/sigma2)
+        s1_txt = self._mcmc_widgets["sigma1"].text().strip()
+        s2_txt = self._mcmc_widgets["sigma2"].text().strip()
+        sigma_val: Any
+        if s1_txt == "" and s2_txt == "":
             sigma_val = None
+        elif s1_txt != "" and s2_txt == "":
+            try:
+                sigma_val = float(s1_txt)
+            except ValueError:
+                sigma_val = None
         else:
             try:
-                sigma_val = float(sigma_txt)
-            except ValueError:
+                s1 = float(s1_txt) if s1_txt != "" else None
+                s2 = float(s2_txt) if s2_txt != "" else None
+                if s1 is None and s2 is None:
+                    sigma_val = None
+                elif s2 is None:
+                    sigma_val = float(s1)
+                else:
+                    sigma_val = (s1, s2)
+            except Exception:
                 sigma_val = None
         mcmc = {
             "n_samples": _to_int(

@@ -19,7 +19,11 @@ class AppState:
     is_monthly : bool
         Whether input/target series are monthly (else yearly).
     tracer : str
-        Selected tracer name (e.g., ``"Tritium"``, ``"Carbon-14"``).
+        LEGACY: single-tracer selection kept for backward compatibility.
+    tracer1 : str
+        Primary tracer (e.g., ``"Tritium"``, ``"Carbon-14"``).
+    tracer2 : str | None
+        Optional second tracer; if ``None`` or ``"None"``, runs single-tracer mode.
     solver_key : str
         Selected solver registry key (``"de"`` or ``"mcmc"``).
     solver_params : dict
@@ -47,7 +51,9 @@ class AppState:
     """
 
     is_monthly: bool = True
-    tracer: str = "Tritium"
+    tracer: str = "Tritium"  # legacy
+    tracer1: str = "Tritium"
+    tracer2: Optional[str] = None
     # Selected solver (registry key); default to Differential Evolution
     solver_key: str = "de"
     # Per-solver parameters
@@ -59,6 +65,7 @@ class AppState:
                 "mutation": (0.5, 1.0),
                 "recombination": 0.7,
                 "tol": 0.01,
+                "sigma": None,
             },
             "mcmc": {
                 "n_samples": 10000,

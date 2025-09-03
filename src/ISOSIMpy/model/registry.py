@@ -3,8 +3,8 @@
 from .units import DMUnit, EMUnit, EPMUnit, PMUnit
 
 UNIT_REGISTRY = {
-    "PM": PMUnit,
-    "EM": EMUnit,
     "EPM": EPMUnit,
+    "EM": EMUnit,
+    "PM": PMUnit,
     "DM": DMUnit,
 }

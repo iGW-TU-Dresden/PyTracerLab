@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.optimize import differential_evolution
@@ -28,6 +28,9 @@ class Solver:
     """
 
     model: Model
+    # Optional observation noise scale(s) used for weighting the objective and
+    # for Gaussian likelihood in MCMC. Can be a scalar or per-tracer sequence.
+    sigma: Union[float, Sequence[float], None] = None
 
     # ------------------------- internals ---------------------------------
     def _reduced_bounds(self) -> List[Tuple[float, float]]:
@@ -40,16 +43,37 @@ class Solver:
         return self.model.simulate()
 
     def _obj(self, free_params: Sequence[float]) -> float:
-        """Mean squared error objective on the masked overlapping support."""
+        """Mean squared error (optionally sigma-weighted) over all tracers."""
         sim = self._simulate_given_free(free_params)
         if self.model.target_series is None:
             return float("inf")
         y = self.model.target_series[self.model.n_warmup :]
-        mask = ~np.isnan(y) & ~np.isnan(sim)
+        y2 = np.asarray(y, dtype=float)
+        s2 = np.asarray(sim, dtype=float)
+        if y2.ndim == 1:
+            y2 = y2.reshape(-1, 1)
+        if s2.ndim == 1:
+            s2 = s2.reshape(-1, 1)
+        if y2.shape != s2.shape:
+            return float("inf")
+        mask = ~np.isnan(y2) & ~np.isnan(s2)
         if not np.any(mask):
             return float("inf")
-        resid = sim[mask] - y[mask]
-        return float(np.mean(resid**2))
+        resid = s2 - y2
+        sigma = self.sigma
+        if sigma is None:
+            return float(np.mean((resid[mask]) ** 2))
+        if isinstance(sigma, (list, tuple, np.ndarray)):
+            sig_vec = np.asarray(sigma, dtype=float).ravel()
+            if sig_vec.size == 1:
+                sig_vec = np.full(y2.shape[1], float(sig_vec[0]))
+            if sig_vec.size != y2.shape[1]:
+                return float(np.mean((resid[mask]) ** 2))
+        else:
+            sig_vec = np.full(y2.shape[1], float(sigma))
+        sig = sig_vec.reshape(1, -1)
+        norm = resid / sig
+        return float(np.mean((norm[mask]) ** 2))
 
     def differential_evolution(
         self,
@@ -141,13 +165,67 @@ class Solver:
         sig2 = float(sigma) ** 2
         return -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
 
+    @staticmethod
+    def _loglik_from_sim_multi(
+        y_full: np.ndarray, sim: np.ndarray, sigma: Union[float, Sequence[float], None]
+    ) -> float:
+        """Gaussian log-likelihood; supports scalar or per-tracer sigma.
+
+        If ``sigma`` is ``None``, uses a scale-marginalized form proportional to
+        ``-(n_eff/2) * log(SSE)`` over all non-NaN entries.
+        """
+        y2 = np.asarray(y_full, dtype=float)
+        s2 = np.asarray(sim, dtype=float)
+        if y2.ndim == 1:
+            y2 = y2.reshape(-1, 1)
+        if s2.ndim == 1:
+            s2 = s2.reshape(-1, 1)
+        if y2.shape != s2.shape:
+            return -np.inf
+        mask = ~np.isnan(y2) & ~np.isnan(s2)
+        if not np.any(mask):
+            return -np.inf
+
+        resid = s2 - y2
+        if sigma is None:
+            r = resid[mask]
+            sse = float(np.dot(r, r))
+            if not np.isfinite(sse) or sse <= 0.0:
+                sse = 1e-300
+            n_eff = int(np.sum(mask))
+            return -0.5 * n_eff * np.log(sse)
+
+        if not isinstance(sigma, (list, tuple, np.ndarray)):
+            sig2 = float(sigma) ** 2
+            r = resid[mask]
+            sse = float(np.dot(r, r))
+            n_eff = int(np.sum(mask))
+            return -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
+
+        sig_vec = np.asarray(sigma, dtype=float).ravel()
+        if sig_vec.size == 1:
+            sig_vec = np.full(y2.shape[1], float(sig_vec[0]))
+        if sig_vec.size != y2.shape[1]:
+            return -np.inf
+        ll = 0.0
+        for j in range(y2.shape[1]):
+            m = mask[:, j]
+            if not np.any(m):
+                continue
+            rj = resid[m, j]
+            sse_j = float(np.dot(rj, rj))
+            sig2_j = float(sig_vec[j]) ** 2
+            n_eff_j = int(np.sum(m))
+            ll += -0.5 * (sse_j / sig2_j) - 0.5 * n_eff_j * np.log(2.0 * np.pi * sig2_j)
+        return ll
+
     def mcmc_sample(
         self,
         n_samples: int,
         burn_in: int = 1000,
         thin: int = 1,
         rw_scale: float = 0.05,
-        sigma: float | None = None,
+        sigma: Union[float, Sequence[float], None] = None,
         log_prior: callable | None = None,
         start: Sequence[float] | None = None,
         random_state: int | np.random.Generator | None = None,
@@ -234,7 +312,7 @@ class Solver:
         if not np.isfinite(cur_lp):
             raise ValueError("Initial point has zero prior density; choose a valid `start`.")
         cur_sim = self._simulate_given_free(cur)
-        cur_ll = self._loglik_from_sim(y_full, cur_sim, sigma)
+        cur_ll = self._loglik_from_sim_multi(y_full, cur_sim, sigma)
         cur_logpost = cur_lp + cur_ll
 
         if not np.isfinite(cur_logpost):
@@ -242,7 +320,7 @@ class Solver:
             for _ in range(20):
                 trial = np.clip(cur + rng.normal(0.0, step), lo, hi)
                 sim = self._simulate_given_free(trial)
-                ll = self._loglik_from_sim(y_full, sim, sigma)
+                ll = self._loglik_from_sim_multi(y_full, sim, sigma)
                 lp = (
                     log_prior(trial)
                     if log_prior is not None
@@ -272,7 +350,7 @@ class Solver:
                 accept = False  # fast reject
             else:
                 prop_sim = self._simulate_given_free(prop)
-                prop_ll = self._loglik_from_sim(y_full, prop_sim, sigma)
+                prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
                 if np.isfinite(prop_ll):
                     prop_lp = (
                         log_prior(prop)
@@ -348,7 +426,9 @@ def _run_de(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, obj
     recombination = float(p.get("recombination", 0.5))
     tol = float(p.get("tol", 1e-3))
 
-    sol = Solver(model=model)
+    # Optional per-solver sigma(s)
+    sigma = p.get("sigma", None)
+    sol = Solver(model=model, sigma=sigma)
     _, sim = sol.differential_evolution(
         maxiter=maxiter,
         popsize=popsize,
@@ -378,8 +458,20 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
     thin = int(p.get("thin", 1))
     rw_scale = float(p.get("rw_scale", 0.05))
     sigma = p.get("sigma", None)
-    if sigma is not None and not (isinstance(sigma, (int, float)) and np.isfinite(sigma)):
-        sigma = None
+    # Allow scalar or per-tracer sequence; basic sanity: all finite if provided
+    if isinstance(sigma, (list, tuple, np.ndarray)):
+        arr = np.asarray(sigma, dtype=float)
+        if not np.all(np.isfinite(arr)):
+            sigma = None
+        else:
+            sigma = arr.tolist()
+    elif sigma is not None:
+        try:
+            sigma = float(sigma)
+            if not np.isfinite(sigma):
+                sigma = None
+        except Exception:
+            sigma = None
 
     sol = Solver(model=model)
     res = sol.mcmc_sample(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import scipy.signal
@@ -27,12 +27,15 @@ class Model:
     ----------
     dt : float
         Time step of the simulation (same units as ``mtt`` used by units).
-    lambda_ : float
-        Decay constant in 1/time units.
+    lambda_ : float or ndarray
+        Decay constant(s) in 1/time units. Provide a scalar for single-tracer
+        runs or an array-like of length ``n_tracers`` for multi-tracer runs.
     input_series : ndarray
-        Forcing time series (length ``N``).
+        Forcing time series of shape ``(N,)`` for single tracer or ``(N, K)``
+        for ``K`` tracers.
     target_series : ndarray, optional
-        Observed output series (length ``N``); used only for calibration loss.
+        Observed output series of shape ``(N,)`` or ``(N, K)``; used only for
+        calibration/loss and reporting.
     steady_state_input : float, optional
         If provided, a warmup of constant input is prepended.
     n_warmup_half_lives : int, optional
@@ -48,7 +51,7 @@ class Model:
     """
 
     dt: float
-    lambda_: float
+    lambda_: Union[float, np.ndarray]
     input_series: np.ndarray
     target_series: Optional[np.ndarray] = None
     steady_state_input: Optional[float] = None
@@ -235,17 +238,27 @@ class Model:
         warmup length. If ``steady_state_input`` is not provided or length is
         non-positive, no warmup is applied.
         """
-        t12 = 0.693 / self.lambda_
-        self._n_warmup = int(t12) * self.n_warmup_half_lives
+        t12 = 0.693 / np.asarray(self.lambda_)
+        t12 = np.asarray(t12, dtype=float)
+        self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
         if self.steady_state_input is None or self._n_warmup <= 0:
             # no warmup requested → ensure we don't slice anything off
             self._n_warmup = 0
             self._is_warm = True
             return
-        warm = np.full(self._n_warmup, float(self.steady_state_input))
+        # prepend steady-state warmup to input; support 1D or 2D inputs
+        if self.input_series.ndim == 1:
+            warm = np.full(self._n_warmup, float(self.steady_state_input))
+        else:
+            n_tr = int(self.input_series.shape[1])
+            warm = np.full((self._n_warmup, n_tr), float(self.steady_state_input))
         self.input_series = np.concatenate((warm, self.input_series))
         if self.target_series is not None:
-            warm_nan = np.full(self._n_warmup, np.nan)
+            if self.target_series.ndim == 1:
+                warm_nan = np.full(self._n_warmup, np.nan)
+            else:
+                n_tr_tg = int(self.target_series.shape[1])
+                warm_nan = np.full((self._n_warmup, n_tr_tg), np.nan)
             self.target_series = np.concatenate((warm_nan, self.target_series))
         self._is_warm = True
 
@@ -271,15 +284,45 @@ class Model:
         ndarray
             Simulated output aligned with ``target_series`` (warmup removed).
         """
+        # Check before simulating
         self._check()
-        n = len(self.input_series)
+
+        # Determine number of tracers from input dimensionality
+        x = np.asarray(self.input_series, dtype=float)
+        if x.ndim == 1:
+            x = x.reshape(-1, 1)
+        n, k = x.shape
         t = np.arange(0.0, n * self.dt, self.dt)
-        sim = np.zeros(n)
+
+        # Support scalar or vector lambda_
+        if isinstance(self.lambda_, (list, tuple, np.ndarray)):
+            lam_vec = np.asarray(self.lambda_, dtype=float)
+            if lam_vec.ndim == 0:
+                lam_vec = np.full(k, float(lam_vec))
+            elif lam_vec.shape != (k,):
+                # broadcast a single value or truncate/extend conservatively
+                if lam_vec.size == 1:
+                    lam_vec = np.full(k, float(lam_vec.ravel()[0]))
+                else:
+                    raise ValueError("lambda_ must be scalar or length equal to number of tracers")
+        else:
+            lam_vec = np.full(k, float(self.lambda_))
+
+        sim = np.zeros((n, k), dtype=float)
         for frac, unit in zip(self.unit_fractions, self.units):
-            h = unit.get_impulse_response(t, self.dt, self.lambda_)
-            contrib = scipy.signal.fftconvolve(self.input_series, h)[:n] * self.dt
-            sim += frac * contrib
-        return sim[self._n_warmup :]
+            # per-tracer impulse responses and contributions
+            for j in range(k):
+                h = unit.get_impulse_response(t, self.dt, float(lam_vec[j]))
+                contrib = scipy.signal.fftconvolve(x[:, j], h)[:n] * self.dt
+                sim[:, j] += float(frac) * contrib
+
+        # Remove warmup
+        sim = sim[self._n_warmup :, :]
+        # Return 1D for single-tracer to preserve backward compatibility
+        if sim.shape[1] == 1:
+            return sim.ravel()
+        else:
+            return sim
 
     def write_report(
         self,
@@ -336,8 +379,19 @@ class Model:
         lines.append("Model settings")
         lines.append("--------------")
         lines.append(f"Time step (dt):          {frequency}")
-        lines.append(f"Decay constant (lambda): {self.lambda_}")
+        lines.append(
+            "Decay constant (lambda): "
+            + (
+                ", ".join(f"{float(v):.6g}" for v in np.atleast_1d(self.lambda_))
+                if isinstance(self.lambda_, (list, tuple, np.ndarray))
+                else f"{float(self.lambda_):.6g}"
+            )
+        )
         lines.append(f"Warmup steps:            {self._n_warmup} (auto)")
+        steady = (
+            "n/a" if self.steady_state_input is None else f"{float(self.steady_state_input):.6g}"
+        )
+        lines.append(f"Steady-state input:      {steady}")
         lines.append(f"Units count:             {len(self.units)}")
         lines.append("")
 
@@ -347,11 +401,22 @@ class Model:
             if sim is None:
                 sim = self.simulate()
             y = self.target_series[self._n_warmup :]
-            if y is not None and sim is not None and len(y) == len(sim):
-                mask = ~np.isnan(y) & ~np.isnan(sim)
-                if np.any(mask):
-                    mse = float(np.mean((sim[mask] - y[mask]) ** 2))
-                    mse_text = f"{mse:.6g}"
+            # coerce to 2D for uniform handling
+            y2 = np.asarray(y, dtype=float)
+            s2 = np.asarray(sim, dtype=float)
+            if y2.ndim == 1:
+                y2 = y2.reshape(-1, 1)
+            if s2.ndim == 1:
+                s2 = s2.reshape(-1, 1)
+            if y2.shape[0] == s2.shape[0] and y2.shape[1] == s2.shape[1]:
+                per_tr_mse: list[str] = []
+                for j in range(y2.shape[1]):
+                    mask = ~np.isnan(y2[:, j]) & ~np.isnan(s2[:, j])
+                    if np.any(mask):
+                        mse_j = float(np.mean((s2[mask, j] - y2[mask, j]) ** 2))
+                        per_tr_mse.append(f"T{j+1}={mse_j:.6g}")
+                if per_tr_mse:
+                    mse_text = ", ".join(per_tr_mse)
         lines.append("Global fit")
         lines.append("----------")
         lines.append(f"MSE: {mse_text}")
@@ -365,12 +430,25 @@ class Model:
             prefix = key.split(".", 1)[0] if "." in key else "(root)"
             grouped.setdefault(prefix, []).append(key)
 
-        # pretty print per group
-        for idx, prefix in enumerate(sorted(grouped.keys())):
-            frac = self.unit_fractions[idx] if idx < len(self.unit_fractions) else None
+        # Determine stable group order based on the units' insertion order via recorded unit_index
+        prefix_order: list[tuple[str, int]] = []
+        for prefix, keys in grouped.items():
+            if not keys:
+                continue
+            one_key = keys[0]
+            try:
+                uidx = int(self.params[one_key]["unit_index"])  # type: ignore[index]
+            except Exception:
+                uidx = 10**9
+            prefix_order.append((prefix, uidx))
+        prefix_order.sort(key=lambda t: t[1])
+
+        # pretty print per group with correct fraction association
+        for prefix, uidx in prefix_order:
+            frac = self.unit_fractions[uidx] if 0 <= uidx < len(self.unit_fractions) else None
             frac_str = f"fraction={frac:.3f}" if frac is not None else ""
             lines.append(f"[{prefix}] {frac_str}")
-            keys = sorted(grouped[prefix], key=lambda k: self.params[k]["local_name"])  # type: ignore
+            keys = sorted(grouped[prefix], key=lambda k: self.params[k]["local_name"])  # type: ignore[index]
             for k in keys:
                 rec = self.params[k]
                 val = float(rec["value"])
