@@ -66,7 +66,7 @@ Datasets need to be prepared in a specific way in order for the app to be able t
 ### Montly Data
 Monthly tracer input series should have the following format:
 
-```plaintext
+```
 # Date, Value
 1996-01, 1.03
 1996-02, 2.12
