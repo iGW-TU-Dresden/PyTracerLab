@@ -362,6 +362,20 @@
 </section>
 <section id="preparing-datasets">
 <span id="id1"></span><h2>Preparing Datasets<a class="headerlink" href="#preparing-datasets" title="Link to this heading">¶</a></h2>
+<p>Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in ISOSIMpy.</p>
+<section id="montly-data">
+<h3>Montly Data<a class="headerlink" href="#montly-data" title="Link to this heading">¶</a></h3>
+<p>Monthly tracer input series should have the following format:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, Value</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">01</span><span class="p">,</span> <span class="mf">1.03</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">02</span><span class="p">,</span> <span class="mf">2.12</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">03</span><span class="p">,</span> <span class="mf">0.08</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="o">-</span><span class="mi">11</span><span class="p">,</span> <span class="mf">0.05</span>
+</pre></div>
+</div>
+<p>Instead of “# Date, Value”, any other description can be used. <strong>The first line in the file is skipped when reading!</strong></p>
+</section>
 </section>
 <section id="model-warmup">
 <span id="id2"></span><h2>Model Warmup<a class="headerlink" href="#model-warmup" title="Link to this heading">¶</a></h2>
@@ -431,7 +445,10 @@
 <li><a class="reference internal" href="#the-simulation-tab">4. The Simulation Tab</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#preparing-datasets">Preparing Datasets</a></li>
+<li><a class="reference internal" href="#preparing-datasets">Preparing Datasets</a><ul>
+<li><a class="reference internal" href="#montly-data">Montly Data</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#model-warmup">Model Warmup</a></li>
 </ul>
 </li>
