@@ -251,7 +251,7 @@ class Model:
             warm = np.full(self._n_warmup, float(self.steady_state_input))
         else:
             n_tr = int(self.input_series.shape[1])
-            warm = np.full((self._n_warmup, n_tr), float(self.steady_state_input))
+            warm = np.full((self._n_warmup, n_tr), self.steady_state_input)
         self.input_series = np.concatenate((warm, self.input_series))
         if self.target_series is not None:
             if self.target_series.ndim == 1:
