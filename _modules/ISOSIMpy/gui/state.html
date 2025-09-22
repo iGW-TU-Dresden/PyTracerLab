@@ -211,9 +211,11 @@
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_01.html">Basic Modelling with ISOSIMpy</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_02.html">Modelling in the Bayesian Statistical Framework</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Generate Synthetic Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_01.html">Example 1: Basic Modelling with ISOSIMpy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_02.html">Example 2: Modelling with ISOSIMpy in the Bayesian Statistical Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
 </ul>
 </li>
 </ul>
@@ -297,7 +299,11 @@
 <span class="sd">    is_monthly : bool</span>
 <span class="sd">        Whether input/target series are monthly (else yearly).</span>
 <span class="sd">    tracer : str</span>
-<span class="sd">        Selected tracer name (e.g., ``&quot;Tritium&quot;``, ``&quot;Carbon-14&quot;``).</span>
+<span class="sd">        LEGACY: single-tracer selection kept for backward compatibility.</span>
+<span class="sd">    tracer1 : str</span>
+<span class="sd">        Primary tracer (e.g., ``&quot;Tritium&quot;``, ``&quot;Carbon-14&quot;``).</span>
+<span class="sd">    tracer2 : str | None</span>
+<span class="sd">        Optional second tracer; if ``None`` or ``&quot;None&quot;``, runs single-tracer mode.</span>
 <span class="sd">    solver_key : str</span>
 <span class="sd">        Selected solver registry key (``&quot;de&quot;`` or ``&quot;mcmc&quot;``).</span>
 <span class="sd">    solver_params : dict</span>
@@ -325,7 +331,9 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">is_monthly</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="n">tracer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Tritium&quot;</span>
+    <span class="n">tracer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Tritium&quot;</span>  <span class="c1"># legacy</span>
+    <span class="n">tracer1</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Tritium&quot;</span>
+    <span class="n">tracer2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="c1"># Selected solver (registry key); default to Differential Evolution</span>
     <span class="n">solver_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;de&quot;</span>
     <span class="c1"># Per-solver parameters</span>
@@ -337,6 +345,7 @@
                 <span class="s2">&quot;mutation&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
                 <span class="s2">&quot;recombination&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span>
                 <span class="s2">&quot;tol&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span>
+                <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">},</span>
             <span class="s2">&quot;mcmc&quot;</span><span class="p">:</span> <span class="p">{</span>
                 <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>

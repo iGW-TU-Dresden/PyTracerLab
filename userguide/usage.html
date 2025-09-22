@@ -212,9 +212,11 @@
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../examples/example_01.html">Basic Modelling with ISOSIMpy</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../examples/example_02.html">Modelling in the Bayesian Statistical Framework</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../examples/example_03.html">Generate Synthetic Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_01.html">Example 1: Basic Modelling with ISOSIMpy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_02.html">Example 2: Modelling with ISOSIMpy in the Bayesian Statistical Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
 </ul>
 </li>
 </ul>
@@ -291,7 +293,7 @@
 <p>In this <strong>Tab</strong>, datasets are loaded and the most basic settings for subsequent modelling are made.</p>
 <ul class="simple">
 <li><p>select temporal resolution (yearly or monthly data in time series and model simulations)</p></li>
-<li><p>select tracer ($^3\mathrm{H}$ or $^14\mathrm{C}$)</p></li>
+<li><p>select one or two tracers to be considered in the analysis ($^3\mathrm{H}$ or $^14\mathrm{C}$)</p></li>
 <li><p>select and load tracer input time series file using the file dialog that opens up; see <a class="reference internal" href="#preparing-datasets">here</a> for details on how to prepare tracer input time series files</p></li>
 <li><p>select and load tracer observation time series file using the file dialog that opens up; see <a class="reference internal" href="#preparing-datasets">here</a> for details on how to prepare tracer observation time series files</p></li>
 </ul>
@@ -320,6 +322,7 @@
 <ul>
 <li><p>this prepends the steady state tracer input for the time of the number of tracer half lives specified here</p></li>
 <li><p>model warmup helps to remove unwanted irregularities that can appear in early phases of simulations; see <a class="reference internal" href="#model-warmup">here</a> for more details</p></li>
+<li><p>in the case of two tracers, <strong>the longer of the two half lives is used</strong></p></li>
 </ul>
 </li>
 </ul>
@@ -356,17 +359,20 @@
 <li><p>write a report including the calibrated parameters, error metrics, and other model details to a text file; uses a file dialog to store the report file</p></li>
 </ul>
 <p><img alt="An image of the Simulation Tab." src="../_images/tab04.png" /></p>
-<p><img alt="An example plot after parameter inference (calibration) using an MCMC sampler." src="../_images/plot.png" /></p>
-<p><img alt="An example report after parameter inference (calibration)." src="../_images/report.png" /></p>
+<p><img alt="An example plot after parameter inference (calibration) using an MCMC sampler; case of one tracer." src="../_images/plot.png" /></p>
+<p><img alt="An example report after parameter inference (calibration); case of one tracer." src="../_images/report.png" /></p>
 </section>
 </section>
 <section id="preparing-datasets">
 <span id="id1"></span><h2>Preparing Datasets<a class="headerlink" href="#preparing-datasets" title="Link to this heading">¶</a></h2>
 <p>Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in ISOSIMpy.</p>
+<p>Below, instead of “# Date, CTracer” or “# Date, CTracer1, CTracer2”, any other description can be used. <strong>The first line in the file is skipped when reading!</strong></p>
 <section id="montly-data">
 <h3>Montly Data<a class="headerlink" href="#montly-data" title="Link to this heading">¶</a></h3>
-<p>Monthly tracer input series should have the following format:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, Value</span>
+<section id="a-single-tracer">
+<h4>A Single Tracer<a class="headerlink" href="#a-single-tracer" title="Link to this heading">¶</a></h4>
+<p><strong>Monthly tracer input series</strong> should have the following format if <strong>a single tracer</strong> is considered:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer</span>
 <span class="mi">1996</span><span class="o">-</span><span class="mi">01</span><span class="p">,</span> <span class="mf">1.03</span>
 <span class="mi">1996</span><span class="o">-</span><span class="mi">02</span><span class="p">,</span> <span class="mf">2.12</span>
 <span class="mi">1996</span><span class="o">-</span><span class="mi">03</span><span class="p">,</span> <span class="mf">0.08</span>
@@ -374,11 +380,86 @@
 <span class="mi">2009</span><span class="o">-</span><span class="mi">11</span><span class="p">,</span> <span class="mf">0.05</span>
 </pre></div>
 </div>
-<p>Instead of “# Date, Value”, any other description can be used. <strong>The first line in the file is skipped when reading!</strong></p>
+<p><strong>Monthly tracer observation series</strong> should have the following format if <strong>a single tracer</strong> is considered (“nan” if no observation is available at that time stamp):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">01</span><span class="p">,</span> <span class="n">nan</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">02</span><span class="p">,</span> <span class="mf">0.17</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">03</span><span class="p">,</span> <span class="n">nan</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="o">-</span><span class="mi">11</span><span class="p">,</span> <span class="n">nan</span>
+</pre></div>
+</div>
+</section>
+<section id="two-tracers">
+<h4>Two Tracers<a class="headerlink" href="#two-tracers" title="Link to this heading">¶</a></h4>
+<p><strong>Monthly tracer input series</strong> should have the following format if <strong>two tracers</strong> are considered:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer1, CTracer2</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">01</span><span class="p">,</span> <span class="mf">1.03</span><span class="p">,</span> <span class="mf">0.01</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">02</span><span class="p">,</span> <span class="mf">2.12</span><span class="p">,</span> <span class="mf">0.06</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">03</span><span class="p">,</span> <span class="mf">0.08</span><span class="p">,</span> <span class="mf">0.02</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="o">-</span><span class="mi">11</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">1.25</span>
+</pre></div>
+</div>
+<p><strong>Monthly tracer observation series</strong> should have the following format if <strong>two tracers</strong> are considered (“nan” if no observation is available at that time stamp):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer1, CTracer2</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">01</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">02</span><span class="p">,</span> <span class="mf">1.14</span><span class="p">,</span> <span class="mf">0.01</span>
+<span class="mi">1996</span><span class="o">-</span><span class="mi">03</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="o">-</span><span class="mi">11</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="yearly-data">
+<h3>Yearly Data<a class="headerlink" href="#yearly-data" title="Link to this heading">¶</a></h3>
+<section id="id2">
+<h4>A Single Tracer<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h4>
+<p><strong>Yearly tracer input series</strong> should have the following format if <strong>a single tracer</strong> is considered:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer</span>
+<span class="mi">1996</span><span class="p">,</span> <span class="mf">1.03</span>
+<span class="mi">1997</span><span class="p">,</span> <span class="mf">2.12</span>
+<span class="mi">1998</span><span class="p">,</span> <span class="mf">0.08</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="p">,</span> <span class="mf">0.05</span>
+</pre></div>
+</div>
+<p><strong>Yearly tracer observation series</strong> should have the following format if <strong>a single tracer</strong> is considered (“nan” if no observation is available at that time stamp):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer</span>
+<span class="mi">1996</span><span class="p">,</span> <span class="n">nan</span>
+<span class="mi">1997</span><span class="p">,</span> <span class="mf">0.17</span>
+<span class="mi">1998</span><span class="p">,</span> <span class="n">nan</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="p">,</span> <span class="n">nan</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h4>Two Tracers<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h4>
+<p><strong>Yearly tracer input series</strong> should have the following format if <strong>two tracers</strong> are considered:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer1, CTracer2</span>
+<span class="mi">1996</span><span class="p">,</span> <span class="mf">1.03</span><span class="p">,</span> <span class="mf">0.01</span>
+<span class="mi">1997</span><span class="p">,</span> <span class="mf">2.12</span><span class="p">,</span> <span class="mf">0.06</span>
+<span class="mi">1998</span><span class="p">,</span> <span class="mf">0.08</span><span class="p">,</span> <span class="mf">0.02</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">1.25</span>
+</pre></div>
+</div>
+<p><strong>Yearly tracer observation series</strong> should have the following format if <strong>two tracers</strong> are considered (“nan” if no observation is available at that time stamp):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Date, CTracer1, CTracer2</span>
+<span class="mi">1996</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span>
+<span class="mi">1997</span><span class="p">,</span> <span class="mf">1.14</span><span class="p">,</span> <span class="mf">0.01</span>
+<span class="mi">1998</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span>
+<span class="o">...</span>
+<span class="mi">2009</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span>
+</pre></div>
+</div>
+</section>
 </section>
 </section>
 <section id="model-warmup">
-<span id="id2"></span><h2>Model Warmup<a class="headerlink" href="#model-warmup" title="Link to this heading">¶</a></h2>
+<span id="id4"></span><h2>Model Warmup<a class="headerlink" href="#model-warmup" title="Link to this heading">¶</a></h2>
 </section>
 </section>
 
@@ -446,7 +527,16 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#preparing-datasets">Preparing Datasets</a><ul>
-<li><a class="reference internal" href="#montly-data">Montly Data</a></li>
+<li><a class="reference internal" href="#montly-data">Montly Data</a><ul>
+<li><a class="reference internal" href="#a-single-tracer">A Single Tracer</a></li>
+<li><a class="reference internal" href="#two-tracers">Two Tracers</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#yearly-data">Yearly Data</a><ul>
+<li><a class="reference internal" href="#id2">A Single Tracer</a></li>
+<li><a class="reference internal" href="#id3">Two Tracers</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#model-warmup">Model Warmup</a></li>

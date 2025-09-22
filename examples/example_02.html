@@ -3,11 +3,11 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Generate Synthetic Data" href="example_03.html" /><link rel="prev" title="Basic Modelling with ISOSIMpy" href="example_01.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Example 3: Analysis Involving Multiple Tracers" href="example_03.html" /><link rel="prev" title="Example 1: Basic Modelling with ISOSIMpy" href="example_01.html" />
         <link rel="prefetch" href="../_static/logo.png" as="image" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
-        <title>Modelling in the Bayesian Statistical Framework - ISOSIMpy Documentation</title>
+        <title>Example 2: Modelling with ISOSIMpy in the Bayesian Statistical Framework - ISOSIMpy Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=25af2a20" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
@@ -212,9 +212,11 @@
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Examples</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="example_01.html">Basic Modelling with ISOSIMpy</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Modelling in the Bayesian Statistical Framework</a></li>
-<li class="toctree-l2"><a class="reference internal" href="example_03.html">Generate Synthetic Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_01.html">Example 1: Basic Modelling with ISOSIMpy</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Example 2: Modelling with ISOSIMpy in the Bayesian Statistical Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
 </ul>
 </li>
 </ul>
@@ -280,8 +282,9 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="modelling-in-the-bayesian-statistical-framework">
-<h1>Modelling in the Bayesian Statistical Framework<a class="headerlink" href="#modelling-in-the-bayesian-statistical-framework" title="Link to this heading">¶</a></h1>
+          <section id="example-2-modelling-with-isosimpy-in-the-bayesian-statistical-framework">
+<h1>Example 2: Modelling with ISOSIMpy in the Bayesian Statistical Framework<a class="headerlink" href="#example-2-modelling-with-isosimpy-in-the-bayesian-statistical-framework" title="Link to this heading">¶</a></h1>
+<p>Here we show how to use the ISOSIMpy package to perform a basic standard application of lumped parameter models (see Example 1), but with an important change. We still calibrate parameter values of the lumped parameter model from observations of tracer concentrations in an observation well, but here we perform this process in a Bayesian statistical framework using a Markov-chain Monte Carlo sampler.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ISOSIMpy.model</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ism</span>
@@ -294,13 +297,13 @@
 </div>
 <section id="load-synthetic-observation-data">
 <h2>1. Load (Synthetic) Observation Data<a class="headerlink" href="#load-synthetic-observation-data" title="Link to this heading">¶</a></h2>
-<p>See Example 3 on how this data is generated.</p>
+<p>See Example 5 on how this data is generated.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># load input series</span>
 <span class="c1"># this would be the tracer concentration in precipitation or recharge in a</span>
 <span class="c1"># practical problem</span>
-<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;example_input_series.csv&quot;</span>
+<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;example_input_series_1tracer.csv&quot;</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span>
     <span class="n">file_name</span><span class="p">,</span>
     <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">,</span>
@@ -315,7 +318,7 @@
 <span class="c1"># load observation series</span>
 <span class="c1"># this would be the measured tracer concentration in groudnwater in a</span>
 <span class="c1"># practical problem</span>
-<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;example_observation_series.csv&quot;</span>
+<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;example_observation_series_1tracer.csv&quot;</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span>
     <span class="n">file_name</span><span class="p">,</span>
     <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">,</span>
@@ -330,7 +333,7 @@
 <span class="c1"># load full system output series</span>
 <span class="c1"># this would be the true tracer concentration in groudnwater in a practical</span>
 <span class="c1"># problem; this is not available in practice</span>
-<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;example_output_series.csv&quot;</span>
+<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;example_output_series_1tracer.csv&quot;</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span>
     <span class="n">file_name</span><span class="p">,</span>
     <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">,</span>
@@ -578,7 +581,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Generate Synthetic Data</div>
+                <div class="title">Example 3: Analysis Involving Multiple Tracers</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -589,7 +592,7 @@
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Basic Modelling with ISOSIMpy</div>
+                <div class="title">Example 1: Basic Modelling with ISOSIMpy</div>
                 
               </div>
             </a>
@@ -623,7 +626,7 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Modelling in the Bayesian Statistical Framework</a><ul>
+<li><a class="reference internal" href="#">Example 2: Modelling with ISOSIMpy in the Bayesian Statistical Framework</a><ul>
 <li><a class="reference internal" href="#load-synthetic-observation-data">1. Load (Synthetic) Observation Data</a></li>
 <li><a class="reference internal" href="#run-mcmc-for-model-parameters">2. Run MCMC for Model Parameters</a></li>
 </ul>
