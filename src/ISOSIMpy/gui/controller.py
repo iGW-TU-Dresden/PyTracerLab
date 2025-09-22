@@ -43,11 +43,17 @@ class Controller(QObject):
         # Accept a few common spellings
         is_month = 12.0 if self.state.is_monthly else 1.0
         if name.lower() in {"tritium", "h-3", "h3", "3h"}:
-            half_life_years = 12.33
-        else:
-            # Carbon-14 defaults
-            # Accept labels like "Carbon-14", "14-C", "c-14", "14c"
+            # Tritium
+            half_life_years = 12.32
+        elif name.lower() in {"carbon-14", "14-c", "c-14", "14c"}:
+            # Carbon-14
             half_life_years = 5700.0
+        elif name.lower() in {"krypton-85", "kr-85", "kr85", "85kr"}:
+            # Krypton-85
+            half_life_years = 10.73
+        else:
+            # Raise an error
+            raise ValueError(f"Unknown tracer name: {name}")
         return 0.693 / (half_life_years * is_month)
 
     def build_model(self):
