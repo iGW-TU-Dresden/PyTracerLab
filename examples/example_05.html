@@ -367,7 +367,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.legend.Legend at 0x21dade63c80&gt;
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.legend.Legend at 0x1e327177350&gt;
 </pre></div>
 </div>
 <img alt="../_images/75a6eb5646545c7b8a0097380bdcefab3fb82c4f7716b75340018ed9dc247d43.png" src="../_images/75a6eb5646545c7b8a0097380bdcefab3fb82c4f7716b75340018ed9dc247d43.png" />
@@ -404,17 +404,8 @@
 <span class="n">epm_eta_true</span> <span class="o">=</span> <span class="mf">1.5</span>
 <span class="n">m</span><span class="o">.</span><span class="n">add_unit</span><span class="p">(</span>
     <span class="n">ism</span><span class="o">.</span><span class="n">EPMUnit</span><span class="p">(</span><span class="n">mtt</span><span class="o">=</span><span class="n">epm_mtt_true</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="n">epm_eta_true</span><span class="p">),</span>
-    <span class="n">fraction</span><span class="o">=</span><span class="mf">.8</span><span class="p">,</span> <span class="c1"># 80 percent of the overall response</span>
+    <span class="n">fraction</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="c1"># 100 percent of the overall response</span>
     <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;epm&quot;</span>
-<span class="p">)</span>
-
-<span class="c1"># add a piston-flow unit</span>
-<span class="c1"># define the true model parameters</span>
-<span class="n">pm_mtt_true</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">5</span> <span class="c1"># 5 years (faster than EPM)</span>
-<span class="n">m</span><span class="o">.</span><span class="n">add_unit</span><span class="p">(</span>
-    <span class="n">ism</span><span class="o">.</span><span class="n">PMUnit</span><span class="p">(</span><span class="n">mtt</span><span class="o">=</span><span class="n">pm_mtt_true</span><span class="p">),</span>
-    <span class="n">fraction</span><span class="o">=</span><span class="mf">.2</span><span class="p">,</span> <span class="c1"># 20 percent of the overall response</span>
-    <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;pm&quot;</span>
 <span class="p">)</span>
 
 <span class="n">true_params</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">params</span>
@@ -428,7 +419,7 @@
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># make reproducible</span>
-<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">12345</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span>
 
 <span class="c1"># define observations</span>
 <span class="c1"># randomly select a number of observations from the output series</span>
@@ -509,7 +500,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/d9f4bde08fc51f11cdb592dad8560f43a8cd30ab28af0bddd972ddf01c873be7.png" src="../_images/d9f4bde08fc51f11cdb592dad8560f43a8cd30ab28af0bddd972ddf01c873be7.png" />
+<img alt="../_images/9af27b1faf309ebb8343c2f50a305eaddda64db71fe2f74dab2909c6842142e5.png" src="../_images/9af27b1faf309ebb8343c2f50a305eaddda64db71fe2f74dab2909c6842142e5.png" />
 </div>
 </div>
 </section>

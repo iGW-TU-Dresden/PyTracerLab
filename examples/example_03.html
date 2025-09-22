@@ -412,7 +412,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/a1ab42cdc0c08ba856ed5ebae5f5480c5a750d0058198797d509e02d1b62b112.png" src="../_images/a1ab42cdc0c08ba856ed5ebae5f5480c5a750d0058198797d509e02d1b62b112.png" />
+<img alt="../_images/6037bc9c72ab1c7b1a2c43c31c4ad1818651ccf5ce492782e07742e404a16a22.png" src="../_images/6037bc9c72ab1c7b1a2c43c31c4ad1818651ccf5ce492782e07742e404a16a22.png" />
 </div>
 </div>
 </section>
@@ -420,10 +420,10 @@
 <h2>2. Model Setup<a class="headerlink" href="#model-setup" title="Link to this heading">¶</a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">t_half</span> <span class="o">=</span> <span class="mf">12.3</span> <span class="o">*</span> <span class="mf">12.0</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">t_half</span> <span class="o">=</span> <span class="mf">12.32</span> <span class="o">*</span> <span class="mf">12.0</span> <span class="c1"># tritium</span>
 <span class="n">lambda_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">t_half</span>
 
-<span class="n">t_half</span> <span class="o">=</span> <span class="mf">5700.</span> <span class="o">*</span> <span class="mf">12.0</span>
+<span class="n">t_half</span> <span class="o">=</span> <span class="mf">10.73</span> <span class="o">*</span> <span class="mf">12.0</span> <span class="c1"># krypton 85</span>
 <span class="n">lambda_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">t_half</span>
 
 <span class="c1">### define model (we do not use the same structure / units as the true model)</span>
@@ -433,7 +433,7 @@
     <span class="n">lambda_</span><span class="o">=</span><span class="p">[</span><span class="n">lambda_1</span><span class="p">,</span> <span class="n">lambda_2</span><span class="p">],</span>
     <span class="n">input_series</span><span class="o">=</span><span class="n">input_series</span><span class="p">,</span>
     <span class="n">target_series</span><span class="o">=</span><span class="n">obs_series</span><span class="p">,</span>
-    <span class="n">steady_state_input</span><span class="o">=</span><span class="p">[</span><span class="mf">3.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">],</span> <span class="c1"># this is the true value</span>
+    <span class="n">steady_state_input</span><span class="o">=</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="c1"># this is the true value</span>
     <span class="n">n_warmup_half_lives</span><span class="o">=</span><span class="mi">10</span>
 <span class="p">)</span>
 
@@ -454,10 +454,24 @@
 </section>
 <section id="model-simulation-for-different-mean-travel-times">
 <h2>3. Model Simulation for Different Mean Travel Times<a class="headerlink" href="#model-simulation-for-different-mean-travel-times" title="Link to this heading">¶</a></h2>
+<p>We finally create something known as a tracer-tracer plot (in german there is a term for this: “Harfendiagramm” or “harp diagram” as it is visually similar to a harp).</p>
+<p>The purpose of those diagrams is more to interpret and understand tracer observations rather than calibrate model parameters. Typically, a model is considered with just one unit (e.g., an exponential unit). Then, the model is simulated with many different parameter values for the mean travel time. With each setting, the model is simulated, and the results are stored.</p>
+<p>Ultimately, we obtain a 3D array of data with the following axes:</p>
+<ul class="simple">
+<li><p>the two tracers</p></li>
+<li><p>all considered mean travel times</p></li>
+<li><p>all time steps in the input time series of the two tracers</p></li>
+</ul>
+<p>In the tracer-tracer plot, we then plot a subset of this 3D array. This subset is a 2D array and has the following axes:</p>
+<ul class="simple">
+<li><p>the two tracers</p></li>
+<li><p>all considered mean travel times</p></li>
+</ul>
+<p>We get this subset by “slicing” the original 3D array at a certain time step or date. This date is typically chosen to be a date where an observation is available.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define range of mean travel times to consider</span>
-<span class="n">mtt_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">12</span> <span class="o">*</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="n">mtt_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">12</span> <span class="o">*</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
 
 <span class="c1"># Create empty array of results</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">mtt_range</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_series</span><span class="p">)))</span>
@@ -479,13 +493,16 @@
 <span class="c1"># Get indices of time series that have observations</span>
 <span class="n">obs_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">))[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">obs_series</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span>
 
-<span class="n">idx_select</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">idx_select</span> <span class="o">=</span> <span class="mi">4</span>
 
+<span class="c1"># plot the line connecting the points of different mean travel times</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
     <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]],</span>
     <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]],</span>
     <span class="n">c</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="c1"># plot the points of different mean travel times and color them by mean</span>
+<span class="c1"># travel time</span>
 <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
     <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]],</span>
     <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]],</span>
@@ -494,6 +511,7 @@
     <span class="n">s</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
     <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span>
 <span class="p">)</span>
+<span class="c1"># plot the observation</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
     <span class="n">obs_series</span><span class="p">[</span><span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">],</span> <span class="mi">0</span><span class="p">],</span>
     <span class="n">obs_series</span><span class="p">[</span><span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">],</span> <span class="mi">1</span><span class="p">],</span>
@@ -504,6 +522,28 @@
     <span class="n">s</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
     <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Observation&quot;</span>
 <span class="p">)</span>
+<span class="c1"># plot the origin</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+    <span class="p">[</span><span class="mf">0.</span><span class="p">],</span>
+    <span class="p">[</span><span class="mf">0.</span><span class="p">],</span>
+    <span class="n">c</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
+    <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
+    <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span>
+    <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">s</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Origin&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># plot straight lines from the origin to the points representing the different</span>
+<span class="c1"># mean travel times</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mtt</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mtt_range</span><span class="p">):</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+        <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]],</span>
+        <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]],</span>
+        <span class="n">c</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span>
+    <span class="p">)</span>
+
 <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean travel time [years]&quot;</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Tracer 1&quot;</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Tracer 2&quot;</span><span class="p">)</span>
@@ -513,7 +553,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/75a7faef178a606a8a900e88ceda38de3aeb4596255cf364272f9f3a1fd2f4c5.png" src="../_images/75a7faef178a606a8a900e88ceda38de3aeb4596255cf364272f9f3a1fd2f4c5.png" />
+<img alt="../_images/78755a69ac176e86c2170f2bd35d82f207501fa382c0c1eef525dbf28332ee45.png" src="../_images/78755a69ac176e86c2170f2bd35d82f207501fa382c0c1eef525dbf28332ee45.png" />
 </div>
 </div>
 </section>
