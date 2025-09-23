@@ -87,6 +87,31 @@ class Controller(QObject):
             if len(lam) == 1:
                 lam = lam[0]
 
+            n_tracers = len(tracer_names) if tracer_names else 1
+            steady_state_input = getattr(self.state, "steady_state_input", None)
+            if steady_state_input is None:
+                ss_val = None
+            elif n_tracers == 1:
+                if isinstance(steady_state_input, (list, tuple)):
+                    ss_val = float(steady_state_input[0]) if steady_state_input else 0.0
+                else:
+                    ss_val = float(steady_state_input)
+            else:
+                if isinstance(steady_state_input, (list, tuple)):
+                    ss_seq = [float(v) for v in steady_state_input]
+                else:
+                    ss_seq = [float(steady_state_input)] * n_tracers
+                if len(ss_seq) != n_tracers:
+                    if len(ss_seq) == 1:
+                        ss_seq = ss_seq * n_tracers
+                    else:
+                        raise ValueError("steady_state_input must provide one value per tracer")
+                ss_val = ss_seq
+
+            steady_enabled = bool(getattr(self.state, "steady_state_enabled", False))
+            if not steady_enabled:
+                ss_val = None
+
             x = self.state.input_series
             y = self.state.target_series
             self.ml = mm.Model(
@@ -94,7 +119,7 @@ class Controller(QObject):
                 lam,
                 input_series=x[1] if x else None,
                 target_series=y[1] if y else None,
-                steady_state_input=self.state.steady_state_input,
+                steady_state_input=ss_val,
                 n_warmup_half_lives=self.state.n_warmup_half_lives,
             )
 

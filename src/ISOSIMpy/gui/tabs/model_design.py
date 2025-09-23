@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QSizePolicy,
@@ -79,11 +80,13 @@ class ModelDesignTab(QWidget):
         validator = QDoubleValidator(self)
         validator.setNotation(QDoubleValidator.StandardNotation)
         validator.setDecimals(6)
+        self.float_validator = validator
 
         # Width probe
         probe = QLineEdit()
         fm = probe.fontMetrics()
         frac_width = fm.horizontalAdvance(" -0.0000 ") + 18
+        self.value_field_width = frac_width
 
         ### Unit rows (up to 4 selections)
         row = 1
@@ -131,19 +134,16 @@ class ModelDesignTab(QWidget):
         self.ss_checkbox = QCheckBox("", self)
         self.ss_checkbox.setChecked(bool(self.state.steady_state_enabled))
 
-        self.ss_value = QLineEdit(self)
-        self.ss_value.setText(f"{float(self.state.steady_state_input):.2f}")
-        self.ss_value.setAlignment(Qt.AlignRight)
-        self.ss_value.setValidator(validator)
-        self.ss_value.setMaximumWidth(frac_width)
-        self.ss_value.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.ss_value.setEnabled(self.ss_checkbox.isChecked())
+        self.ss_container = QWidget(self)
+        self.ss_container_layout = QVBoxLayout(self.ss_container)
+        self.ss_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.ss_container_layout.setSpacing(4)
+        self.ss_inputs: list[QLineEdit] = []
 
         grid.addWidget(self.ss_checkbox, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
-        grid.addWidget(self.ss_value, row, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        grid.addWidget(self.ss_container, row, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
 
         self.ss_checkbox.toggled.connect(self._on_ss_toggle)
-        self.ss_value.textChanged.connect(self._update)
         row += 1
 
         # spacer
@@ -177,6 +177,7 @@ class ModelDesignTab(QWidget):
                 r["frac"].setText(f"{float(frac):.4f}")
                 r["frac"].setEnabled(idx != -1 and idx != 0)
 
+        self.refresh_tracer_inputs()
         self._update()
 
     def _on_combo_changed(self, index: int, combo: QComboBox, frac_edit: QLineEdit):
@@ -186,9 +187,73 @@ class ModelDesignTab(QWidget):
         self._update()
 
     def _on_ss_toggle(self, checked: bool):
-        self.ss_value.setEnabled(checked)
+        self._set_ss_inputs_enabled(checked)
         self.state.steady_state_enabled = bool(checked)
         self._update()
+
+    def _set_ss_inputs_enabled(self, enabled: bool):
+        for edit in self.ss_inputs:
+            edit.setEnabled(enabled)
+
+    def refresh_tracer_inputs(self):
+        self._rebuild_steady_state_inputs()
+        # Keep state in sync with possibly new widgets
+        self._update()
+
+    def _rebuild_steady_state_inputs(self):
+        while self.ss_container_layout.count():
+            item = self.ss_container_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        self.ss_inputs = []
+
+        tracer_names = [getattr(self.state, "tracer1", None)]
+        tracer2 = getattr(self.state, "tracer2", None)
+        if tracer2 and str(tracer2).lower() not in {"none", ""}:
+            tracer_names.append(tracer2)
+
+        raw_values = getattr(self.state, "steady_state_input", 0.0)
+        if isinstance(raw_values, (list, tuple)):
+            values = [float(v) for v in raw_values]
+        elif raw_values is None:
+            values = []
+        else:
+            values = [float(raw_values)]
+
+        for idx, name in enumerate(tracer_names):
+            row_widget = QWidget(self)
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            label_text = f"Tracer {idx + 1}"
+            if name:
+                label_text += f" ({name})"
+            label = QLabel(label_text, self)
+
+            edit = QLineEdit(self)
+            edit.setAlignment(Qt.AlignRight)
+            edit.setValidator(self.float_validator)
+            edit.setMaximumWidth(self.value_field_width)
+            edit.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            if idx < len(values):
+                val = values[idx]
+            elif idx == 0 and values:
+                val = values[0]
+            else:
+                val = 0.0
+            edit.setText(f"{float(val):.2f}")
+            edit.textChanged.connect(self._update)
+
+            row_layout.addWidget(label)
+            row_layout.addWidget(edit)
+            self.ss_container_layout.addWidget(row_widget)
+            self.ss_inputs.append(edit)
+
+        self.ss_container_layout.addStretch(1)
+        self._set_ss_inputs_enabled(self.ss_checkbox.isChecked())
 
     def _update(self):
         # Gather selected units (up to 4) and their fractions
@@ -230,13 +295,18 @@ class ModelDesignTab(QWidget):
         self.state.unit_fractions = {inst["prefix"]: inst["fraction"] for inst in instances}
 
         # Steady-state
-        if self.ss_checkbox.isChecked():
+        vals = []
+        for edit in self.ss_inputs:
+            text = edit.text()
             try:
-                self.state.steady_state_input = (
-                    float(self.ss_value.text()) if self.ss_value.text() else 0.0
-                )
+                vals.append(float(text) if text else 0.0)
             except ValueError:
-                pass
+                vals.append(0.0)
+
+        if len(vals) <= 1:
+            self.state.steady_state_input = vals[0] if vals else 0.0
+        else:
+            self.state.steady_state_input = vals
 
         # Warmup half lives
         try:

@@ -36,8 +36,9 @@ class Model:
     target_series : ndarray, optional
         Observed output series of shape ``(N,)`` or ``(N, K)``; used only for
         calibration/loss and reporting.
-    steady_state_input : float, optional
-        If provided, a warmup of constant input is prepended.
+    steady_state_input : float or sequence of float, optional
+        If provided, a warmup of constant input is prepended. Supply a scalar
+        for single-tracer runs or one value per tracer for multi-tracer runs.
     n_warmup_half_lives : int, optional
         Heuristic warmup scaling in half-lives (kept for compatibility).
 
@@ -54,7 +55,7 @@ class Model:
     lambda_: Union[float, np.ndarray]
     input_series: np.ndarray
     target_series: Optional[np.ndarray] = None
-    steady_state_input: Optional[float] = None
+    steady_state_input: Optional[Union[float, Sequence[float]]] = None
     n_warmup_half_lives: int = 2
 
     units: List[Unit] = field(default_factory=list)
@@ -231,6 +232,36 @@ class Model:
         """Number of warmup steps prepended to the series."""
         return self._n_warmup
 
+    def _steady_state_vector(self, n_tracers: int) -> np.ndarray:
+        """Return steady-state input as a 1D vector matching ``n_tracers``.
+
+        Parameters
+        ----------
+        n_tracers : int
+            Number of tracer channels in the model input.
+
+        Returns
+        -------
+        ndarray
+            A vector of length ``n_tracers`` with steady-state input values.
+
+        Raises
+        ------
+        ValueError
+            If provided values cannot be broadcast to ``n_tracers``.
+        """
+
+        if self.steady_state_input is None:
+            raise ValueError("steady_state_input is None")
+        arr = np.asarray(self.steady_state_input, dtype=float)
+        if arr.ndim == 0:
+            return np.full(n_tracers, float(arr))
+        if arr.shape == (n_tracers,):
+            return arr.astype(float, copy=False)
+        if arr.size == 1:
+            return np.full(n_tracers, float(arr.reshape(-1)[0]))
+        raise ValueError("steady_state_input must be scalar or length equal to number of tracers")
+
     def _warmup(self) -> None:
         """Prepend a steady-state warmup to input/target and set bookkeeping.
 
@@ -248,10 +279,12 @@ class Model:
             return
         # prepend steady-state warmup to input; support 1D or 2D inputs
         if self.input_series.ndim == 1:
-            warm = np.full(self._n_warmup, float(self.steady_state_input))
+            val = self._steady_state_vector(1)[0]
+            warm = np.full(self._n_warmup, float(val))
         else:
             n_tr = int(self.input_series.shape[1])
-            warm = np.full((self._n_warmup, n_tr), self.steady_state_input)
+            vals = self._steady_state_vector(n_tr)
+            warm = np.repeat(vals[np.newaxis, :], self._n_warmup, axis=0)
         self.input_series = np.concatenate((warm, self.input_series))
         if self.target_series is not None:
             if self.target_series.ndim == 1:
@@ -388,9 +421,14 @@ class Model:
             )
         )
         lines.append(f"Warmup steps:            {self._n_warmup} (auto)")
-        steady = (
-            "n/a" if self.steady_state_input is None else f"{float(self.steady_state_input):.6g}"
-        )
+        if self.steady_state_input is None:
+            steady = "n/a"
+        else:
+            arr = np.asarray(self.steady_state_input, dtype=float)
+            if arr.ndim == 0 or arr.size == 1:
+                steady = f"{float(arr.reshape(-1)[0]):.6g}"
+            else:
+                steady = ", ".join(f"{float(v):.6g}" for v in arr.ravel())
         lines.append(f"Steady-state input:      {steady}")
         lines.append(f"Units count:             {len(self.units)}")
         lines.append("")

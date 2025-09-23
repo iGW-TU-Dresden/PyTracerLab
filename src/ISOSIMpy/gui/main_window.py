@@ -39,6 +39,7 @@ class MainWindow(QWidget):
         lay.addWidget(tabs)
 
         # wiring
+        t1.changed.connect(t2.refresh_tracer_inputs)
         t1.changed.connect(t3.refresh)
         t2.selection_changed.connect(t3.refresh)
         t4.simulate_requested.connect(lambda: (t3.commit(), self.ctrl.simulate()))

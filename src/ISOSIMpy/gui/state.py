@@ -1,7 +1,7 @@
 """Shared GUI state container used across tabs and controller."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -40,8 +40,9 @@ class AppState:
         Per-instance fraction mapping keyed by unique instance prefix.
     params : dict
         Nested parameter values/bounds/fixed flags per instance prefix.
-    steady_state_input : float
-        Value for optional steady-state warmup input.
+    steady_state_input : float | list of float
+        Value(s) for optional steady-state warmup input. Provide a scalar for
+        single-tracer runs or one value per tracer for multi-tracer runs.
     n_warmup_half_lives : int
         Warmup length in half-lives of the tracer.
     last_simulation : object | None
@@ -85,7 +86,7 @@ class AppState:
     unit_fractions: Dict[str, float] = field(default_factory=dict)
     params: Dict[str, Dict[str, Dict[str, float]]] = field(default_factory=dict)
     # params[prefix][key] = {"val":..., "lb":..., "ub":..., "fixed":0/1}
-    steady_state_input: float = 0.0
+    steady_state_input: Union[float, List[float]] = 0.0
     n_warmup_half_lives: int = 10
     # Can be either a plain ndarray (legacy) or a payload dict from solver.run_solver
     last_simulation: Optional[object] = None
