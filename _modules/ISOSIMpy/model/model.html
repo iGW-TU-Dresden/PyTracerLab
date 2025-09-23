@@ -316,8 +316,9 @@
 <span class="sd">    target_series : ndarray, optional</span>
 <span class="sd">        Observed output series of shape ``(N,)`` or ``(N, K)``; used only for</span>
 <span class="sd">        calibration/loss and reporting.</span>
-<span class="sd">    steady_state_input : float, optional</span>
-<span class="sd">        If provided, a warmup of constant input is prepended.</span>
+<span class="sd">    steady_state_input : float or sequence of float, optional</span>
+<span class="sd">        If provided, a warmup of constant input is prepended. Supply a scalar</span>
+<span class="sd">        for single-tracer runs or one value per tracer for multi-tracer runs.</span>
 <span class="sd">    n_warmup_half_lives : int, optional</span>
 <span class="sd">        Heuristic warmup scaling in half-lives (kept for compatibility).</span>
 
@@ -334,7 +335,7 @@
     <span class="n">lambda_</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
     <span class="n">input_series</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
     <span class="n">target_series</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">steady_state_input</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">steady_state_input</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">n_warmup_half_lives</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
 
     <span class="n">units</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Unit</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
@@ -538,6 +539,36 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of warmup steps prepended to the series.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_steady_state_vector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_tracers</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return steady-state input as a 1D vector matching ``n_tracers``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_tracers : int</span>
+<span class="sd">            Number of tracer channels in the model input.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            A vector of length ``n_tracers`` with steady-state input values.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If provided values cannot be broadcast to ``n_tracers``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;steady_state_input is None&quot;</span><span class="p">)</span>
+        <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_tracers</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">arr</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">n_tracers</span><span class="p">,):</span>
+            <span class="k">return</span> <span class="n">arr</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_tracers</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;steady_state_input must be scalar or length equal to number of tracers&quot;</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_warmup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepend a steady-state warmup to input/target and set bookkeeping.</span>
 
@@ -555,10 +586,12 @@
             <span class="k">return</span>
         <span class="c1"># prepend steady-state warmup to input; support 1D or 2D inputs</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_series</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">warm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span><span class="p">))</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steady_state_vector</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">warm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">n_tr</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_series</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">warm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span><span class="p">,</span> <span class="n">n_tr</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span><span class="p">)</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steady_state_vector</span><span class="p">(</span><span class="n">n_tr</span><span class="p">)</span>
+            <span class="n">warm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_series</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">warm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_series</span><span class="p">))</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_series</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_series</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -700,9 +733,14 @@
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warmup steps:            </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span><span class="si">}</span><span class="s2"> (auto)&quot;</span><span class="p">)</span>
-        <span class="n">steady</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="s2">&quot;n/a&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span><span class="p">)</span><span class="si">:</span><span class="s2">.6g</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">steady</span> <span class="o">=</span> <span class="s2">&quot;n/a&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steady_state_input</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">arr</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">steady</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="si">:</span><span class="s2">.6g</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">steady</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="si">:</span><span class="s2">.6g</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arr</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Steady-state input:      </span><span class="si">{</span><span class="n">steady</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Units count:             </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>

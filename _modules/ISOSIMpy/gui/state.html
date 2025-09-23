@@ -279,7 +279,7 @@
 <span></span><span class="sd">&quot;&quot;&quot;Shared GUI state container used across tabs and controller.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
@@ -320,8 +320,9 @@
 <span class="sd">        Per-instance fraction mapping keyed by unique instance prefix.</span>
 <span class="sd">    params : dict</span>
 <span class="sd">        Nested parameter values/bounds/fixed flags per instance prefix.</span>
-<span class="sd">    steady_state_input : float</span>
-<span class="sd">        Value for optional steady-state warmup input.</span>
+<span class="sd">    steady_state_input : float | list of float</span>
+<span class="sd">        Value(s) for optional steady-state warmup input. Provide a scalar for</span>
+<span class="sd">        single-tracer runs or one value per tracer for multi-tracer runs.</span>
 <span class="sd">    n_warmup_half_lives : int</span>
 <span class="sd">        Warmup length in half-lives of the tracer.</span>
 <span class="sd">    last_simulation : object | None</span>
@@ -365,7 +366,7 @@
     <span class="n">unit_fractions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
     <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
     <span class="c1"># params[prefix][key] = {&quot;val&quot;:..., &quot;lb&quot;:..., &quot;ub&quot;:..., &quot;fixed&quot;:0/1}</span>
-    <span class="n">steady_state_input</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">steady_state_input</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="n">n_warmup_half_lives</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
     <span class="c1"># Can be either a plain ndarray (legacy) or a payload dict from solver.run_solver</span>
     <span class="n">last_simulation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
