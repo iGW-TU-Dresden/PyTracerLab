@@ -1,5 +1,6 @@
 """Qt controller that builds the model and runs simulations/solvers."""
 
+import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from ..model import model as mm
@@ -29,6 +30,7 @@ class Controller(QObject):
     # Use generic object payloads to support arrays or dicts from different solvers
     simulated = pyqtSignal(object)
     calibrated = pyqtSignal(object)
+    tracer_tracer_ready = pyqtSignal(object)
     status = pyqtSignal(str)
     error = pyqtSignal(str)
 
@@ -203,6 +205,92 @@ class Controller(QObject):
             self.status.emit("Calibration finished.")
         except Exception as e:
             self.error.emit(str(e))
+
+    def run_tracer_tracer(self, start: float, stop: float, count: int, param_key: str) -> None:
+        """Sweep mean travel time values and emit tracer-tracer results."""
+        try:
+            if count <= 1:
+                raise ValueError("Please choose at least two mean travel time points.")
+            if not np.isfinite(start) or not np.isfinite(stop):
+                raise ValueError("Start and stop values must be finite numbers.")
+            if float(stop) <= float(start):
+                raise ValueError("Stop value must be greater than start value.")
+
+            if not getattr(self.state, "tracer2", None):
+                raise ValueError("Tracer-tracer analysis requires two tracers.")
+
+            target = self.state.target_series
+            if target is None or target[1] is None:
+                raise ValueError("No observation series available.")
+            obs_times = np.asarray(target[0])
+            obs_vals = np.asarray(target[1], dtype=float)
+            if obs_vals.ndim == 1:
+                obs_vals = obs_vals.reshape(-1, 1)
+            if obs_vals.shape[1] < 2:
+                raise ValueError("Observation series must contain two tracer columns.")
+
+            self.build_model()
+            if self.ml is None:
+                raise RuntimeError(
+                    "Model is not available. \
+                        Configure the model before running a tracer-tracer sweep."
+                )
+            if param_key not in self.ml.params:
+                raise ValueError(f"Unknown parameter: {param_key}")
+
+            base_value = float(self.ml.params[param_key]["value"])
+            grid = np.linspace(float(start), float(stop), int(count))
+            results = None
+
+            try:
+                for idx, val in enumerate(grid):
+                    self.ml.set_param(param_key, float(val))
+                    sim = self.ml.simulate()
+                    sim_arr = np.asarray(sim, dtype=float)
+                    if sim_arr.ndim == 1:
+                        sim_arr = sim_arr.reshape(-1, 1)
+                    if results is None:
+                        n_steps, n_tr = sim_arr.shape
+                        results = np.zeros((n_tr, grid.size, n_steps), dtype=float)
+                    elif sim_arr.shape[1] != results.shape[0]:
+                        raise ValueError("Simulation returned an unexpected number of tracers.")
+                    elif sim_arr.shape[0] != results.shape[2]:
+                        raise ValueError(
+                            "Simulation length changed across runs; cannot stack results."
+                        )
+                    results[:, idx, :] = sim_arr.T
+            finally:
+                self.ml.set_param(param_key, base_value)
+
+            if results is None:
+                raise ValueError("Failed to compute tracer-tracer results.")
+
+            if obs_vals.shape[0] != results.shape[2]:
+                raise ValueError("Observation length does not match simulation output.")
+
+            obs_mask = ~np.isnan(obs_vals[:, 0]) & ~np.isnan(obs_vals[:, 1])
+            obs_indices = np.nonzero(obs_mask)[0].astype(int)
+            if obs_indices.size == 0:
+                raise ValueError("No observation dates with values for both tracers.")
+
+            payload = {
+                "results": results,
+                "mtt_values": grid,
+                "param_key": param_key,
+                "obs_indices": obs_indices,
+                "timestamps": obs_times,
+                "observations": obs_vals,
+            }
+
+            self.state.tt_results = results
+            self.state.tt_mtt_values = grid
+            self.state.tt_obs_indices = obs_indices
+            self.state.tt_param_key = param_key
+
+            self.tracer_tracer_ready.emit(payload)
+            self.status.emit("Tracer-tracer sweep finished.")
+        except Exception as exc:
+            self.error.emit(str(exc))
 
     def write_report(self, filename):
         """Write a plain-text model report to ``filename`` using current state."""

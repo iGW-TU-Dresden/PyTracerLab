@@ -88,6 +88,17 @@ class AppState:
     # params[prefix][key] = {"val":..., "lb":..., "ub":..., "fixed":0/1}
     steady_state_input: Union[float, List[float]] = 0.0
     n_warmup_half_lives: int = 10
+    tt_results: Optional[ArrayLike] = None
+    tt_mtt_values: Optional[np.ndarray] = None
+    tt_obs_indices: Optional[np.ndarray] = None
+    tt_param_key: Optional[str] = None
     # Can be either a plain ndarray (legacy) or a payload dict from solver.run_solver
     last_simulation: Optional[object] = None
     last_times: Optional[ArrayLike] = None
+
+    def clear_tracer_tracer(self) -> None:
+        """Reset cached tracer-tracer sweep results."""
+        self.tt_results = None
+        self.tt_mtt_values = None
+        self.tt_obs_indices = None
+        self.tt_param_key = None
