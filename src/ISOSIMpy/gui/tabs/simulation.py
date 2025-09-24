@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import QSize, pyqtSignal
 from PyQt5.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -46,6 +46,7 @@ class SimulationTab(QWidget):
         lbl_solver = QLabel("Solver:")
         row.addWidget(lbl_solver)
         self.cb_solver = QComboBox()
+        self.cb_solver.setFixedSize(QSize(200, 20))
         self._solver_keys = []
         for key, name in ms.available_solvers():
             self.cb_solver.addItem(name, userData=key)
@@ -66,6 +67,8 @@ class SimulationTab(QWidget):
 
         # Simulation button
         b_sim = QPushButton("Run Simulation")
+        b_sim.setFixedSize(QSize(200, 40))
+        # b_sim.setStyleSheet("background-color: rgb(140, 230, 170)")
         b_sim.clicked.connect(self.simulate_requested)
 
         # Calibration label
@@ -74,10 +77,14 @@ class SimulationTab(QWidget):
 
         # Edit solver parameters button
         b_edit = QPushButton("Edit Solver Parameters")
+        b_edit.setFixedSize(QSize(200, 40))
+        # b_edit.setStyleSheet("background-color: rgb(0, 125, 75); color: white")
         b_edit.clicked.connect(self._edit_solver_params)
 
         # Calibration button
         b_cal = QPushButton("Run Calibration")
+        b_cal.setFixedSize(QSize(200, 40))
+        # b_cal.setStyleSheet("background-color: rgb(140, 230, 170)")
         b_cal.clicked.connect(self.calibrate_requested)
 
         # Plotting label
@@ -86,6 +93,7 @@ class SimulationTab(QWidget):
 
         # Plot button
         b_plot = QPushButton("Plot Results")
+        b_plot.setFixedSize(QSize(200, 40))
         b_plot.clicked.connect(self._plot)
 
         # Report label
@@ -94,6 +102,7 @@ class SimulationTab(QWidget):
 
         # Report button
         b_report = QPushButton("Write Report")
+        b_report.setFixedSize(QSize(200, 40))
         b_report.clicked.connect(self._choose_report_file)
 
         # Add widgets

@@ -52,8 +52,10 @@ class FileInputTab(QWidget):
         lbl.setStyleSheet("font-weight: 600;")
         lay.addWidget(lbl)
         self.cb_t1 = QComboBox()
+        self.cb_t1.setFixedSize(QSize(200, 20))
         self.cb_t1.addItems(["Tritium", "Carbon-14", "Krypton-85"])  # primary cannot be None
         self.cb_t2 = QComboBox()
+        self.cb_t2.setFixedSize(QSize(200, 20))
         self.cb_t2.addItems(
             ["None", "Tritium", "Carbon-14", "Krypton-85"]
         )  # optional second tracer
