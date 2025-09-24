@@ -454,6 +454,8 @@
 </section>
 <section id="model-simulation-for-different-mean-travel-times">
 <h2>3. Model Simulation for Different Mean Travel Times<a class="headerlink" href="#model-simulation-for-different-mean-travel-times" title="Link to this heading">¶</a></h2>
+<section id="conventional-tracer-tracer-analysis">
+<h3>3.1 Conventional Tracer-Tracer Analysis<a class="headerlink" href="#conventional-tracer-tracer-analysis" title="Link to this heading">¶</a></h3>
 <p>We finally create something known as a tracer-tracer plot (in german there is a term for this: “Harfendiagramm” or “harp diagram” as it is visually similar to a harp).</p>
 <p>The purpose of those diagrams is more to interpret and understand tracer observations rather than calibrate model parameters. Typically, a model is considered with just one unit (e.g., an exponential unit). Then, the model is simulated with many different parameter values for the mean travel time. With each setting, the model is simulated, and the results are stored.</p>
 <p>Ultimately, we obtain a 3D array of data with the following axes:</p>
@@ -467,7 +469,7 @@
 <li><p>the two tracers</p></li>
 <li><p>all considered mean travel times</p></li>
 </ul>
-<p>We get this subset by “slicing” the original 3D array at a certain time step or date. This date is typically chosen to be a date where an observation is available.</p>
+<p>We get this subset by “slicing” the original 3D array at a certain time step or date. This date is typically chosen to be a date where an observation is available. The resulting diagram is therefore dependent on the reference date we select as a starting point (i.e., it does make a difference if we consider a water parcel with a residence time of 10 years recharging in the year 2025 or in the year 1983 as those periods can be associated with completely different input concentrations). Points on the diagram are sometimes annotated with their input date or travel time; we subsequently color the points according to their travel time.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define range of mean travel times to consider</span>
@@ -501,6 +503,7 @@
     <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]],</span>
     <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]],</span>
     <span class="n">c</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+    <span class="n">lw</span><span class="o">=</span><span class="mf">3.</span>
 <span class="p">)</span>
 <span class="c1"># plot the points of different mean travel times and color them by mean</span>
 <span class="c1"># travel time</span>
@@ -538,13 +541,19 @@
 <span class="c1"># plot straight lines from the origin to the points representing the different</span>
 <span class="c1"># mean travel times</span>
 <span class="n">stepper</span> <span class="o">=</span> <span class="mi">2</span> <span class="c1"># plot line from origin to every stepper point</span>
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mtt_range</span><span class="p">))][::</span><span class="n">stepper</span><span class="p">]:</span>
+<span class="n">points_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mtt_range</span><span class="p">))][::</span><span class="n">stepper</span><span class="p">]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">points_idx</span><span class="p">:</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">points_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;Binary Mixing&quot;</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
         <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]],</span>
         <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]],</span>
         <span class="n">c</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
-        <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span>
+        <span class="n">lw</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+        <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="n">label</span>
     <span class="p">)</span>
 
 <span class="c1"># plot path between points representing the different mean travel times but</span>
@@ -555,8 +564,9 @@
         <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]</span> <span class="o">*</span> <span class="n">p</span><span class="p">,</span>
         <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]</span> <span class="o">*</span> <span class="n">p</span><span class="p">,</span>
         <span class="n">c</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
-        <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span>
+        <span class="n">lw</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span> <span class="o">*</span> <span class="n">p</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">p</span><span class="p">)</span><span class="o">*</span><span class="mi">100</span><span class="si">}</span><span class="s2">% Tracer-Free Water&quot;</span>
     <span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean residence time [years]&quot;</span><span class="p">)</span>
@@ -565,14 +575,20 @@
 <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Tracer 1&quot;</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Tracer 2&quot;</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="c1"># include observation date / diagram date as title</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Date of Observation: </span><span class="si">{</span><span class="n">timestamps</span><span class="p">[</span><span class="n">obs_indices</span><span class="p">[</span><span class="n">idx_select</span><span class="p">]]</span><span class="o">.</span><span class="n">date</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/6da7e4337b91a0c323565c94c3abc1f66ff107db6adfbf545e07a0f1771b62ba.png" src="../_images/6da7e4337b91a0c323565c94c3abc1f66ff107db6adfbf545e07a0f1771b62ba.png" />
+<img alt="../_images/f96547f6bbe4bba79f327efa07bcec1881b524265c806610b97427fc27d00408.png" src="../_images/f96547f6bbe4bba79f327efa07bcec1881b524265c806610b97427fc27d00408.png" />
 </div>
 </div>
+</section>
+<section id="bringing-the-analysis-to-another-dimension">
+<h3>3.2 Bringing the Analysis to Another Dimension<a class="headerlink" href="#bringing-the-analysis-to-another-dimension" title="Link to this heading">¶</a></h3>
+<p>Here we re-use the results from before for the different mean travel times. But instead of plotting the trajectory of the tracer concentrations valid for a single observation date as before, we plot this diagram for <em>all</em> possible observation dates. Because we then have an additional axis or dimension in the data, we need to create a 3D-plot.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># make a 3d plot with a combination of tracer-tracer plots at all sample dates</span>
@@ -610,6 +626,7 @@
 <img alt="../_images/20ef7e2def5bcb6592719feee3f43747cc7d6f01d3dea4092b3d0ac6cb0e90ef.png" src="../_images/20ef7e2def5bcb6592719feee3f43747cc7d6f01d3dea4092b3d0ac6cb0e90ef.png" />
 </div>
 </div>
+</section>
 </section>
 </section>
 
@@ -671,7 +688,11 @@
 <li><a class="reference internal" href="#">Example 3: Analysis Involving Multiple Tracers</a><ul>
 <li><a class="reference internal" href="#load-synthetic-observation-data">1. Load (Synthetic) Observation Data</a></li>
 <li><a class="reference internal" href="#model-setup">2. Model Setup</a></li>
-<li><a class="reference internal" href="#model-simulation-for-different-mean-travel-times">3. Model Simulation for Different Mean Travel Times</a></li>
+<li><a class="reference internal" href="#model-simulation-for-different-mean-travel-times">3. Model Simulation for Different Mean Travel Times</a><ul>
+<li><a class="reference internal" href="#conventional-tracer-tracer-analysis">3.1 Conventional Tracer-Tracer Analysis</a></li>
+<li><a class="reference internal" href="#bringing-the-analysis-to-another-dimension">3.2 Bringing the Analysis to Another Dimension</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
