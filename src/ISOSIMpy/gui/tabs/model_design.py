@@ -29,6 +29,7 @@ class ModelDesignTab(QWidget):
     parameters tab and controller.
     """
 
+    # Define signals that this tab can emit
     selection_changed = pyqtSignal()
 
     def __init__(self, state, registry, parent=None):

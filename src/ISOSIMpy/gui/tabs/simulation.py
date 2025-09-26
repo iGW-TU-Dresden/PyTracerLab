@@ -31,6 +31,7 @@ class SimulationTab(QWidget):
         Trigger writing a report to the provided file path.
     """
 
+    # Define signals that this tab can emit
     simulate_requested = pyqtSignal()
     calibrate_requested = pyqtSignal()
     report_requested = pyqtSignal(str)  # carries the file path

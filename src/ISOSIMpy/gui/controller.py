@@ -76,7 +76,7 @@ class Controller(QObject):
             if t1:
                 tracer_names.append(t1)
             elif hasattr(self.state, "tracer") and getattr(self.state, "tracer"):
-                # legacy single-tracer fallback
+                # single-tracer fallback
                 tracer_names.append(getattr(self.state, "tracer"))
             if t2 and str(t2).lower() not in {"none", ""}:
                 tracer_names.append(t2)

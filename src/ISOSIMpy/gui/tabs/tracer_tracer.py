@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import (
 class TracerTracerTab(QWidget):
     """UI for running tracer-tracer sweeps and plotting results."""
 
+    # Define signals that this tab can emit
     sweep_requested = pyqtSignal(float, float, int, str)
 
     def __init__(self, state, registry, parent=None):

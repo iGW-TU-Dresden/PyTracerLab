@@ -25,6 +25,7 @@ class FileInputTab(QWidget):
         Emitted whenever user selections or loaded files change.
     """
 
+    # Define signals that this tab can emit
     changed = pyqtSignal()
 
     def __init__(self, state, parent=None):

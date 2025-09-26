@@ -15,6 +15,7 @@ class ParametersTab(QWidget):
         Emitted after the grid is built or refreshed.
     """
 
+    # Define signals that this tab can emit
     ready = pyqtSignal()
 
     def __init__(self, state, registry, parent=None):
