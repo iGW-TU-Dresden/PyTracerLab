@@ -12,7 +12,7 @@ User guide on installation, usage, and the basic concepts of ISOSIMpy.
 :link: examples/index
 :link-type: doc
 
-User guide on installation, usage, and the basic concepts of ISOSIMpy.
+Examples of ISOSIMpy in action.
 :::
 :::{grid-item-card}  Code Reference
 :link: api/modules
