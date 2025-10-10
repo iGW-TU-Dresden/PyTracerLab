@@ -6,6 +6,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from ..model import model as mm
 from ..model import solver as ms
 from ..model.registry import UNIT_REGISTRY
+from .database import Tracers
 
 
 class Controller(QObject):
@@ -40,24 +41,6 @@ class Controller(QObject):
         self.state = state
         self.ml = None
 
-    def _lambda_for_tracer(self, tracer_name: str) -> float:
-        name = (tracer_name or "").strip()
-        # Accept a few common spellings
-        is_month = 12.0 if self.state.is_monthly else 1.0
-        if name.lower() in {"tritium", "h-3", "h3", "3h"}:
-            # Tritium
-            half_life_years = 12.32
-        elif name.lower() in {"carbon-14", "14-c", "c-14", "14c"}:
-            # Carbon-14
-            half_life_years = 5700.0
-        elif name.lower() in {"krypton-85", "kr-85", "kr85", "85kr"}:
-            # Krypton-85
-            half_life_years = 10.73
-        else:
-            # Raise an error
-            raise ValueError(f"Unknown tracer name: {name}")
-        return 0.693 / (half_life_years * is_month)
-
     def build_model(self):
         """Construct a :class:`~ISOSIMpy.model.model.Model` from current state.
 
@@ -81,14 +64,16 @@ class Controller(QObject):
             if t2 and str(t2).lower() not in {"none", ""}:
                 tracer_names.append(t2)
 
-            lam = (
-                [self._lambda_for_tracer(n) for n in tracer_names]
-                if len(tracer_names) >= 1
-                else [self._lambda_for_tracer("Tritium")]
-            )
+            # Determine the decay constants for the selected tracers
+            lam = []
+            is_month = 12.0 if self.state.is_monthly else 1.0
+            for name, half_life in Tracers.tracer_data.items():
+                if name in tracer_names:
+                    lam.append(0.693 / (half_life * is_month))
             if len(lam) == 1:
                 lam = lam[0]
 
+            # Determine steady state input for the cases of one or two tracers
             n_tracers = len(tracer_names) if tracer_names else 1
             steady_state_input = getattr(self.state, "steady_state_input", None)
             if steady_state_input is None:
@@ -114,6 +99,7 @@ class Controller(QObject):
             if not steady_enabled:
                 ss_val = None
 
+            # Set up the model
             x = self.state.input_series
             y = self.state.target_series
             self.ml = mm.Model(

@@ -273,6 +273,8 @@ class ModelDesignTab(QWidget):
         self.state.design_units = design_units
 
         # Build per-instance descriptors with unique prefixes (e.g., pm1, pm2, ...)
+        # We have to do this and not just rely on design_units because there
+        # could be multiple instances of the same unit type
         counts: dict[str, int] = {}
         instances = []
         for name, frac in design_units:

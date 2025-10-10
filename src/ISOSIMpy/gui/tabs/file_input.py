@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ..database import Tracers
+
 
 class FileInputTab(QWidget):
     """Tab to choose frequency, tracer, and load input/observation CSV files.
@@ -54,11 +56,11 @@ class FileInputTab(QWidget):
         lay.addWidget(lbl)
         self.cb_t1 = QComboBox()
         self.cb_t1.setFixedSize(QSize(200, 20))
-        self.cb_t1.addItems(["Tritium", "Carbon-14", "Krypton-85"])  # primary cannot be None
+        self.cb_t1.addItems(list(Tracers.tracer_data.keys()))  # primary cannot be None
         self.cb_t2 = QComboBox()
         self.cb_t2.setFixedSize(QSize(200, 20))
         self.cb_t2.addItems(
-            ["None", "Tritium", "Carbon-14", "Krypton-85"]
+            list(Tracers.tracer_data.keys()) + ["None"]  # use None to indicate no second tracer
         )  # optional second tracer
         lay.addWidget(QLabel("Tracer 1"))
         lay.addWidget(self.cb_t1)
