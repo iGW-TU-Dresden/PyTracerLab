@@ -219,6 +219,7 @@
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../../api/ISOSIMpy.gui.html">ISOSIMpy.gui package</a><input aria-label="Toggle navigation of ISOSIMpy.gui package" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/ISOSIMpy.gui.app.html">ISOSIMpy.gui.app module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/ISOSIMpy.gui.controller.html">ISOSIMpy.gui.controller module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/ISOSIMpy.gui.database.html">ISOSIMpy.gui.database module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/ISOSIMpy.gui.main_window.html">ISOSIMpy.gui.main_window module</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/ISOSIMpy.gui.state.html">ISOSIMpy.gui.state module</a></li>
 </ul>
@@ -275,6 +276,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model</span><span class="w"> </span><span class="kn">import</span> <span class="n">model</span> <span class="k">as</span> <span class="n">mm</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model</span><span class="w"> </span><span class="kn">import</span> <span class="n">solver</span> <span class="k">as</span> <span class="n">ms</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..model.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">UNIT_REGISTRY</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracers</span>
 
 
 <div class="viewcode-block" id="Controller">
@@ -311,24 +313,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_lambda_for_tracer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracer_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="p">(</span><span class="n">tracer_name</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="c1"># Accept a few common spellings</span>
-        <span class="n">is_month</span> <span class="o">=</span> <span class="mf">12.0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_monthly</span> <span class="k">else</span> <span class="mf">1.0</span>
-        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;tritium&quot;</span><span class="p">,</span> <span class="s2">&quot;h-3&quot;</span><span class="p">,</span> <span class="s2">&quot;h3&quot;</span><span class="p">,</span> <span class="s2">&quot;3h&quot;</span><span class="p">}:</span>
-            <span class="c1"># Tritium</span>
-            <span class="n">half_life_years</span> <span class="o">=</span> <span class="mf">12.32</span>
-        <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;carbon-14&quot;</span><span class="p">,</span> <span class="s2">&quot;14-c&quot;</span><span class="p">,</span> <span class="s2">&quot;c-14&quot;</span><span class="p">,</span> <span class="s2">&quot;14c&quot;</span><span class="p">}:</span>
-            <span class="c1"># Carbon-14</span>
-            <span class="n">half_life_years</span> <span class="o">=</span> <span class="mf">5700.0</span>
-        <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;krypton-85&quot;</span><span class="p">,</span> <span class="s2">&quot;kr-85&quot;</span><span class="p">,</span> <span class="s2">&quot;kr85&quot;</span><span class="p">,</span> <span class="s2">&quot;85kr&quot;</span><span class="p">}:</span>
-            <span class="c1"># Krypton-85</span>
-            <span class="n">half_life_years</span> <span class="o">=</span> <span class="mf">10.73</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Raise an error</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown tracer name: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="mf">0.693</span> <span class="o">/</span> <span class="p">(</span><span class="n">half_life_years</span> <span class="o">*</span> <span class="n">is_month</span><span class="p">)</span>
-
 <div class="viewcode-block" id="Controller.build_model">
 <a class="viewcode-back" href="../../../api/ISOSIMpy.gui.controller.html#ISOSIMpy.gui.controller.Controller.build_model">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -354,14 +338,16 @@
             <span class="k">if</span> <span class="n">t2</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">t2</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">}:</span>
                 <span class="n">tracer_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t2</span><span class="p">)</span>
 
-            <span class="n">lam</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_lambda_for_tracer</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">tracer_names</span><span class="p">]</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tracer_names</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span>
-                <span class="k">else</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_lambda_for_tracer</span><span class="p">(</span><span class="s2">&quot;Tritium&quot;</span><span class="p">)]</span>
-            <span class="p">)</span>
+            <span class="c1"># Determine the decay constants for the selected tracers</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">is_month</span> <span class="o">=</span> <span class="mf">12.0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_monthly</span> <span class="k">else</span> <span class="mf">1.0</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">half_life</span> <span class="ow">in</span> <span class="n">Tracers</span><span class="o">.</span><span class="n">tracer_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">tracer_names</span><span class="p">:</span>
+                    <span class="n">lam</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">0.693</span> <span class="o">/</span> <span class="p">(</span><span class="n">half_life</span> <span class="o">*</span> <span class="n">is_month</span><span class="p">))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">lam</span> <span class="o">=</span> <span class="n">lam</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
+            <span class="c1"># Determine steady state input for the cases of one or two tracers</span>
             <span class="n">n_tracers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tracer_names</span><span class="p">)</span> <span class="k">if</span> <span class="n">tracer_names</span> <span class="k">else</span> <span class="mi">1</span>
             <span class="n">steady_state_input</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="s2">&quot;steady_state_input&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">steady_state_input</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -387,6 +373,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">steady_enabled</span><span class="p">:</span>
                 <span class="n">ss_val</span> <span class="o">=</span> <span class="kc">None</span>
 
+            <span class="c1"># Set up the model</span>
             <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">input_series</span>
             <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">target_series</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="o">=</span> <span class="n">mm</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span>

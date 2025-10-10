@@ -9,6 +9,7 @@ Submodules
 
    ISOSIMpy.gui.app
    ISOSIMpy.gui.controller
+   ISOSIMpy.gui.database
    ISOSIMpy.gui.main_window
    ISOSIMpy.gui.state
 
