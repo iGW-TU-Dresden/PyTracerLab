@@ -279,6 +279,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">differential_evolution</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">SOLVER_REGISTRY</span>
 
 
 <div class="viewcode-block" id="Solver">
@@ -791,10 +792,9 @@
     <span class="p">}</span>
 
 
-<span class="n">SOLVER_REGISTRY</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;de&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Differential Evolution&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">:</span> <span class="n">_run_de</span><span class="p">},</span>
-    <span class="s2">&quot;mcmc&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;MCMC&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">:</span> <span class="n">_run_mcmc</span><span class="p">},</span>
-<span class="p">}</span>
+<span class="c1"># Add run-methods to solver registry</span>
+<span class="n">SOLVER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;de&quot;</span><span class="p">][</span><span class="s2">&quot;run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_run_de</span>
+<span class="n">SOLVER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;mcmc&quot;</span><span class="p">][</span><span class="s2">&quot;run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_run_mcmc</span>
 
 
 <div class="viewcode-block" id="available_solvers">
