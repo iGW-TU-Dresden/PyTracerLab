@@ -9,6 +9,7 @@ import numpy as np
 from scipy.optimize import differential_evolution
 
 from .model import Model
+from .registry import SOLVER_REGISTRY
 
 
 @dataclass
@@ -512,10 +513,9 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
     }
 
 
-SOLVER_REGISTRY: Dict[str, Dict[str, object]] = {
-    "de": {"name": "Differential Evolution", "run": _run_de},
-    "mcmc": {"name": "MCMC", "run": _run_mcmc},
-}
+# Add run-methods to solver registry
+SOLVER_REGISTRY["de"]["run"] = _run_de
+SOLVER_REGISTRY["mcmc"]["run"] = _run_mcmc
 
 
 def available_solvers() -> List[Tuple[str, str]]:
