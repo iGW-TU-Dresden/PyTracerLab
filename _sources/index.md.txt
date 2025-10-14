@@ -1,24 +1,33 @@
 # ISOSIMpy
 ISOSIMpy is an open-source Python package and graphical user interface (GUI) for the analysis of groundwater residence time distributions using lumped parameter models.
 
-::::{grid} 3
+::::{grid} 2
 :::{grid-item-card}  User Guide
-:link: userguide/index
+:link: userguide/usage
 :link-type: doc
 
 User guide on installation, usage, and the basic concepts of ISOSIMpy.
 :::
 :::{grid-item-card}  Examples
-:link: examples/index
+:link: examples/example_01
 :link-type: doc
 
 Examples of ISOSIMpy in action.
 :::
+::::
+
+::::{grid} 2
 :::{grid-item-card}  Code Reference
 :link: api/modules
 :link-type: doc
 
 ISOSIMpy code reference.
+:::
+:::{grid-item-card}  Development
+:link: development/devguide
+:link-type: doc
+
+ISOSIMpy development guide.
 :::
 ::::
 
@@ -29,17 +38,19 @@ This webpage provides the package documentation, user guides, and examples. The 
 To use the GUI, the Python package does not need to be installed. You can simply download and use the latest version from [GitHub](https://github.com/iGW-TU-Dresden/ISOSIMpy/releases) (look for the ISOSIMpy-vX.X.X.exe in any release).
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 4
 :caption: Guides
 :hidden:
 
 userguide/index
 examples/index
+development/index
 ```
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 4
 :caption: Code Reference
+:hidden:
 
 api/modules
 ```
