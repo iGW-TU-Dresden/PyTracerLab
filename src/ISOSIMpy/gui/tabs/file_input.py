@@ -60,7 +60,7 @@ class FileInputTab(QWidget):
         self.cb_t2 = QComboBox()
         self.cb_t2.setFixedSize(QSize(200, 20))
         self.cb_t2.addItems(
-            list(Tracers.tracer_data.keys()) + ["None"]  # use None to indicate no second tracer
+            ["None"] + list(Tracers.tracer_data.keys())  # use None to indicate no second tracer
         )  # optional second tracer
         lay.addWidget(QLabel("Tracer 1"))
         lay.addWidget(self.cb_t1)

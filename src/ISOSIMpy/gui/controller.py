@@ -50,7 +50,7 @@ class Controller(QObject):
         """
         try:
             # We usually work in months (dt = 1.0); for yearly calculations
-            # We therefore have to use dt = 12.0
+            # we therefore have to use dt = 12.0
             dt = 1.0 if self.state.is_monthly else 12.0
             # Determine tracer set from state (dual-tracer aware)
             tracer_names = []
@@ -66,10 +66,9 @@ class Controller(QObject):
 
             # Determine the decay constants for the selected tracers
             lam = []
-            is_month = 12.0 if self.state.is_monthly else 1.0
             for name, half_life in Tracers.tracer_data.items():
                 if name in tracer_names:
-                    lam.append(0.693 / (half_life * is_month))
+                    lam.append(0.693 / (half_life * 12.0))  # convert to monthly
             if len(lam) == 1:
                 lam = lam[0]
 
@@ -102,6 +101,19 @@ class Controller(QObject):
             # Set up the model
             x = self.state.input_series
             y = self.state.target_series
+
+            # We have to treat the concentration values according to their time units
+            # Because we generally work in montly resolution, we need to convert
+            # yearly values to monthly values
+            # However, we only have to transform the input series, as those values
+            # actually represent fluxes (mass per unit time); the observed
+            # concentrations are actually concentrations and not fluxes.
+            if not self.state.is_monthly:
+                x_ = x[1] / 12.0
+            else:
+                x_ = x[1]
+            x = (x[0], x_)
+
             self.ml = mm.Model(
                 dt,
                 lam,
