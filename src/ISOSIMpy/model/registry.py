@@ -16,5 +16,6 @@ UNIT_REGISTRY = {
 # would create a circular dependency
 SOLVER_REGISTRY: Dict[str, Dict[str, object]] = {
     "de": {"name": "Differential Evolution", "run": None},
+    "lsq": {"name": "Least Squares", "run": None},
     "mcmc": {"name": "MCMC", "run": None},
 }

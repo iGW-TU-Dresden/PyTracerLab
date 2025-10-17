@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
-from scipy.optimize import differential_evolution
+from scipy.optimize import differential_evolution, least_squares
 
 from .model import Model
 from .registry import SOLVER_REGISTRY
@@ -133,6 +133,90 @@ class Solver:
             mutation=mutation,
             recombination=recombination,
             tol=tol,
+        )
+
+        # Write back and simulate once more at the best params
+        sim = self._simulate_given_free(result.x)
+        solution = {k: float(self.model.params[k]["value"]) for k in self.model.params}
+        return solution, sim
+
+    def _residuals(self, free_params: Sequence[float]) -> Sequence[float]:
+        """Vector of residuals."""
+        sim = self._simulate_given_free(free_params)
+        if self.model.target_series is None:
+            return float("inf")
+        y = self.model.target_series[self.model.n_warmup :]
+        y2 = np.asarray(y, dtype=float)
+        s2 = np.asarray(sim, dtype=float)
+        if y2.ndim == 1:
+            y2 = y2.reshape(-1, 1)
+        if s2.ndim == 1:
+            s2 = s2.reshape(-1, 1)
+        if y2.shape != s2.shape:
+            return float("inf")
+        mask = ~np.isnan(y2) & ~np.isnan(s2)
+        if not np.any(mask):
+            return float("inf")
+        resid = s2 - y2
+        resid = resid[mask]
+
+        return resid
+
+    def least_squares(
+        self,
+        ftol: float = 1e-8,
+        xtol: float = 1e-8,
+        gtol: float = 1e-8,
+        max_nfev: int = 10000,
+    ) -> Tuple[Dict[str, float], np.ndarray]:
+        """Run differential evolution and return the best solution.
+
+        Parameters
+        ----------
+        ftol : float, optional
+            Tolerance for termination by the change of the cost function.
+        xtol : float, optional
+            Tolerance for termination by the change of the independent
+            variables.
+        gtol : float, optional
+            Tolerance for termination by the norm of the gradient.
+        max_nfev : int, optional
+            Maximum number of function evaluations.
+
+        Returns
+        -------
+        (dict, ndarray)
+            Mapping from parameter key to optimized value, and the simulated
+            series at that optimum.
+        """
+        # Validate bounds exist for all free parameters
+        bounds = self._reduced_bounds()
+
+        # Build init vector and repair non-finite initials by midpoint of bounds
+        init_free = self.model.get_vector(which="initial", free_only=True)
+        keys_free = self.model.param_keys(free_only=True)
+        repaired = []
+        for k, v, (lo, hi) in zip(keys_free, init_free, bounds):
+            if not np.isfinite(v):
+                mid = 0.5 * (float(lo) + float(hi))
+                self.model.set_initial(k, mid)
+                repaired.append((k, v, mid))
+        if repaired:
+            # (optional) print or log repaired initials
+            pass
+
+        # Seed current values from initials for a clean, reproducible start
+        init_free = self.model.get_vector(which="initial", free_only=True)
+        self.model.set_vector(init_free, which="value", free_only=True)
+
+        result = least_squares(
+            self._residuals,
+            x0=init_free,
+            ftol=ftol,
+            xtol=xtol,
+            gtol=gtol,
+            max_nfev=max_nfev,
+            loss="huber",
         )
 
         # Write back and simulate once more at the best params
@@ -445,6 +529,31 @@ def _run_de(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, obj
     }
 
 
+def _run_lsq(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, object]:
+    """Run Least Squares and return a standardized payload for the GUI."""
+    p = params or {}
+    ftol = float(p.get("ftol", 1e-8))
+    xtol = float(p.get("xtol", 1e-8))
+    gtol = float(p.get("gtol", 1e-8))
+    max_nfev = int(p.get("max_nfev", 10000))
+
+    # Optional per-solver sigma(s)
+    sigma = p.get("sigma", None)
+    sol = Solver(model=model, sigma=sigma)
+    _, sim = sol.least_squares(
+        ftol=ftol,
+        xtol=xtol,
+        gtol=gtol,
+        max_nfev=max_nfev,
+    )
+    return {
+        "solver": "lsq",
+        "sim": sim,
+        "envelope": None,
+        "meta": {"name": "Least Squares"},
+    }
+
+
 def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, object]:
     """Run MCMC and return standardized payload including percentiles and MAP simulation.
 
@@ -515,6 +624,7 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
 
 # Add run-methods to solver registry
 SOLVER_REGISTRY["de"]["run"] = _run_de
+SOLVER_REGISTRY["lsq"]["run"] = _run_lsq
 SOLVER_REGISTRY["mcmc"]["run"] = _run_mcmc
 
 

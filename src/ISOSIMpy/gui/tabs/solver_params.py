@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import (
 
 
 class SolverParamsDialog(QDialog):
-    """Tabbed dialog for editing DE and MCMC solver parameters.
+    """Tabbed dialog for editing DE, Least Squares, and MCMC solver parameters.
 
     The dialog reads current values from ``state.solver_params`` and writes
     back updated values on accept.
@@ -110,6 +110,67 @@ class SolverParamsDialog(QDialog):
         de_form.addRow("sigma 1 (optional)", de_sigma1)
         de_form.addRow("sigma 2 (optional)", de_sigma2)
 
+        # Least Squares tab
+        self._lsq_widgets = {}
+
+        lsq_box = QGroupBox("Least Squares")
+        lsq_form = QFormLayout(lsq_box)
+
+        w_ftol = QLineEdit()
+        ftol_val = QDoubleValidator(self)
+        ftol_val.setNotation(QDoubleValidator.ScientificNotation)
+        ftol_val.setDecimals(12)
+        ftol_val.setRange(1e-12, 1.0, 12)
+        w_ftol.setValidator(ftol_val)
+        w_ftol.setAlignment(Qt.AlignRight)
+
+        w_xtol = QLineEdit()
+        xtol_val = QDoubleValidator(self)
+        xtol_val.setNotation(QDoubleValidator.ScientificNotation)
+        xtol_val.setDecimals(12)
+        xtol_val.setRange(1e-12, 1.0, 12)
+        w_xtol.setValidator(xtol_val)
+        w_xtol.setAlignment(Qt.AlignRight)
+
+        w_gtol = QLineEdit()
+        gtol_val = QDoubleValidator(self)
+        gtol_val.setNotation(QDoubleValidator.ScientificNotation)
+        gtol_val.setDecimals(12)
+        gtol_val.setRange(1e-12, 1.0, 12)
+        w_gtol.setValidator(gtol_val)
+        w_gtol.setAlignment(Qt.AlignRight)
+
+        w_max_nfev = QLineEdit()
+        max_nfev_val = QIntValidator(1, 10_000_000, self)
+        w_max_nfev.setValidator(max_nfev_val)
+        w_max_nfev.setAlignment(Qt.AlignRight)
+
+        lsq_sigma1 = QLineEdit()
+        lsq_sigma2 = QLineEdit()
+        sigma_val_lsq = QDoubleValidator(self)
+        sigma_val_lsq.setNotation(QDoubleValidator.ScientificNotation)
+        sigma_val_lsq.setDecimals(12)
+        sigma_val_lsq.setRange(0.0, 1e100, 12)
+        for w in (lsq_sigma1, lsq_sigma2):
+            w.setValidator(sigma_val_lsq)
+            w.setAlignment(Qt.AlignRight)
+            w.setPlaceholderText("leave empty to infer")
+
+        self._lsq_widgets = {
+            "ftol": w_ftol,
+            "xtol": w_xtol,
+            "gtol": w_gtol,
+            "max_nfev": w_max_nfev,
+            "sigma1": lsq_sigma1,
+            "sigma2": lsq_sigma2,
+        }
+        lsq_form.addRow("ftol", w_ftol)
+        lsq_form.addRow("xtol", w_xtol)
+        lsq_form.addRow("gtol", w_gtol)
+        lsq_form.addRow("max_nfev", w_max_nfev)
+        lsq_form.addRow("sigma 1 (optional)", lsq_sigma1)
+        lsq_form.addRow("sigma 2 (optional)", lsq_sigma2)
+
         # MCMC tab
         self._mcmc_widgets = {}
 
@@ -168,13 +229,18 @@ class SolverParamsDialog(QDialog):
         # Pack tabs
         w_de = QVBoxLayout()
         w_de.addWidget(de_box)
+        w_lsq = QVBoxLayout()
+        w_lsq.addWidget(lsq_box)
         w_mcmc = QVBoxLayout()
         w_mcmc.addWidget(mcmc_box)
         de_widget = QWidget()
         de_widget.setLayout(w_de)
+        lsq_widget = QWidget()
+        lsq_widget.setLayout(w_lsq)
         mcmc_widget = QWidget()
         mcmc_widget.setLayout(w_mcmc)
         tabs.addTab(de_widget, "DE")
+        tabs.addTab(lsq_widget, "Least Squares")
         tabs.addTab(mcmc_widget, "MCMC")
 
         # Buttons
@@ -225,6 +291,30 @@ class SolverParamsDialog(QDialog):
                 self._de_widgets["sigma1"].setText("")
             self._de_widgets["sigma2"].setText("")
 
+        # Load Least Squares
+        lsq = getattr(self.state, "solver_params", {}).get("lsq") or {}
+        self._lsq_widgets["ftol"].setText(str(float(lsq.get("ftol", 1e-8))))
+        self._lsq_widgets["xtol"].setText(str(float(lsq.get("xtol", 1e-8))))
+        self._lsq_widgets["gtol"].setText(str(float(lsq.get("gtol", 1e-8))))
+        self._lsq_widgets["max_nfev"].setText(str(int(lsq.get("max_nfev", 10000))))
+        lsq_sigma = lsq.get("sigma", None)
+        if isinstance(lsq_sigma, (list, tuple)):
+            try:
+                self._lsq_widgets["sigma1"].setText(str(float(lsq_sigma[0])))
+                self._lsq_widgets["sigma2"].setText(str(float(lsq_sigma[1])))
+            except Exception:
+                self._lsq_widgets["sigma1"].setText("")
+                self._lsq_widgets["sigma2"].setText("")
+        elif lsq_sigma is None:
+            self._lsq_widgets["sigma1"].setText("")
+            self._lsq_widgets["sigma2"].setText("")
+        else:
+            try:
+                self._lsq_widgets["sigma1"].setText(str(float(lsq_sigma)))
+            except Exception:
+                self._lsq_widgets["sigma1"].setText("")
+            self._lsq_widgets["sigma2"].setText("")
+
         # Load MCMC
         mc = getattr(self.state, "solver_params", {}).get("mcmc") or {}
         self._mcmc_widgets["n_samples"].setText(str(int(mc.get("n_samples", 1000))))
@@ -250,7 +340,7 @@ class SolverParamsDialog(QDialog):
             self._mcmc_widgets["sigma2"].setText("")
 
     def _default_params(self) -> Dict[str, Dict[str, Any]]:
-        """Return built-in defaults for DE and MCMC parameters."""
+        """Return built-in defaults for DE, Least Squares, and MCMC parameters."""
         return {
             "de": {
                 "maxiter": 1000,
@@ -258,6 +348,13 @@ class SolverParamsDialog(QDialog):
                 "mutation": (0.5, 1.0),
                 "recombination": 0.7,
                 "tol": 1e-2,
+                "sigma": None,
+            },
+            "lsq": {
+                "ftol": 1e-8,
+                "xtol": 1e-8,
+                "gtol": 1e-8,
+                "max_nfev": 10_000,
                 "sigma": None,
             },
             "mcmc": {
@@ -283,6 +380,14 @@ class SolverParamsDialog(QDialog):
             self._de_widgets["sigma1"].setText("")
         if "sigma2" in self._de_widgets:
             self._de_widgets["sigma2"].setText("")
+
+        lsq = defaults["lsq"]
+        self._lsq_widgets["ftol"].setText(str(float(lsq["ftol"])))
+        self._lsq_widgets["xtol"].setText(str(float(lsq["xtol"])))
+        self._lsq_widgets["gtol"].setText(str(float(lsq["gtol"])))
+        self._lsq_widgets["max_nfev"].setText(str(int(lsq["max_nfev"])))
+        self._lsq_widgets["sigma1"].setText("")
+        self._lsq_widgets["sigma2"].setText("")
 
         mc = defaults["mcmc"]
         self._mcmc_widgets["n_samples"].setText(str(int(mc["n_samples"])))
@@ -357,6 +462,38 @@ class SolverParamsDialog(QDialog):
                     de_sigma = None
             de["sigma"] = de_sigma
 
+        lsq = {
+            "ftol": _to_float(self._lsq_widgets["ftol"], float(defaults["lsq"]["ftol"])),
+            "xtol": _to_float(self._lsq_widgets["xtol"], float(defaults["lsq"]["xtol"])),
+            "gtol": _to_float(self._lsq_widgets["gtol"], float(defaults["lsq"]["gtol"])),
+            "max_nfev": _to_int(self._lsq_widgets["max_nfev"], int(defaults["lsq"]["max_nfev"])),
+        }
+        ls1 = self._lsq_widgets.get("sigma1")
+        ls2 = self._lsq_widgets.get("sigma2")
+        if ls1 is not None and ls2 is not None:
+            t1 = ls1.text().strip()
+            t2 = ls2.text().strip()
+            if t1 == "" and t2 == "":
+                lsq_sigma = None
+            elif t1 != "" and t2 == "":
+                try:
+                    lsq_sigma = float(t1)
+                except Exception:
+                    lsq_sigma = None
+            else:
+                try:
+                    s1 = float(t1) if t1 != "" else None
+                    s2 = float(t2) if t2 != "" else None
+                    if s1 is None and s2 is None:
+                        lsq_sigma = None
+                    elif s2 is None:
+                        lsq_sigma = float(s1)  # type: ignore[arg-type]
+                    else:
+                        lsq_sigma = (s1, s2)
+                except Exception:
+                    lsq_sigma = None
+            lsq["sigma"] = lsq_sigma
+
         # Save MCMC (sigma1/sigma2)
         s1_txt = self._mcmc_widgets["sigma1"].text().strip()
         s2_txt = self._mcmc_widgets["sigma2"].text().strip()
@@ -395,6 +532,7 @@ class SolverParamsDialog(QDialog):
         # Write back to state
         params = getattr(self.state, "solver_params", {})
         params["de"] = de
+        params["lsq"] = lsq
         params["mcmc"] = mcmc
         self.state.solver_params = params
 

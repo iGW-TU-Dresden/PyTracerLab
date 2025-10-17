@@ -25,7 +25,7 @@ class AppState:
     tracer2 : str | None
         Optional second tracer; if ``None`` or ``"None"``, runs single-tracer mode.
     solver_key : str
-        Selected solver registry key (``"de"`` or ``"mcmc"``).
+        Selected solver registry key (``"de"``, ``"lsq"``, or ``"mcmc"``).
     solver_params : dict
         Per-solver configuration dictionary.
     input_series : tuple(ndarray, ndarray) | None
@@ -66,6 +66,13 @@ class AppState:
                 "mutation": (0.5, 1.0),
                 "recombination": 0.7,
                 "tol": 0.01,
+                "sigma": None,
+            },
+            "lsq": {
+                "ftol": 1e-8,
+                "xtol": 1e-8,
+                "gtol": 1e-8,
+                "max_nfev": 10000,
                 "sigma": None,
             },
             "mcmc": {
