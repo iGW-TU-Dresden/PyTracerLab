@@ -210,6 +210,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -542,6 +543,105 @@ are ignored.</p>
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ISOSIMpy.model.units.</span></span><span class="sig-name descname"><span class="pre">ExEPMUnit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mtt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_part</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">piston_part</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#ExEPMUnit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#ISOSIMpy.model.units.Unit" title="ISOSIMpy.model.units.Unit"><code class="xref py py-class docutils literal notranslate"><span class="pre">Unit</span></code></a></p>
+<p>Explicit xponential Piston-Flow Model (EPM) unit.
+This model is essentially the same as the EPMUnit, but the EPM ratio
+(total volume / exponential volume or total area / area receiving
+recharge) is defined via two parameters instead of one aggregated
+parameter. Those two parameters are directly related and can never be
+estimated simultaneously.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mtt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Mean travel time.</p></li>
+<li><p><strong>exp_part</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Area receiving recharge or exponential volume of the system.</p></li>
+<li><p><strong>piston_part</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Area not receiving recharge or piston-flow volume of the system.</p></li>
+<li><p><strong>PREFIX</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Prefix for local parameter names. Helper for GUI.</p></li>
+<li><p><strong>PARAMS</strong> (<em>List</em><em>[</em><em>Dict</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Any</em><em>]</em><em>]</em>) – List of (default) parameter definitions. Helper for GUI.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.PARAMS">
+<span class="sig-name descname"><span class="pre">PARAMS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[{'bounds':</span> <span class="pre">(0.0,</span> <span class="pre">10000.0),</span> <span class="pre">'default':</span> <span class="pre">120.0,</span> <span class="pre">'key':</span> <span class="pre">'mtt',</span> <span class="pre">'label':</span> <span class="pre">'Mean</span> <span class="pre">Transit</span> <span class="pre">Time'},</span> <span class="pre">{'bounds':</span> <span class="pre">(0.0,</span> <span class="pre">100.0),</span> <span class="pre">'default':</span> <span class="pre">0.5,</span> <span class="pre">'key':</span> <span class="pre">'exp_part',</span> <span class="pre">'label':</span> <span class="pre">'Exponential</span> <span class="pre">Part'},</span> <span class="pre">{'bounds':</span> <span class="pre">(0.0,</span> <span class="pre">100.0),</span> <span class="pre">'default':</span> <span class="pre">1.0,</span> <span class="pre">'key':</span> <span class="pre">'piston_part',</span> <span class="pre">'label':</span> <span class="pre">'Piston</span> <span class="pre">Part'}]</span></em><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.PARAMS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.PREFIX">
+<span class="sig-name descname"><span class="pre">PREFIX</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'epm'</span></em><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.PREFIX" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.exp_part">
+<span class="sig-name descname"><span class="pre">exp_part</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.exp_part" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.get_impulse_response">
+<span class="sig-name descname"><span class="pre">get_impulse_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><span class="pre">numpy.ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#ExEPMUnit.get_impulse_response"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.get_impulse_response" title="Link to this definition">¶</a></dt>
+<dd><p>ExEPM impulse response with decay.</p>
+<p>The continuous-time EPM response (without decay) is
+<code class="docutils literal notranslate"><span class="pre">h(τ)</span> <span class="pre">=</span> <span class="pre">(η/mtt)</span> <span class="pre">*</span> <span class="pre">exp(-η</span> <span class="pre">τ</span> <span class="pre">/</span> <span class="pre">mtt</span> <span class="pre">+</span> <span class="pre">η</span> <span class="pre">-</span> <span class="pre">1)</span></code> for
+<code class="docutils literal notranslate"><span class="pre">τ</span> <span class="pre">&gt;=</span> <span class="pre">mtt*(1</span> <span class="pre">-</span> <span class="pre">1/η)</span></code> and <code class="docutils literal notranslate"><span class="pre">0</span></code> otherwise. We also apply
+an exponential decay term <code class="docutils literal notranslate"><span class="pre">exp(-λ</span> <span class="pre">τ)</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tau</strong> (<em>ndarray</em>) – Non-negative time axis (same spacing as simulation time grid).</p></li>
+<li><p><strong>dt</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Time step size of the discretization.</p></li>
+<li><p><strong>lambda</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Decay constant (1 / time units of <code class="docutils literal notranslate"><span class="pre">tau</span></code>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Impulse response evaluated at <code class="docutils literal notranslate"><span class="pre">tau</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.mtt">
+<span class="sig-name descname"><span class="pre">mtt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.mtt" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.param_values">
+<span class="sig-name descname"><span class="pre">param_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#ExEPMUnit.param_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.param_values" title="Link to this definition">¶</a></dt>
+<dd><p>Get parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping from local parameter name to value.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.piston_part">
+<span class="sig-name descname"><span class="pre">piston_part</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.piston_part" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.units.ExEPMUnit.set_param_values">
+<span class="sig-name descname"><span class="pre">set_param_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#ExEPMUnit.set_param_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.units.ExEPMUnit.set_param_values" title="Link to this definition">¶</a></dt>
+<dd><p>Set one or more local parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>values</strong> (<em>Dict</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>) – Mapping from local parameter name to new value. Keys not present
+are ignored.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="ISOSIMpy.model.units.PMUnit">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ISOSIMpy.model.units.</span></span><span class="sig-name descname"><span class="pre">PMUnit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mtt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ISOSIMpy/model/units.html#PMUnit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.units.PMUnit" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#ISOSIMpy.model.units.Unit" title="ISOSIMpy.model.units.Unit"><code class="xref py py-class docutils literal notranslate"><span class="pre">Unit</span></code></a></p>
@@ -762,6 +862,17 @@ are ignored.</p>
 <li><a class="reference internal" href="#ISOSIMpy.model.units.EPMUnit.mtt"><code class="docutils literal notranslate"><span class="pre">EPMUnit.mtt</span></code></a></li>
 <li><a class="reference internal" href="#ISOSIMpy.model.units.EPMUnit.param_values"><code class="docutils literal notranslate"><span class="pre">EPMUnit.param_values()</span></code></a></li>
 <li><a class="reference internal" href="#ISOSIMpy.model.units.EPMUnit.set_param_values"><code class="docutils literal notranslate"><span class="pre">EPMUnit.set_param_values()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit</span></code></a><ul>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.PARAMS"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.PARAMS</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.PREFIX"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.PREFIX</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.exp_part"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.exp_part</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.get_impulse_response"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.get_impulse_response()</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.mtt"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.mtt</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.param_values"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.param_values()</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.piston_part"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.piston_part</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.units.ExEPMUnit.set_param_values"><code class="docutils literal notranslate"><span class="pre">ExEPMUnit.set_param_values()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#ISOSIMpy.model.units.PMUnit"><code class="docutils literal notranslate"><span class="pre">PMUnit</span></code></a><ul>

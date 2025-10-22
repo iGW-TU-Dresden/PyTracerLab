@@ -209,6 +209,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -656,6 +657,7 @@
 
         <span class="c1"># Remove warmup</span>
         <span class="n">sim</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_warmup</span> <span class="p">:,</span> <span class="p">:]</span>
+
         <span class="c1"># Return 1D for single-tracer to preserve backward compatibility</span>
         <span class="k">if</span> <span class="n">sim</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">sim</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>

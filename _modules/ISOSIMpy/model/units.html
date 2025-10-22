@@ -209,6 +209,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -442,6 +443,119 @@
         <span class="c1"># base EPM shape</span>
         <span class="n">h_prelim</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">eta</span> <span class="o">*</span> <span class="n">tau</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eta</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
         <span class="n">cutoff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">eta</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">tau</span> <span class="o">&lt;</span> <span class="n">cutoff</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">h_prelim</span><span class="p">)</span>
+        <span class="c1"># radioactive/first-order decay applied to transit time</span>
+        <span class="n">h</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">lambda_</span> <span class="o">*</span> <span class="n">tau</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">h</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ExEPMUnit">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.units.html#ISOSIMpy.model.ExEPMUnit">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExEPMUnit</span><span class="p">(</span><span class="n">Unit</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Explicit xponential Piston-Flow Model (EPM) unit.</span>
+<span class="sd">    This model is essentially the same as the EPMUnit, but the EPM ratio</span>
+<span class="sd">    (total volume / exponential volume or total area / area receiving</span>
+<span class="sd">    recharge) is defined via two parameters instead of one aggregated</span>
+<span class="sd">    parameter. Those two parameters are directly related and can never be</span>
+<span class="sd">    estimated simultaneously.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mtt : float</span>
+<span class="sd">        Mean travel time.</span>
+<span class="sd">    exp_part: float</span>
+<span class="sd">        Area receiving recharge or exponential volume of the system.</span>
+<span class="sd">    piston_part: float</span>
+<span class="sd">        Area not receiving recharge or piston-flow volume of the system.</span>
+<span class="sd">    PREFIX : str</span>
+<span class="sd">        Prefix for local parameter names. Helper for GUI.</span>
+<span class="sd">    PARAMS : List[Dict[str, Any]]</span>
+<span class="sd">        List of (default) parameter definitions. Helper for GUI.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">mtt</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">exp_part</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">piston_part</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">PREFIX</span> <span class="o">=</span> <span class="s2">&quot;epm&quot;</span>
+    <span class="n">PARAMS</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;mtt&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Mean Transit Time&quot;</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">120.0</span><span class="p">,</span> <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10000.0</span><span class="p">)},</span>
+        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;exp_part&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Exponential Part&quot;</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span> <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">)},</span>
+        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;piston_part&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Piston Part&quot;</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">)},</span>
+    <span class="p">]</span>
+
+<div class="viewcode-block" id="ExEPMUnit.param_values">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.units.html#ISOSIMpy.model.ExEPMUnit.param_values">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">param_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get parameter values.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, float]</span>
+<span class="sd">            Mapping from local parameter name to value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;mtt&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mtt</span><span class="p">),</span>
+            <span class="s2">&quot;exp_part&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_part</span><span class="p">),</span>
+            <span class="s2">&quot;piston_part&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">piston_part</span><span class="p">),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ExEPMUnit.set_param_values">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.units.html#ISOSIMpy.model.ExEPMUnit.set_param_values">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_param_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set one or more local parameter values.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        values : Dict[str, float]</span>
+<span class="sd">            Mapping from local parameter name to new value. Keys not present</span>
+<span class="sd">            are ignored.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;mtt&quot;</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;mtt&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s2">&quot;exp_part&quot;</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exp_part</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;exp_part&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s2">&quot;piston_part&quot;</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">piston_part</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;piston_part&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="ExEPMUnit.get_impulse_response">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.units.html#ISOSIMpy.model.ExEPMUnit.get_impulse_response">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_impulse_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tau</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">lambda_</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;ExEPM impulse response with decay.</span>
+
+<span class="sd">        The continuous-time EPM response (without decay) is</span>
+<span class="sd">        ``h(τ) = (η/mtt) * exp(-η τ / mtt + η - 1)`` for</span>
+<span class="sd">        ``τ &gt;= mtt*(1 - 1/η)`` and ``0`` otherwise. We also apply</span>
+<span class="sd">        an exponential decay term ``exp(-λ τ)``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        tau : ndarray</span>
+<span class="sd">            Non-negative time axis (same spacing as simulation time grid).</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Time step size of the discretization.</span>
+<span class="sd">        lambda_ : float</span>
+<span class="sd">            Decay constant (1 / time units of ``tau``).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            Impulse response evaluated at ``tau``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># calculate eta</span>
+        <span class="n">eta</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">piston_part</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_part</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># check for edge cases</span>
+        <span class="k">if</span> <span class="n">eta</span> <span class="o">&lt;=</span> <span class="mf">1.0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span>
+
+        <span class="c1"># base EPM shape</span>
+        <span class="n">h_prelim</span> <span class="o">=</span> <span class="p">(</span><span class="n">eta</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">eta</span> <span class="o">*</span> <span class="n">tau</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span> <span class="o">+</span> <span class="n">eta</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">cutoff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mtt</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">eta</span><span class="p">)</span>
         <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">tau</span> <span class="o">&lt;</span> <span class="n">cutoff</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">h_prelim</span><span class="p">)</span>
         <span class="c1"># radioactive/first-order decay applied to transit time</span>
         <span class="n">h</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">lambda_</span> <span class="o">*</span> <span class="n">tau</span><span class="p">)</span>

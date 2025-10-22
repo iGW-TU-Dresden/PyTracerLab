@@ -210,6 +210,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -308,6 +309,30 @@ current values are honored in the simulation.</p></li>
 <li><p><strong>mutation</strong> (<em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>)</em><em>, </em><em>optional</em>) – DE mutation constants.</p></li>
 <li><p><strong>recombination</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – DE recombination constant.</p></li>
 <li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Convergence tolerance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Mapping from parameter key to optimized value, and the simulated
+series at that optimum.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>, ndarray)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ISOSIMpy.model.solver.Solver.least_squares">
+<span class="sig-name descname"><span class="pre">least_squares</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ftol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xtol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gtol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_nfev</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10000</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><span class="pre">numpy.ndarray</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/ISOSIMpy/model/solver.html#Solver.least_squares"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ISOSIMpy.model.solver.Solver.least_squares" title="Link to this definition">¶</a></dt>
+<dd><p>Run differential evolution and return the best solution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ftol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Tolerance for termination by the change of the cost function.</p></li>
+<li><p><strong>xtol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Tolerance for termination by the change of the independent
+variables.</p></li>
+<li><p><strong>gtol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Tolerance for termination by the norm of the gradient.</p></li>
+<li><p><strong>max_nfev</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of function evaluations.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -465,6 +490,7 @@ uncertainty envelopes and metadata.</p>
 <li><a class="reference internal" href="#">ISOSIMpy.model.solver module</a><ul>
 <li><a class="reference internal" href="#ISOSIMpy.model.solver.Solver"><code class="docutils literal notranslate"><span class="pre">Solver</span></code></a><ul>
 <li><a class="reference internal" href="#ISOSIMpy.model.solver.Solver.differential_evolution"><code class="docutils literal notranslate"><span class="pre">Solver.differential_evolution()</span></code></a></li>
+<li><a class="reference internal" href="#ISOSIMpy.model.solver.Solver.least_squares"><code class="docutils literal notranslate"><span class="pre">Solver.least_squares()</span></code></a></li>
 <li><a class="reference internal" href="#ISOSIMpy.model.solver.Solver.mcmc_sample"><code class="docutils literal notranslate"><span class="pre">Solver.mcmc_sample()</span></code></a></li>
 <li><a class="reference internal" href="#ISOSIMpy.model.solver.Solver.model"><code class="docutils literal notranslate"><span class="pre">Solver.model</span></code></a></li>
 <li><a class="reference internal" href="#ISOSIMpy.model.solver.Solver.sigma"><code class="docutils literal notranslate"><span class="pre">Solver.sigma</span></code></a></li>

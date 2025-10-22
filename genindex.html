@@ -208,6 +208,7 @@
 <li class="toctree-l2"><a class="reference internal" href="examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -381,6 +382,10 @@
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.eta">(ISOSIMpy.model.units.EPMUnit attribute)</a>
 </li>
         </ul></li>
+        <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit">ExEPMUnit (class in ISOSIMpy.model.units)</a>
+</li>
+        <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.exp_part">exp_part (ISOSIMpy.model.units.ExEPMUnit attribute)</a>
+</li>
     </ul></td>
   </tr></table>
 </section>
@@ -411,6 +416,8 @@
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit.get_impulse_response">(ISOSIMpy.model.units.EMUnit method)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.get_impulse_response">(ISOSIMpy.model.units.EPMUnit method)</a>
+</li>
+          <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.get_impulse_response">(ISOSIMpy.model.units.ExEPMUnit method)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.PMUnit.get_impulse_response">(ISOSIMpy.model.units.PMUnit method)</a>
 </li>
@@ -549,6 +556,8 @@
 </li>
         <li><a href="api/ISOSIMpy.gui.state.html#ISOSIMpy.gui.state.AppState.last_times">last_times (ISOSIMpy.gui.state.AppState attribute)</a>
 </li>
+        <li><a href="api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.Solver.least_squares">least_squares() (ISOSIMpy.model.solver.Solver method)</a>
+</li>
     </ul></td>
   </tr></table>
 </section>
@@ -569,6 +578,8 @@
           <li><a href="api/ISOSIMpy.gui.main_window.html#ISOSIMpy.gui.main_window.MainWindow">(class in ISOSIMpy.gui.main_window)</a>
 </li>
         </ul></li>
+        <li><a href="api/ISOSIMpy.gui.state.html#ISOSIMpy.gui.state.AppState.manual_observations">manual_observations (ISOSIMpy.gui.state.AppState attribute)</a>
+</li>
         <li><a href="api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.Solver.mcmc_sample">mcmc_sample() (ISOSIMpy.model.solver.Solver method)</a>
 </li>
         <li><a href="api/ISOSIMpy.model.html#ISOSIMpy.model.Model">Model (class in ISOSIMpy.model)</a>
@@ -624,6 +635,8 @@
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit.mtt">(ISOSIMpy.model.units.EMUnit attribute)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.mtt">(ISOSIMpy.model.units.EPMUnit attribute)</a>
+</li>
+          <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.mtt">(ISOSIMpy.model.units.ExEPMUnit attribute)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.PMUnit.mtt">(ISOSIMpy.model.units.PMUnit attribute)</a>
 </li>
@@ -683,6 +696,8 @@
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.param_values">(ISOSIMpy.model.units.EPMUnit method)</a>
 </li>
+          <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.param_values">(ISOSIMpy.model.units.ExEPMUnit method)</a>
+</li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.PMUnit.param_values">(ISOSIMpy.model.units.PMUnit method)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.Unit.param_values">(ISOSIMpy.model.units.Unit method)</a>
@@ -698,14 +713,14 @@
           <li><a href="api/ISOSIMpy.model.html#ISOSIMpy.model.EPMUnit.PARAMS">(ISOSIMpy.model.EPMUnit attribute)</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api/ISOSIMpy.model.html#ISOSIMpy.model.Model.params">params (ISOSIMpy.model.Model attribute)</a>
 
         <ul>
           <li><a href="api/ISOSIMpy.model.model.html#ISOSIMpy.model.model.Model.params">(ISOSIMpy.model.model.Model attribute)</a>
 </li>
         </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api/ISOSIMpy.model.html#ISOSIMpy.model.PMUnit.PARAMS">PARAMS (ISOSIMpy.model.PMUnit attribute)</a>
 
         <ul>
@@ -715,9 +730,13 @@
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.PARAMS">(ISOSIMpy.model.units.EPMUnit attribute)</a>
 </li>
+          <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.PARAMS">(ISOSIMpy.model.units.ExEPMUnit attribute)</a>
+</li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.PMUnit.PARAMS">(ISOSIMpy.model.units.PMUnit attribute)</a>
 </li>
         </ul></li>
+        <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.piston_part">piston_part (ISOSIMpy.model.units.ExEPMUnit attribute)</a>
+</li>
         <li><a href="api/ISOSIMpy.model.html#ISOSIMpy.model.PMUnit">PMUnit (class in ISOSIMpy.model)</a>
 
         <ul>
@@ -738,6 +757,8 @@
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit.PREFIX">(ISOSIMpy.model.units.EMUnit attribute)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.PREFIX">(ISOSIMpy.model.units.EPMUnit attribute)</a>
+</li>
+          <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.PREFIX">(ISOSIMpy.model.units.ExEPMUnit attribute)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.PMUnit.PREFIX">(ISOSIMpy.model.units.PMUnit attribute)</a>
 </li>
@@ -806,6 +827,8 @@
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EMUnit.set_param_values">(ISOSIMpy.model.units.EMUnit method)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.EPMUnit.set_param_values">(ISOSIMpy.model.units.EPMUnit method)</a>
+</li>
+          <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.ExEPMUnit.set_param_values">(ISOSIMpy.model.units.ExEPMUnit method)</a>
 </li>
           <li><a href="api/ISOSIMpy.model.units.html#ISOSIMpy.model.units.PMUnit.set_param_values">(ISOSIMpy.model.units.PMUnit method)</a>
 </li>

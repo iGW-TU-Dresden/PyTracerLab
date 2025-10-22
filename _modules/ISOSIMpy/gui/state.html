@@ -209,6 +209,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -275,6 +276,7 @@
 <span></span><span class="sd">&quot;&quot;&quot;Shared GUI state container used across tabs and controller.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -301,7 +303,7 @@
 <span class="sd">    tracer2 : str | None</span>
 <span class="sd">        Optional second tracer; if ``None`` or ``&quot;None&quot;``, runs single-tracer mode.</span>
 <span class="sd">    solver_key : str</span>
-<span class="sd">        Selected solver registry key (``&quot;de&quot;`` or ``&quot;mcmc&quot;``).</span>
+<span class="sd">        Selected solver registry key (``&quot;de&quot;``, ``&quot;lsq&quot;``, or ``&quot;mcmc&quot;``).</span>
 <span class="sd">    solver_params : dict</span>
 <span class="sd">        Per-solver configuration dictionary.</span>
 <span class="sd">    input_series : tuple(ndarray, ndarray) | None</span>
@@ -344,6 +346,13 @@
                 <span class="s2">&quot;tol&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span>
                 <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">},</span>
+            <span class="s2">&quot;lsq&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;ftol&quot;</span><span class="p">:</span> <span class="mf">1e-8</span><span class="p">,</span>
+                <span class="s2">&quot;xtol&quot;</span><span class="p">:</span> <span class="mf">1e-8</span><span class="p">,</span>
+                <span class="s2">&quot;gtol&quot;</span><span class="p">:</span> <span class="mf">1e-8</span><span class="p">,</span>
+                <span class="s2">&quot;max_nfev&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+                <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
             <span class="s2">&quot;mcmc&quot;</span><span class="p">:</span> <span class="p">{</span>
                 <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
                 <span class="s2">&quot;burn_in&quot;</span><span class="p">:</span> <span class="mi">2000</span><span class="p">,</span>
@@ -355,6 +364,7 @@
     <span class="p">)</span>
     <span class="n">input_series</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">ArrayLike</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">target_series</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">ArrayLike</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">manual_observations</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">datetime</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
     <span class="n">selected_units</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>  <span class="c1"># unique registry keys for params tab</span>
     <span class="c1"># detailed design: list of (unit_name, fraction) allowing duplicates</span>
     <span class="n">design_units</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>

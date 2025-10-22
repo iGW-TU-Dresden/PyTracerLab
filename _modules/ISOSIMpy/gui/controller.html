@@ -209,6 +209,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -328,7 +329,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># We usually work in months (dt = 1.0); for yearly calculations</span>
-            <span class="c1"># We therefore have to use dt = 12.0</span>
+            <span class="c1"># we therefore have to use dt = 12.0</span>
             <span class="n">dt</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_monthly</span> <span class="k">else</span> <span class="mf">12.0</span>
             <span class="c1"># Determine tracer set from state (dual-tracer aware)</span>
             <span class="n">tracer_names</span> <span class="o">=</span> <span class="p">[]</span>
@@ -344,10 +345,9 @@
 
             <span class="c1"># Determine the decay constants for the selected tracers</span>
             <span class="n">lam</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">is_month</span> <span class="o">=</span> <span class="mf">12.0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_monthly</span> <span class="k">else</span> <span class="mf">1.0</span>
             <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">half_life</span> <span class="ow">in</span> <span class="n">Tracers</span><span class="o">.</span><span class="n">tracer_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">tracer_names</span><span class="p">:</span>
-                    <span class="n">lam</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">0.693</span> <span class="o">/</span> <span class="p">(</span><span class="n">half_life</span> <span class="o">*</span> <span class="n">is_month</span><span class="p">))</span>
+                    <span class="n">lam</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">0.693</span> <span class="o">/</span> <span class="p">(</span><span class="n">half_life</span> <span class="o">*</span> <span class="mf">12.0</span><span class="p">))</span>  <span class="c1"># convert to monthly</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">lam</span> <span class="o">=</span> <span class="n">lam</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -380,6 +380,19 @@
             <span class="c1"># Set up the model</span>
             <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">input_series</span>
             <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">target_series</span>
+
+            <span class="c1"># We have to treat the concentration values according to their time units</span>
+            <span class="c1"># Because we generally work in montly resolution, we need to convert</span>
+            <span class="c1"># yearly values to monthly values</span>
+            <span class="c1"># However, we only have to transform the input series, as those values</span>
+            <span class="c1"># actually represent fluxes (mass per unit time); the observed</span>
+            <span class="c1"># concentrations are actually concentrations and not fluxes.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_monthly</span><span class="p">:</span>
+                <span class="n">x_</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mf">12.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">x_</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x_</span><span class="p">)</span>
+
             <span class="bp">self</span><span class="o">.</span><span class="n">ml</span> <span class="o">=</span> <span class="n">mm</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span>
                 <span class="n">dt</span><span class="p">,</span>
                 <span class="n">lam</span><span class="p">,</span>

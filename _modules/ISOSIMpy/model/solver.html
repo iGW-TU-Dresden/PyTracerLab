@@ -209,6 +209,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../examples/example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -280,7 +281,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">differential_evolution</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">differential_evolution</span><span class="p">,</span> <span class="n">least_squares</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">SOLVER_REGISTRY</span>
@@ -411,6 +412,93 @@
             <span class="n">mutation</span><span class="o">=</span><span class="n">mutation</span><span class="p">,</span>
             <span class="n">recombination</span><span class="o">=</span><span class="n">recombination</span><span class="p">,</span>
             <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Write back and simulate once more at the best params</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simulate_given_free</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">solution</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s2">&quot;value&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">solution</span><span class="p">,</span> <span class="n">sim</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_residuals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">free_params</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Vector of residuals.&quot;&quot;&quot;</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simulate_given_free</span><span class="p">(</span><span class="n">free_params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">target_series</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">target_series</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">n_warmup</span> <span class="p">:]</span>
+        <span class="n">y2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">s2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">y2</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y2</span> <span class="o">=</span> <span class="n">y2</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">s2</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">s2</span> <span class="o">=</span> <span class="n">s2</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">y2</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">s2</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">-</span> <span class="n">y2</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">resid</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">resid</span>
+
+<div class="viewcode-block" id="Solver.least_squares">
+<a class="viewcode-back" href="../../../api/ISOSIMpy.model.solver.html#ISOSIMpy.model.solver.Solver.least_squares">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">least_squares</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ftol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">xtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">gtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">max_nfev</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run differential evolution and return the best solution.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ftol : float, optional</span>
+<span class="sd">            Tolerance for termination by the change of the cost function.</span>
+<span class="sd">        xtol : float, optional</span>
+<span class="sd">            Tolerance for termination by the change of the independent</span>
+<span class="sd">            variables.</span>
+<span class="sd">        gtol : float, optional</span>
+<span class="sd">            Tolerance for termination by the norm of the gradient.</span>
+<span class="sd">        max_nfev : int, optional</span>
+<span class="sd">            Maximum number of function evaluations.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        (dict, ndarray)</span>
+<span class="sd">            Mapping from parameter key to optimized value, and the simulated</span>
+<span class="sd">            series at that optimum.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Validate bounds exist for all free parameters</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reduced_bounds</span><span class="p">()</span>
+
+        <span class="c1"># Build init vector and repair non-finite initials by midpoint of bounds</span>
+        <span class="n">init_free</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">get_vector</span><span class="p">(</span><span class="n">which</span><span class="o">=</span><span class="s2">&quot;initial&quot;</span><span class="p">,</span> <span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">keys_free</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">param_keys</span><span class="p">(</span><span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">repaired</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys_free</span><span class="p">,</span> <span class="n">init_free</span><span class="p">,</span> <span class="n">bounds</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+                <span class="n">mid</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">lo</span><span class="p">)</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">hi</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_initial</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">mid</span><span class="p">)</span>
+                <span class="n">repaired</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">mid</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">repaired</span><span class="p">:</span>
+            <span class="c1"># (optional) print or log repaired initials</span>
+            <span class="k">pass</span>
+
+        <span class="c1"># Seed current values from initials for a clean, reproducible start</span>
+        <span class="n">init_free</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">get_vector</span><span class="p">(</span><span class="n">which</span><span class="o">=</span><span class="s2">&quot;initial&quot;</span><span class="p">,</span> <span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="n">init_free</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">least_squares</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_residuals</span><span class="p">,</span>
+            <span class="n">x0</span><span class="o">=</span><span class="n">init_free</span><span class="p">,</span>
+            <span class="n">ftol</span><span class="o">=</span><span class="n">ftol</span><span class="p">,</span>
+            <span class="n">xtol</span><span class="o">=</span><span class="n">xtol</span><span class="p">,</span>
+            <span class="n">gtol</span><span class="o">=</span><span class="n">gtol</span><span class="p">,</span>
+            <span class="n">max_nfev</span><span class="o">=</span><span class="n">max_nfev</span><span class="p">,</span>
+            <span class="n">loss</span><span class="o">=</span><span class="s2">&quot;huber&quot;</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># Write back and simulate once more at the best params</span>
@@ -728,6 +816,31 @@
     <span class="p">}</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_lsq</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Least Squares and return a standardized payload for the GUI.&quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">params</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">ftol</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ftol&quot;</span><span class="p">,</span> <span class="mf">1e-8</span><span class="p">))</span>
+    <span class="n">xtol</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;xtol&quot;</span><span class="p">,</span> <span class="mf">1e-8</span><span class="p">))</span>
+    <span class="n">gtol</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gtol&quot;</span><span class="p">,</span> <span class="mf">1e-8</span><span class="p">))</span>
+    <span class="n">max_nfev</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_nfev&quot;</span><span class="p">,</span> <span class="mi">10000</span><span class="p">))</span>
+
+    <span class="c1"># Optional per-solver sigma(s)</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sigma&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">sim</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span>
+        <span class="n">ftol</span><span class="o">=</span><span class="n">ftol</span><span class="p">,</span>
+        <span class="n">xtol</span><span class="o">=</span><span class="n">xtol</span><span class="p">,</span>
+        <span class="n">gtol</span><span class="o">=</span><span class="n">gtol</span><span class="p">,</span>
+        <span class="n">max_nfev</span><span class="o">=</span><span class="n">max_nfev</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;solver&quot;</span><span class="p">:</span> <span class="s2">&quot;lsq&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;sim&quot;</span><span class="p">:</span> <span class="n">sim</span><span class="p">,</span>
+        <span class="s2">&quot;envelope&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;meta&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Least Squares&quot;</span><span class="p">},</span>
+    <span class="p">}</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_run_mcmc</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run MCMC and return standardized payload including percentiles and MAP simulation.</span>
 
@@ -769,15 +882,18 @@
     <span class="p">)</span>
 
     <span class="n">sims</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sims&quot;</span><span class="p">)</span>
-    <span class="n">keys</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;param_names&quot;</span><span class="p">]</span>
-    <span class="n">theta_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;posterior_median&quot;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-    <span class="n">median_sim</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">_simulate_given_free</span><span class="p">(</span><span class="n">theta_median</span><span class="p">)</span>
+    <span class="c1"># the ensemble median of all simulations is not equal to the simulation</span>
+    <span class="c1"># at the posterior median; we therefore do not use the posterior median</span>
+    <span class="c1"># keys = res[&quot;param_names&quot;]</span>
+    <span class="c1"># theta_median = np.array([res[&quot;posterior_median&quot;][k] for k in keys], dtype=float)</span>
 
     <span class="k">if</span> <span class="n">sims</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sims</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="c1"># Fallback: don&#39;t return envelope</span>
+        <span class="n">median_sim</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">env_1_99</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">env_20_80</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
+        <span class="n">median_sim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">sims</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">p_low</span><span class="p">,</span> <span class="n">p_high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">sims</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">99</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">env_1_99</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;low&quot;</span><span class="p">:</span> <span class="n">p_low</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">:</span> <span class="n">p_high</span><span class="p">}</span>
         <span class="n">p_low</span><span class="p">,</span> <span class="n">p_high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">sims</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">80</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -798,6 +914,7 @@
 
 <span class="c1"># Add run-methods to solver registry</span>
 <span class="n">SOLVER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;de&quot;</span><span class="p">][</span><span class="s2">&quot;run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_run_de</span>
+<span class="n">SOLVER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;lsq&quot;</span><span class="p">][</span><span class="s2">&quot;run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_run_lsq</span>
 <span class="n">SOLVER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;mcmc&quot;</span><span class="p">][</span><span class="s2">&quot;run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_run_mcmc</span>
 
 
