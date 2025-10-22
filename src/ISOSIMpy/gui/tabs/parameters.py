@@ -63,7 +63,7 @@ class ParametersTab(QWidget):
         for col, text in enumerate(headers):
             lbl = QLabel(text)
             lbl.setStyleSheet("font-weight: 600;")
-            self.grid.addWidget(lbl, 0, col, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+            self.grid.addWidget(lbl, 0, col, alignment=Qt.AlignHCenter | Qt.AlignBottom)
 
         # Ensure consistent sizing
         self.grid.setColumnStretch(0, 0)  # label
