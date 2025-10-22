@@ -244,10 +244,30 @@ class SimulationTab(QWidget):
             # Legacy: just a single simulation array
             axes[0].plot(times, np.asarray(payload, dtype=float), label="Simulation", c="k")
 
+        # Get tracer names for axes titles
+        has_two_tracers = self._has_dual_tracers()
+        tracer1 = getattr(self.state, "tracer1", "Tracer 1") or "Tracer 1"
+        tracer_labels = [tracer1]
+        if has_two_tracers:
+            tracer2 = getattr(self.state, "tracer2", "Tracer 2") or "Tracer 2"
+            tracer_labels.append(tracer2)
+
         for j, ax in enumerate(axes):
-            ax.set_ylabel(f"Tracer {j+1}")
+            ax.set_ylabel(tracer_labels[j])
             ax.set_yscale("log")
             ax.legend()
         axes[-1].set_xlabel("Time")
         fig.tight_layout()
         plt.show()
+
+    def _has_dual_tracers(self) -> bool:
+        tracer2 = getattr(self.state, "tracer2", None)
+        if not tracer2:
+            return False
+        target = self.state.target_series
+        if target is None or target[1] is None:
+            return False
+        obs = np.asarray(target[1], dtype=float)
+        if obs.ndim == 1:
+            return False
+        return obs.shape[1] >= 2
