@@ -56,7 +56,7 @@ class FileInputTab(QWidget):
         lay.addWidget(lbl)
         self.cb_t1 = QComboBox()
         self.cb_t1.setFixedSize(QSize(200, 20))
-        self.cb_t1.addItems(list(Tracers.tracer_data.keys()))  # primary cannot be None
+        self.cb_t1.addItems(["None"] + list(Tracers.tracer_data.keys()))  # use None initially
         self.cb_t2 = QComboBox()
         self.cb_t2.setFixedSize(QSize(200, 20))
         self.cb_t2.addItems(

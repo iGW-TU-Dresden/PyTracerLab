@@ -153,6 +153,107 @@ class EPMUnit(Unit):
 
 
 @dataclass
+class ExEPMUnit(Unit):
+    """Explicit xponential Piston-Flow Model (EPM) unit.
+    This model is essentially the same as the EPMUnit, but the EPM ratio
+    (total volume / exponential volume or total area / area receiving
+    recharge) is defined via two parameters instead of one aggregated
+    parameter. Those two parameters are directly related and can never be
+    estimated simultaneously.
+
+    Parameters
+    ----------
+    mtt : float
+        Mean travel time.
+    exp_part: float
+        Area receiving recharge or exponential volume of the system.
+    piston_part: float
+        Area not receiving recharge or piston-flow volume of the system.
+    PREFIX : str
+        Prefix for local parameter names. Helper for GUI.
+    PARAMS : List[Dict[str, Any]]
+        List of (default) parameter definitions. Helper for GUI.
+    """
+
+    mtt: float
+    exp_part: float
+    piston_part: float
+    PREFIX = "epm"
+    PARAMS = [
+        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (0.0, 10000.0)},
+        {"key": "exp_part", "label": "Exponential Part", "default": 0.5, "bounds": (0.0, 100.0)},
+        {"key": "piston_part", "label": "Piston Part", "default": 1.0, "bounds": (0.0, 100.0)},
+    ]
+
+    def param_values(self) -> Dict[str, float]:
+        """Get parameter values.
+
+        Returns
+        -------
+        Dict[str, float]
+            Mapping from local parameter name to value.
+        """
+        return {
+            "mtt": float(self.mtt),
+            "exp_part": float(self.exp_part),
+            "piston_part": float(self.piston_part),
+        }
+
+    def set_param_values(self, values: Dict[str, float]) -> None:
+        """Set one or more local parameter values.
+
+        Parameters
+        ----------
+        values : Dict[str, float]
+            Mapping from local parameter name to new value. Keys not present
+            are ignored.
+        """
+        if "mtt" in values:
+            self.mtt = float(values["mtt"])
+        if "exp_part" in values:
+            self.exp_part = float(values["exp_part"])
+        if "piston_part" in values:
+            self.piston_part = float(values["piston_part"])
+
+    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+        """ExEPM impulse response with decay.
+
+        The continuous-time EPM response (without decay) is
+        ``h(τ) = (η/mtt) * exp(-η τ / mtt + η - 1)`` for
+        ``τ >= mtt*(1 - 1/η)`` and ``0`` otherwise. We also apply
+        an exponential decay term ``exp(-λ τ)``.
+
+        Parameters
+        ----------
+        tau : ndarray
+            Non-negative time axis (same spacing as simulation time grid).
+        dt : float
+            Time step size of the discretization.
+        lambda_ : float
+            Decay constant (1 / time units of ``tau``).
+
+        Returns
+        -------
+        ndarray
+            Impulse response evaluated at ``tau``.
+        """
+        # calculate eta
+        eta = (self.piston_part / self.exp_part) + 1
+
+        # check for edge cases
+        if eta <= 1.0 or self.mtt <= 0.0:
+            return np.zeros_like(tau)
+
+        # base EPM shape
+        h_prelim = (eta / self.mtt) * np.exp(-eta * tau / self.mtt + eta - 1.0)
+        cutoff = self.mtt * (1.0 - 1.0 / eta)
+        h = np.where(tau < cutoff, 0.0, h_prelim)
+        # radioactive/first-order decay applied to transit time
+        h *= np.exp(-lambda_ * tau)
+        return h
+
+
+@dataclass
 class DMUnit(Unit):
     """Dispersion Model (DM) unit.
 

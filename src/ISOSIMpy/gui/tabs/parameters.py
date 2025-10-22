@@ -59,7 +59,7 @@ class ParametersTab(QWidget):
             return
 
         ### Column headers
-        headers = ["Unit / Name", "Lower Bound", "Value", "Upper Bound", "Fixed"]
+        headers = ["Unit / Name", "Lower Bound", "Initial Value", "Upper Bound", "Fixed"]
         for col, text in enumerate(headers):
             lbl = QLabel(text)
             lbl.setStyleSheet("font-weight: 600;")

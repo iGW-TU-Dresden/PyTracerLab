@@ -35,6 +35,10 @@ class ParameterEditor(QWidget):
         self.key = meta["key"]
         lb, ub = meta["bounds"]
         init = initial or {"val": meta["default"], "lb": lb, "ub": ub, "fixed": False}
+        if self.key == "exp_part":
+            init["fixed"] = True
+        if self.key == "piston_part":
+            init["fixed"] = True
 
         # Validator: float, right-aligned entries
         validator = QDoubleValidator(self)

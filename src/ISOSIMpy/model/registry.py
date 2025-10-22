@@ -2,13 +2,16 @@
 
 from typing import Dict
 
-from .units import DMUnit, EMUnit, EPMUnit, PMUnit
+from .units import DMUnit, EMUnit, ExEPMUnit, PMUnit
 
+# # for the GUI we use the ExEPMUnit instead of the EPMUnit to be more in
+# line with how practitioners want to define the model parameters (i.e.,
+# the ratio of total volume to exponential-flow volume)
 UNIT_REGISTRY = {
-    "EPM": EPMUnit,
     "EM": EMUnit,
     "PM": PMUnit,
     "DM": DMUnit,
+    "EPM": ExEPMUnit,
 }
 
 # Use placeholders for solver run functions
