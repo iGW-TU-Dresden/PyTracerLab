@@ -351,6 +351,7 @@ class Model:
 
         # Remove warmup
         sim = sim[self._n_warmup :, :]
+
         # Return 1D for single-tracer to preserve backward compatibility
         if sim.shape[1] == 1:
             return sim.ravel()
