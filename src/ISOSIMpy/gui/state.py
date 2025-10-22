@@ -1,6 +1,7 @@
 """Shared GUI state container used across tabs and controller."""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -86,6 +87,7 @@ class AppState:
     )
     input_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
     target_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
+    manual_observations: Dict[datetime, List[float]] = field(default_factory=dict)
     selected_units: List[str] = field(default_factory=list)  # unique registry keys for params tab
     # detailed design: list of (unit_name, fraction) allowing duplicates
     design_units: List[Tuple[str, float]] = field(default_factory=list)

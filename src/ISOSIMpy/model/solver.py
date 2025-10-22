@@ -595,15 +595,18 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
     )
 
     sims = res.get("sims")
-    keys = res["param_names"]
-    theta_median = np.array([res["posterior_median"][k] for k in keys], dtype=float)
-    median_sim = sol._simulate_given_free(theta_median)
+    # the ensemble median of all simulations is not equal to the simulation
+    # at the posterior median; we therefore do not use the posterior median
+    # keys = res["param_names"]
+    # theta_median = np.array([res["posterior_median"][k] for k in keys], dtype=float)
 
     if sims is None or sims.size == 0:
         # Fallback: don't return envelope
+        median_sim = None
         env_1_99 = None
         env_20_80 = None
     else:
+        median_sim = np.percentile(sims, 50, axis=0)
         p_low, p_high = np.percentile(sims, [1, 99], axis=0)
         env_1_99 = {"low": p_low, "high": p_high}
         p_low, p_high = np.percentile(sims, [20, 80], axis=0)
