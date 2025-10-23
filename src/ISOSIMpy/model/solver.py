@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
-from scipy.optimize import differential_evolution, least_squares
+from scipy.optimize import curve_fit, differential_evolution
 
 from .model import Model
 from .registry import SOLVER_REGISTRY
@@ -63,17 +63,23 @@ class Solver:
         resid = s2 - y2
         sigma = self.sigma
         if sigma is None:
+            # np.mean uses the flattened array, to we don't have issues
+            # when two tracers are used
             return float(np.mean((resid[mask]) ** 2))
         if isinstance(sigma, (list, tuple, np.ndarray)):
             sig_vec = np.asarray(sigma, dtype=float).ravel()
             if sig_vec.size == 1:
                 sig_vec = np.full(y2.shape[1], float(sig_vec[0]))
             if sig_vec.size != y2.shape[1]:
+                # np.mean uses the flattened array, to we don't have issues
+                # when two tracers are used
                 return float(np.mean((resid[mask]) ** 2))
         else:
             sig_vec = np.full(y2.shape[1], float(sigma))
         sig = sig_vec.reshape(1, -1)
         norm = resid / sig
+        # np.mean uses the flattened array, to we don't have issues
+        # when two tracers are used
         return float(np.mean((norm[mask]) ** 2))
 
     def differential_evolution(
@@ -140,9 +146,13 @@ class Solver:
         solution = {k: float(self.model.params[k]["value"]) for k in self.model.params}
         return solution, sim
 
-    def _residuals(self, free_params: Sequence[float]) -> Sequence[float]:
-        """Vector of residuals."""
-        sim = self._simulate_given_free(free_params)
+    def _simulated_equivalents(self, *free_params: Sequence[float]) -> Sequence[float]:
+        """Least squares wants a vector of simulated observation
+        equivalents without nans."""
+        # We don't care about the first parameter as this is "xdata"
+        params = [float(p) for n, p in enumerate(free_params[1:])]
+        sim = self._simulate_given_free(params)
+
         if self.model.target_series is None:
             return float("inf")
         y = self.model.target_series[self.model.n_warmup :]
@@ -154,13 +164,30 @@ class Solver:
             s2 = s2.reshape(-1, 1)
         if y2.shape != s2.shape:
             return float("inf")
+        # y2 and s2 both have shape (num_obs, num_tracers)
         mask = ~np.isnan(y2) & ~np.isnan(s2)
         if not np.any(mask):
             return float("inf")
-        resid = s2 - y2
-        resid = resid[mask]
+        sim_equiv = s2[mask].flatten()
 
-        return resid
+        return sim_equiv
+
+    def _get_obs(self) -> Sequence[float]:
+        """Least squares wants a vector of simulated observation
+        equivalents without nans."""
+        if self.model.target_series is None:
+            return float("inf")
+        y = self.model.target_series[self.model.n_warmup :]
+        y2 = np.asarray(y, dtype=float)
+        if y2.ndim == 1:
+            y2 = y2.reshape(-1, 1)
+        # y2 and s2 both have shape (num_obs, num_tracers)
+        mask = ~np.isnan(y2)
+        if not np.any(mask):
+            return float("inf")
+        obs_equiv = y2[mask].flatten()
+
+        return obs_equiv
 
     def least_squares(
         self,
@@ -169,7 +196,8 @@ class Solver:
         gtol: float = 1e-8,
         max_nfev: int = 10000,
     ) -> Tuple[Dict[str, float], np.ndarray]:
-        """Run differential evolution and return the best solution.
+        """Run non-linear least squares and return the best solution as
+        well as the parameter covariance matrix at the optimum.
 
         Parameters
         ----------
@@ -209,18 +237,29 @@ class Solver:
         init_free = self.model.get_vector(which="initial", free_only=True)
         self.model.set_vector(init_free, which="value", free_only=True)
 
-        result = least_squares(
-            self._residuals,
-            x0=init_free,
+        # Get simulated observation equivalents
+        ydata = self._get_obs()
+        # Prepare dummy x data
+        xdata = np.arange(len(ydata))
+        # We need to re-shape the bounds for curve_fit
+        # It needs to be a tuple of two lists; one list for the lower bounds
+        # and one list for the upper bounds of all parameters
+        bounds_cf = ([b[0] for b in bounds], [b[1] for b in bounds])
+
+        popt, pcov = curve_fit(
+            f=self._simulated_equivalents,
+            xdata=xdata,
+            ydata=ydata,
+            p0=init_free,
+            bounds=bounds_cf,
             ftol=ftol,
             xtol=xtol,
             gtol=gtol,
-            max_nfev=max_nfev,
-            loss="huber",
+            maxfev=max_nfev,
         )
 
         # Write back and simulate once more at the best params
-        sim = self._simulate_given_free(result.x)
+        sim = self._simulate_given_free(popt)
         solution = {k: float(self.model.params[k]["value"]) for k in self.model.params}
         return solution, sim
 
