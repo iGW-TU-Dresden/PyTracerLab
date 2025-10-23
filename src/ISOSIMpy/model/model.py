@@ -362,6 +362,7 @@ class Model:
         self,
         filename: str,
         frequency: str,
+        tracer: Optional[str] = None,
         sim: Optional[np.ndarray] = None,
         title: str = "Model Report",
         include_initials: bool = True,
@@ -412,16 +413,20 @@ class Model:
         # Model settings
         lines.append("Model settings")
         lines.append("--------------")
-        lines.append(f"Time step (dt):          {frequency}")
-        lines.append(
-            "Decay constant (lambda): "
-            + (
-                ", ".join(f"{float(v):.6g}" for v in np.atleast_1d(self.lambda_))
-                if isinstance(self.lambda_, (list, tuple, np.ndarray))
-                else f"{float(self.lambda_):.6g}"
+        lines.append(f"Time step (dt): {frequency}")
+        if tracer is None:
+            # If there is no tracer name given, we use the decay constants
+            lines.append(
+                "Decay constant (lambda): "
+                + (
+                    ", ".join(f"{float(v):.6g}" for v in np.atleast_1d(self.lambda_))
+                    if isinstance(self.lambda_, (list, tuple, np.ndarray))
+                    else f"{float(self.lambda_):.6g}"
+                )
             )
-        )
-        lines.append(f"Warmup steps:            {self._n_warmup} (auto)")
+        else:
+            lines.append(f"Tracer: {tracer}")
+        lines.append(f"Warmup steps: {self._n_warmup} (auto)")
         if self.steady_state_input is None:
             steady = "n/a"
         else:
@@ -430,8 +435,8 @@ class Model:
                 steady = f"{float(arr.reshape(-1)[0]):.6g}"
             else:
                 steady = ", ".join(f"{float(v):.6g}" for v in arr.ravel())
-        lines.append(f"Steady-state input:      {steady}")
-        lines.append(f"Units count:             {len(self.units)}")
+        lines.append(f"Steady-state input: {steady}")
+        lines.append(f"Units count: {len(self.units)}")
         lines.append("")
 
         # MSE if possible
