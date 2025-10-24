@@ -306,9 +306,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">model</span><span class="p">:</span> <span class="n">Model</span>
-    <span class="c1"># Optional observation noise scale(s) used for weighting the objective and</span>
-    <span class="c1"># for Gaussian likelihood in MCMC. Can be a scalar or per-tracer sequence.</span>
-    <span class="n">sigma</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="c1"># ------------------------- internals ---------------------------------</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_reduced_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
@@ -320,7 +317,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">free_params</span><span class="p">),</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">simulate</span><span class="p">()</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">free_params</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">free_params</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="o">*</span><span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Mean squared error (optionally sigma-weighted) over all tracers.&quot;&quot;&quot;</span>
         <span class="n">sim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simulate_given_free</span><span class="p">(</span><span class="n">free_params</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">target_series</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -338,7 +335,8 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
         <span class="n">resid</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">-</span> <span class="n">y2</span>
-        <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span>
+        <span class="c1"># Get sigma</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">sigma</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># np.mean uses the flattened array, to we don&#39;t have issues</span>
             <span class="c1"># when two tracers are used</span>
@@ -368,6 +366,7 @@
         <span class="n">mutation</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.99</span><span class="p">),</span>
         <span class="n">recombination</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
         <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run differential evolution and return the best solution.</span>
 
@@ -383,6 +382,8 @@
 <span class="sd">            DE recombination constant.</span>
 <span class="sd">        tol : float, optional</span>
 <span class="sd">            Convergence tolerance.</span>
+<span class="sd">        sigma : float | Sequence[float] | None, optional</span>
+<span class="sd">            Error standard deviation(s) for weighted mean squared error.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -418,6 +419,7 @@
             <span class="n">mutation</span><span class="o">=</span><span class="n">mutation</span><span class="p">,</span>
             <span class="n">recombination</span><span class="o">=</span><span class="n">recombination</span><span class="p">,</span>
             <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">sigma</span><span class="p">,),</span>
         <span class="p">)</span>
 
         <span class="c1"># Write back and simulate once more at the best params</span>
@@ -477,6 +479,7 @@
         <span class="n">xtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
         <span class="n">gtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
         <span class="n">max_nfev</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run non-linear least squares and return the best solution as</span>
 <span class="sd">        well as the parameter covariance matrix at the optimum.</span>
@@ -492,6 +495,15 @@
 <span class="sd">            Tolerance for termination by the norm of the gradient.</span>
 <span class="sd">        max_nfev : int, optional</span>
 <span class="sd">            Maximum number of function evaluations.</span>
+<span class="sd">        sigma : float | Sequence[float] | None, optional</span>
+<span class="sd">            Standard deviation of error. By default (None), all errors are</span>
+<span class="sd">            assumed to have equal magnitude (no relative differences). See</span>
+<span class="sd">            the documentation of scipy.optimize.curve_fit for details. If a</span>
+<span class="sd">            single float, it is used for all tracers. If a sequence of length</span>
+<span class="sd">            equal to the number of tracers, a constant sigma is used for each</span>
+<span class="sd">            tracer (all observations). If a sequence of shape (num_obs,</span>
+<span class="sd">            num_tracers), a different sigma is used for each observation</span>
+<span class="sd">            and each tracer type.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -528,12 +540,38 @@
         <span class="c1"># and one list for the upper bounds of all parameters</span>
         <span class="n">bounds_cf</span> <span class="o">=</span> <span class="p">([</span><span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">],</span> <span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">])</span>
 
+        <span class="c1"># We need to treat sigma in detail, there are several cases to</span>
+        <span class="c1"># consider. We restrict ourselves here to the same kind of sigma-</span>
+        <span class="c1"># specification for both tracers, if two tracers are used.</span>
+        <span class="c1"># 1. sigma is None, no weights</span>
+        <span class="c1"># 2. sigma is a float, all weights are equal</span>
+        <span class="c1"># 3. sigma is a list, one weight per observation</span>
+        <span class="k">if</span> <span class="n">sigma</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># No specific sigma, no relative differences in observation</span>
+            <span class="c1"># errors (also not between tracer types!)</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+            <span class="c1"># Same sigma for all observations and all tracer types</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ydata</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Sigma is a list; either has one element per tracer type or</span>
+            <span class="c1"># one element per observation (and tracer type)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">s1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">sigma</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">ydata</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">s2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">sigma</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">ydata</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">])</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ydata</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="c1"># We now assume shape (num_obs, num_tracers)</span>
+                <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
         <span class="n">popt</span><span class="p">,</span> <span class="n">pcov</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span>
             <span class="n">f</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_simulated_equivalents</span><span class="p">,</span>
             <span class="n">xdata</span><span class="o">=</span><span class="n">xdata</span><span class="p">,</span>
             <span class="n">ydata</span><span class="o">=</span><span class="n">ydata</span><span class="p">,</span>
             <span class="n">p0</span><span class="o">=</span><span class="n">init_free</span><span class="p">,</span>
             <span class="n">bounds</span><span class="o">=</span><span class="n">bounds_cf</span><span class="p">,</span>
+            <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span>
+            <span class="n">absolute_sigma</span><span class="o">=</span><span class="kc">True</span> <span class="k">if</span> <span class="n">sigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">False</span><span class="p">,</span>
             <span class="n">ftol</span><span class="o">=</span><span class="n">ftol</span><span class="p">,</span>
             <span class="n">xtol</span><span class="o">=</span><span class="n">xtol</span><span class="p">,</span>
             <span class="n">gtol</span><span class="o">=</span><span class="n">gtol</span><span class="p">,</span>
@@ -839,13 +877,14 @@
 
     <span class="c1"># Optional per-solver sigma(s)</span>
     <span class="n">sigma</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sigma&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
     <span class="n">_</span><span class="p">,</span> <span class="n">sim</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">differential_evolution</span><span class="p">(</span>
         <span class="n">maxiter</span><span class="o">=</span><span class="n">maxiter</span><span class="p">,</span>
         <span class="n">popsize</span><span class="o">=</span><span class="n">popsize</span><span class="p">,</span>
         <span class="n">mutation</span><span class="o">=</span><span class="n">mutation</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
         <span class="n">recombination</span><span class="o">=</span><span class="n">recombination</span><span class="p">,</span>
         <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="p">{</span>
         <span class="s2">&quot;solver&quot;</span><span class="p">:</span> <span class="s2">&quot;de&quot;</span><span class="p">,</span>
@@ -865,12 +904,13 @@
 
     <span class="c1"># Optional per-solver sigma(s)</span>
     <span class="n">sigma</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sigma&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">Solver</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
     <span class="n">_</span><span class="p">,</span> <span class="n">sim</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span>
         <span class="n">ftol</span><span class="o">=</span><span class="n">ftol</span><span class="p">,</span>
         <span class="n">xtol</span><span class="o">=</span><span class="n">xtol</span><span class="p">,</span>
         <span class="n">gtol</span><span class="o">=</span><span class="n">gtol</span><span class="p">,</span>
         <span class="n">max_nfev</span><span class="o">=</span><span class="n">max_nfev</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="p">{</span>
         <span class="s2">&quot;solver&quot;</span><span class="p">:</span> <span class="s2">&quot;lsq&quot;</span><span class="p">,</span>
