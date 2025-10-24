@@ -29,9 +29,6 @@ class Solver:
     """
 
     model: Model
-    # Optional observation noise scale(s) used for weighting the objective and
-    # for Gaussian likelihood in MCMC. Can be a scalar or per-tracer sequence.
-    sigma: Union[float, Sequence[float], None] = None
 
     # ------------------------- internals ---------------------------------
     def _reduced_bounds(self) -> List[Tuple[float, float]]:
@@ -43,7 +40,7 @@ class Solver:
         self.model.set_vector(list(free_params), which="value", free_only=True)
         return self.model.simulate()
 
-    def _obj(self, free_params: Sequence[float]) -> float:
+    def _obj(self, free_params: Sequence[float], *sigma: float | Sequence[float]) -> float:
         """Mean squared error (optionally sigma-weighted) over all tracers."""
         sim = self._simulate_given_free(free_params)
         if self.model.target_series is None:
@@ -61,7 +58,8 @@ class Solver:
         if not np.any(mask):
             return float("inf")
         resid = s2 - y2
-        sigma = self.sigma
+        # Get sigma
+        sigma = sigma[0]
         if sigma is None:
             # np.mean uses the flattened array, to we don't have issues
             # when two tracers are used
@@ -89,6 +87,7 @@ class Solver:
         mutation: Tuple[float, float] = (0.5, 1.99),
         recombination: float = 0.5,
         tol: float = 1e-3,
+        sigma: Union[float, Sequence[float], None] = None,
     ) -> Tuple[Dict[str, float], np.ndarray]:
         """Run differential evolution and return the best solution.
 
@@ -104,6 +103,8 @@ class Solver:
             DE recombination constant.
         tol : float, optional
             Convergence tolerance.
+        sigma : float | Sequence[float] | None, optional
+            Error standard deviation(s) for weighted mean squared error.
 
         Returns
         -------
@@ -139,6 +140,7 @@ class Solver:
             mutation=mutation,
             recombination=recombination,
             tol=tol,
+            args=(sigma,),
         )
 
         # Write back and simulate once more at the best params
@@ -195,6 +197,7 @@ class Solver:
         xtol: float = 1e-8,
         gtol: float = 1e-8,
         max_nfev: int = 10000,
+        sigma: float | Sequence[float] | None = None,
     ) -> Tuple[Dict[str, float], np.ndarray]:
         """Run non-linear least squares and return the best solution as
         well as the parameter covariance matrix at the optimum.
@@ -210,6 +213,15 @@ class Solver:
             Tolerance for termination by the norm of the gradient.
         max_nfev : int, optional
             Maximum number of function evaluations.
+        sigma : float | Sequence[float] | None, optional
+            Standard deviation of error. By default (None), all errors are
+            assumed to have equal magnitude (no relative differences). See
+            the documentation of scipy.optimize.curve_fit for details. If a
+            single float, it is used for all tracers. If a sequence of length
+            equal to the number of tracers, a constant sigma is used for each
+            tracer (all observations). If a sequence of shape (num_obs,
+            num_tracers), a different sigma is used for each observation
+            and each tracer type.
 
         Returns
         -------
@@ -246,12 +258,38 @@ class Solver:
         # and one list for the upper bounds of all parameters
         bounds_cf = ([b[0] for b in bounds], [b[1] for b in bounds])
 
+        # We need to treat sigma in detail, there are several cases to
+        # consider. We restrict ourselves here to the same kind of sigma-
+        # specification for both tracers, if two tracers are used.
+        # 1. sigma is None, no weights
+        # 2. sigma is a float, all weights are equal
+        # 3. sigma is a list, one weight per observation
+        if sigma is None:
+            # No specific sigma, no relative differences in observation
+            # errors (also not between tracer types!)
+            pass
+        elif isinstance(sigma, float):
+            # Same sigma for all observations and all tracer types
+            sigma = np.repeat(sigma, len(ydata))
+        else:
+            # Sigma is a list; either has one element per tracer type or
+            # one element per observation (and tracer type)
+            if len(sigma) == 2:
+                s1 = np.repeat(sigma[0], len(ydata) // 2)
+                s2 = np.repeat(sigma[1], len(ydata) // 2)
+                sigma = np.column_stack([s1, s2]).flatten()
+            elif len(sigma) == len(ydata) // 2:
+                # We now assume shape (num_obs, num_tracers)
+                sigma = np.asarray(sigma).flatten()
+
         popt, pcov = curve_fit(
             f=self._simulated_equivalents,
             xdata=xdata,
             ydata=ydata,
             p0=init_free,
             bounds=bounds_cf,
+            sigma=sigma,
+            absolute_sigma=True if sigma is not None else False,
             ftol=ftol,
             xtol=xtol,
             gtol=gtol,
@@ -552,13 +590,14 @@ def _run_de(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, obj
 
     # Optional per-solver sigma(s)
     sigma = p.get("sigma", None)
-    sol = Solver(model=model, sigma=sigma)
+    sol = Solver(model=model)
     _, sim = sol.differential_evolution(
         maxiter=maxiter,
         popsize=popsize,
         mutation=mutation,  # type: ignore[arg-type]
         recombination=recombination,
         tol=tol,
+        sigma=sigma,
     )
     return {
         "solver": "de",
@@ -578,12 +617,13 @@ def _run_lsq(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, ob
 
     # Optional per-solver sigma(s)
     sigma = p.get("sigma", None)
-    sol = Solver(model=model, sigma=sigma)
+    sol = Solver(model=model)
     _, sim = sol.least_squares(
         ftol=ftol,
         xtol=xtol,
         gtol=gtol,
         max_nfev=max_nfev,
+        sigma=sigma,
     )
     return {
         "solver": "lsq",

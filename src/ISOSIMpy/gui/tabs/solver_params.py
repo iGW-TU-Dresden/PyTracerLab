@@ -80,6 +80,17 @@ class SolverParamsDialog(QDialog):
         w_tol.setValidator(tol_val)
         w_tol.setAlignment(Qt.AlignRight)
 
+        de_sigma1 = QLineEdit()
+        de_sigma2 = QLineEdit()
+        sigma_val_de = QDoubleValidator(self)
+        sigma_val_de.setNotation(QDoubleValidator.ScientificNotation)
+        sigma_val_de.setDecimals(12)
+        sigma_val_de.setRange(0.0, 1e100, 12)
+        for w in (de_sigma1, de_sigma2):
+            w.setValidator(sigma_val_de)
+            w.setAlignment(Qt.AlignRight)
+            w.setPlaceholderText("leave empty to infer")
+
         self._de_widgets = {
             "maxiter": w_maxiter,
             "popsize": w_popsize,
@@ -87,6 +98,8 @@ class SolverParamsDialog(QDialog):
             "mutation_hi": w_mut_hi,
             "recombination": w_recomb,
             "tol": w_tol,
+            "sigma1": de_sigma1,
+            "sigma2": de_sigma2,
         }
         de_form.addRow("maxiter", w_maxiter)
         de_form.addRow("popsize", w_popsize)
@@ -94,19 +107,6 @@ class SolverParamsDialog(QDialog):
         de_form.addRow("mutation high", w_mut_hi)
         de_form.addRow("recombination", w_recomb)
         de_form.addRow("tol", w_tol)
-
-        # Optional sigma per tracer (used for weighting in DE objective)
-        de_sigma1 = QLineEdit()
-        de_sigma2 = QLineEdit()
-        sig_val_de = QDoubleValidator(self)
-        sig_val_de.setNotation(QDoubleValidator.StandardNotation)
-        sig_val_de.setDecimals(12)
-        sig_val_de.setRange(0.0, 1e100, 12)
-        for w in (de_sigma1, de_sigma2):
-            w.setValidator(sig_val_de)
-            w.setAlignment(Qt.AlignRight)
-        self._de_widgets["sigma1"] = de_sigma1
-        self._de_widgets["sigma2"] = de_sigma2
         de_form.addRow("sigma 1 (optional)", de_sigma1)
         de_form.addRow("sigma 2 (optional)", de_sigma2)
 
@@ -376,10 +376,8 @@ class SolverParamsDialog(QDialog):
         self._de_widgets["mutation_hi"].setText(str(float(de["mutation"][1])))
         self._de_widgets["recombination"].setText(str(float(de["recombination"])))
         self._de_widgets["tol"].setText(str(float(de["tol"])))
-        if "sigma1" in self._de_widgets:
-            self._de_widgets["sigma1"].setText("")
-        if "sigma2" in self._de_widgets:
-            self._de_widgets["sigma2"].setText("")
+        self._de_widgets["sigma1"].setText("")
+        self._de_widgets["sigma2"].setText("")
 
         lsq = defaults["lsq"]
         self._lsq_widgets["ftol"].setText(str(float(lsq["ftol"])))
@@ -422,6 +420,7 @@ class SolverParamsDialog(QDialog):
                 return default_val
             return val
 
+        # Differential Evolution
         de = {
             "maxiter": _to_int(self._de_widgets["maxiter"], int(defaults["de"]["maxiter"])),
             "popsize": _to_int(self._de_widgets["popsize"], int(defaults["de"]["popsize"])),
@@ -462,6 +461,7 @@ class SolverParamsDialog(QDialog):
                     de_sigma = None
             de["sigma"] = de_sigma
 
+        # Least Squares
         lsq = {
             "ftol": _to_float(self._lsq_widgets["ftol"], float(defaults["lsq"]["ftol"])),
             "xtol": _to_float(self._lsq_widgets["xtol"], float(defaults["lsq"]["xtol"])),
@@ -494,6 +494,7 @@ class SolverParamsDialog(QDialog):
                     lsq_sigma = None
             lsq["sigma"] = lsq_sigma
 
+        # MCMC
         # Save MCMC (sigma1/sigma2)
         s1_txt = self._mcmc_widgets["sigma1"].text().strip()
         s2_txt = self._mcmc_widgets["sigma2"].text().strip()
