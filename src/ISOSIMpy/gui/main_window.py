@@ -52,6 +52,7 @@ class MainWindow(QWidget):
         t4.simulate_requested.connect(lambda: (t3.commit(), self.ctrl.simulate()))
         t4.calibrate_requested.connect(lambda: (t3.commit(), self.ctrl.calibrate()))
         t4.report_requested.connect(lambda fname: (t3.commit(), self.ctrl.write_report(fname)))
+        t4.savedata_requested.connect(lambda fname: (t3.commit(), self.ctrl.save_data(fname)))
         t5.sweep_requested.connect(
             lambda start, stop, count, key: (
                 t3.commit(),

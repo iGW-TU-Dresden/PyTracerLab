@@ -29,12 +29,15 @@ class SimulationTab(QWidget):
         Trigger running the selected solver to calibrate parameters.
     report_requested : str
         Trigger writing a report to the provided file path.
+    savedata_requested : str
+        Trigger saving simulation data to the provided file path.
     """
 
     # Define signals that this tab can emit
     simulate_requested = pyqtSignal()
     calibrate_requested = pyqtSignal()
     report_requested = pyqtSignal(str)  # carries the file path
+    savedata_requested = pyqtSignal(str)  # carries the file path
 
     def __init__(self, state, parent=None):
         super().__init__(parent)
@@ -101,10 +104,13 @@ class SimulationTab(QWidget):
         lbl_report = QLabel("Report")
         lbl_report.setStyleSheet("font-weight: 600;")
 
-        # Report button
+        # Report button and save simulation data button
         b_report = QPushButton("Write Report")
         b_report.setFixedSize(QSize(200, 40))
         b_report.clicked.connect(self._choose_report_file)
+        b_savedata = QPushButton("Save Simulation Data")
+        b_savedata.setFixedSize(QSize(200, 40))
+        b_savedata.clicked.connect(self._choose_savedata_file)
 
         # Add widgets
         lay.addWidget(lbl_sim)
@@ -119,7 +125,11 @@ class SimulationTab(QWidget):
         lay.addWidget(b_plot)
         lay.addStretch(1)
         lay.addWidget(lbl_report)
-        lay.addWidget(b_report)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(b_report)
+        btn_row.addWidget(b_savedata)
+        btn_row.addStretch()
+        lay.addLayout(btn_row)
 
     def _on_solver_changed(self, idx: int):
         key = self.cb_solver.itemData(idx)
@@ -141,6 +151,17 @@ class SimulationTab(QWidget):
         )
         if fname:  # user clicked OK
             self.report_requested.emit(fname)
+
+    def _choose_savedata_file(self):
+        """Open save dialog and emit signal with chosen filename."""
+        fname, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Simulation Data",
+            "sim_data.txt",  # default filename
+            "Text Files (*.txt);;All Files (*)",  # filters
+        )
+        if fname:  # user clicked OK
+            self.savedata_requested.emit(fname)
 
     def show_results(self, result):
         """Accept either a plain ndarray or a standardized payload dict."""

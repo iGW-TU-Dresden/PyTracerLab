@@ -318,3 +318,51 @@ class Controller(QObject):
         else:
             frequency = "1 year"
         self.ml.write_report(filename=filename, frequency=frequency)
+
+    def save_data(self, filename):
+        """Save simulation data to ``filename`` using current state."""
+        # Initialize lines
+        lines = []
+
+        # Get parameters
+        params = self.ml.params
+        # Get data and time stamps
+        data = np.asarray(self.state.last_simulation.get("sim"))
+        times = self.state.input_series[0]
+
+        # We have to prepare the data for the report
+        two_tracers = True
+        if data.ndim == 1:
+            two_tracers = False
+            data = data.reshape(-1, 1)
+
+        # Fill lines
+        # Parameters
+        lines.append("Parameters")
+        lines.append("----------")
+        for key, val in params.items():
+            lines.append(str(key) + ": " + str(val))
+        lines.append("")
+        lines.append("Simulation Data")
+        lines.append("---------------")
+        for i in range(len(data)):
+            if self.state.is_monthly:
+                if not two_tracers:
+                    lines.append(times[i].strftime("%Y-%m") + ", " + str(data[i, 0]))
+                else:
+                    lines.append(
+                        times[i].strftime("%Y-%m") + ", " + str(data[i, 0]) + ", " + str(data[i, 1])
+                    )
+            else:
+                if not two_tracers:
+                    lines.append(times[i].strftime("%Y") + ", " + str(data[i, 0]))
+                else:
+                    lines.append(
+                        times[i].strftime("%Y") + ", " + str(data[i, 0]) + ", " + str(data[i, 1])
+                    )
+
+        file_text = "\n".join(lines)
+        # Write lines
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(file_text)
+        return
