@@ -139,7 +139,19 @@ class Controller(QObject):
                     key = p["key"]
                     default_val = p.get("default")
                     rec = self.state.params.get(prefix, {}).get(key)
-                    kwargs[key] = rec["val"] if rec is not None else default_val
+
+                    # Handle parameters with time units
+                    # We always work in monthly resolution but always
+                    # get parameters with time units "years". We therefore
+                    # have to convert them to monthly values. The default
+                    # value is also given in years.
+                    param_value = rec["val"] if rec is not None else default_val
+                    param_name = p.get("key")
+
+                    if param_name == "mtt":
+                        param_value *= 12
+
+                    kwargs[key] = param_value
 
                 unit = cls(**kwargs)
 
@@ -236,7 +248,14 @@ class Controller(QObject):
             if param_key not in self.ml.params:
                 raise ValueError(f"Unknown parameter: {param_key}")
 
+            # Before we run the sweep, we need to convert the parameters with time units
+            # to match the internal monthly model resolution.
             base_value = float(self.ml.params[param_key]["value"])
+
+            if "mtt" in param_key:
+                start *= 12
+                stop *= 12
+
             grid = np.linspace(float(start), float(stop), int(count))
             results = None
 

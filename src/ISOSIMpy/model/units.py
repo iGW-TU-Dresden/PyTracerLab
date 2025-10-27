@@ -83,6 +83,10 @@ class EPMUnit(Unit):
         Prefix for local parameter names. Helper for GUI.
     PARAMS : List[Dict[str, Any]]
         List of (default) parameter definitions. Helper for GUI.
+
+    Note: The parameter key for the mean travel time (``mtt``) is used in the
+    GUI explicitly. The GUI assumes the parameter is given in years and
+    internally converts it.
     """
 
     mtt: float
@@ -173,6 +177,10 @@ class ExEPMUnit(Unit):
         Prefix for local parameter names. Helper for GUI.
     PARAMS : List[Dict[str, Any]]
         List of (default) parameter definitions. Helper for GUI.
+
+    Note: The parameter key for the mean travel time (``mtt``) is used in the
+    GUI explicitly. The GUI assumes the parameter is given in years and
+    internally converts it.
     """
 
     mtt: float
@@ -269,6 +277,10 @@ class DMUnit(Unit):
         Prefix for local parameter names. Helper for GUI.
     PARAMS : List[Dict[str, Any]]
         List of (default) parameter definitions. Helper for GUI.
+
+    Note: The parameter key for the mean travel time (``mtt``) is used in the
+    GUI explicitly. The GUI assumes the parameter is given in years and
+    internally converts it.
     """
 
     mtt: float
@@ -361,6 +373,10 @@ class EMUnit(Unit):
         Prefix for local parameter names. Helper for GUI.
     PARAMS : List[Dict[str, Any]]
         List of (default) parameter definitions. Helper for GUI.
+
+    Note: The parameter key for the mean travel time (``mtt``) is used in the
+    GUI explicitly. The GUI assumes the parameter is given in years and
+    internally converts it.
     """
 
     mtt: float
@@ -435,6 +451,10 @@ class PMUnit(Unit):
         Prefix for local parameter names. Helper for GUI.
     PARAMS : List[Dict[str, Any]]
         List of (default) parameter definitions. Helper for GUI.
+
+    Note: The parameter key for the mean travel time (``mtt``) is used in the
+    GUI explicitly. The GUI assumes the parameter is given in years and
+    internally converts it.
     """
 
     mtt: float
