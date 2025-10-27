@@ -20,7 +20,7 @@ class MainWindow(QWidget):
         super().__init__()
         # Initialize the window
         self.setWindowTitle("ISOSIMpy")
-        self.resize(1200, 600)
+        self.resize(600, 800)
 
         self.state = AppState()
         self.ctrl = Controller(self.state)

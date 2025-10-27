@@ -89,7 +89,7 @@ class EPMUnit(Unit):
     eta: float
     PREFIX = "epm"
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
         {"key": "eta", "label": "Eta", "default": 1.1, "bounds": (1.0, 2.0)},
     ]
 
@@ -180,7 +180,7 @@ class ExEPMUnit(Unit):
     piston_part: float
     PREFIX = "epm"
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
         {"key": "exp_part", "label": "Exponential Part", "default": 0.5, "bounds": (0.0, 100.0)},
         {"key": "piston_part", "label": "Piston Part", "default": 1.0, "bounds": (0.0, 100.0)},
     ]
@@ -275,7 +275,7 @@ class DMUnit(Unit):
     DP: float
     PREFIX = "dm"
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (1.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (1.0, 10000.0)},
         {"key": "DP", "label": "Dispersion Param.", "default": 1.0, "bounds": (0.0001, 10.0)},
     ]
 
@@ -366,7 +366,7 @@ class EMUnit(Unit):
     mtt: float
     PREFIX = "em"
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
     ]
 
     def param_values(self) -> Dict[str, float]:
@@ -440,7 +440,7 @@ class PMUnit(Unit):
     mtt: float
     PREFIX = "pm"
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 120.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
     ]
 
     def param_values(self) -> Dict[str, float]:
