@@ -346,6 +346,13 @@ class Model:
             # per-tracer impulse responses and contributions
             for j in range(k):
                 h = unit.get_impulse_response(t, self.dt, float(lam_vec[j]))
+                # Normalize so that integrated response has unit area (
+                # ensure mass balance)
+                area = float(h.sum() * self.dt)
+                if not np.isfinite(area) or area <= 0:
+                    raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+                h /= area
+
                 contrib = scipy.signal.fftconvolve(x[:, j], h)[:n] * self.dt
                 sim[:, j] += float(frac) * contrib
 
