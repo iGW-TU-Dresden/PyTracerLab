@@ -151,6 +151,14 @@ class EPMUnit(Unit):
         h_prelim = (self.eta / self.mtt) * np.exp(-self.eta * tau / self.mtt + self.eta - 1.0)
         cutoff = self.mtt * (1.0 - 1.0 / self.eta)
         h = np.where(tau < cutoff, 0.0, h_prelim)
+
+        # Normalize so that integrated response has unit area (
+        # ensure mass balance)
+        area = float(h.sum() * dt)
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+        h /= area
+
         # radioactive/first-order decay applied to transit time
         h *= np.exp(-lambda_ * tau)
         return h
@@ -256,6 +264,14 @@ class ExEPMUnit(Unit):
         h_prelim = (eta / self.mtt) * np.exp(-eta * tau / self.mtt + eta - 1.0)
         cutoff = self.mtt * (1.0 - 1.0 / eta)
         h = np.where(tau < cutoff, 0.0, h_prelim)
+
+        # Normalize so that integrated response has unit area (
+        # ensure mass balance)
+        area = float(h.sum() * dt)
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+        h /= area
+
         # radioactive/first-order decay applied to transit time
         h *= np.exp(-lambda_ * tau)
         return h
@@ -356,6 +372,14 @@ class DMUnit(Unit):
             * (1 / np.sqrt(K[1:]))
             * np.exp(((1 - (tau[1:] / self.mtt)) ** 2) / K[1:])
         )
+
+        # Normalize so that integrated response has unit area (
+        # ensure mass balance)
+        area = float(h.sum() * dt)
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+        h /= area
+
         # Radioactive/first-order decay applied to transit time
         h *= np.exp(-lambda_ * tau)
         return h
@@ -434,6 +458,14 @@ class EMUnit(Unit):
 
         # base EM shape
         h = (1 / self.mtt) * np.exp(-tau / self.mtt)
+
+        # Normalize so that integrated response has unit area (
+        # ensure mass balance)
+        area = float(h.sum() * dt)
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+        h /= area
+
         # radioactive/first-order decay applied to transit time
         h *= np.exp(-lambda_ * tau)
         return h
@@ -511,6 +543,10 @@ class PMUnit(Unit):
 
         h = np.zeros_like(tau)
         idx = int(round(self.mtt / dt))
+
+        # Mass is already preserved: before radioactive decay, we set a
+        # single time bin to 1/dt. Multiplying by dt and dividing by the
+        # sum just gives us 1/dt again.
         if 0 <= idx < len(tau):
             h[idx] = 1.0 / dt
             h[idx] *= np.exp(-lambda_ * self.mtt)
