@@ -361,17 +361,12 @@ class DMUnit(Unit):
         # We therefore prepare a result array for h and fill it up, starting
         # with the non-zero values
         h = np.zeros_like(tau)
-        K = np.zeros_like(tau)
 
-        # Compute K-term
-        K[1:] = 4 * np.pi * self.DP * tau[1:] / self.mtt
+        # pre-compute terms
+        a = tau[1:] * np.sqrt(4 * np.pi * self.DP * tau[1:] / self.mtt)
+        b = -((1 - tau[1:] / self.mtt) ** 2.0 / (4 * self.DP * tau[1:] / self.mtt))
 
-        # Base DM shape
-        h[1:] = (
-            (1 / self.mtt)
-            * (1 / np.sqrt(K[1:]))
-            * np.exp(((1 - (tau[1:] / self.mtt)) ** 2) / (4 * self.DP * tau[1:] / self.mtt))
-        )
+        h[1:] = 1 / a * np.exp(b)
 
         # Normalize so that integrated response has unit area (
         # ensure mass balance)
