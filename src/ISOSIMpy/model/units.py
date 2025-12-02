@@ -370,7 +370,7 @@ class DMUnit(Unit):
         h[1:] = (
             (1 / self.mtt)
             * (1 / np.sqrt(K[1:]))
-            * np.exp(((1 - (tau[1:] / self.mtt)) ** 2) / K[1:])
+            * np.exp(((1 - (tau[1:] / self.mtt)) ** 2) / (4 * self.DP * tau[1:] / self.mtt))
         )
 
         # Normalize so that integrated response has unit area (
