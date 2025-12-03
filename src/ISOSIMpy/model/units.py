@@ -147,6 +147,13 @@ class EPMUnit(Unit):
         if self.eta <= 1.0 or self.mtt <= 0.0:
             return np.zeros_like(tau)
 
+        # Note: a non-zero response at h[0] corresponds to a response at the
+        # same time step as the forcing. This is usually not what we want, so
+        # we need to make sure the first time bin is 0.
+
+        # We don't need to shift the age grid here because we (almost surely)
+        # avoid having non-zero response at h[0] anyways for the EPM.
+
         # base EPM shape
         h_prelim = (self.eta / self.mtt) * np.exp(-self.eta * tau / self.mtt + self.eta - 1.0)
         cutoff = self.mtt * (1.0 - 1.0 / self.eta)
@@ -260,6 +267,13 @@ class ExEPMUnit(Unit):
         if eta <= 1.0 or self.mtt <= 0.0:
             return np.zeros_like(tau)
 
+        # Note: a non-zero response at h[0] corresponds to a response at the
+        # same time step as the forcing. This is usually not what we want, so
+        # we need to make sure the first time bin is 0.
+
+        # We don't need to shift the age grid here because we (almost surely)
+        # avoid having non-zero response at h[0] anyways for the EPM.
+
         # base EPM shape
         h_prelim = (eta / self.mtt) * np.exp(-eta * tau / self.mtt + eta - 1.0)
         cutoff = self.mtt * (1.0 - 1.0 / eta)
@@ -357,19 +371,23 @@ class DMUnit(Unit):
         if self.DP <= 0.0 or self.mtt <= 0.0:
             return np.zeros_like(tau)
 
-        # The transfer function breaks down at τ=0
+        # Note: a non-zero response at h[0] corresponds to a response at the
+        # same time step as the forcing. This is usually not what we want, so
+        # we need to make sure the first time bin is 0.
+
+        # The transfer function breaks down as τ tends towards 0
         # We therefore prepare a result array for h and fill it up, starting
         # with the non-zero values
         h = np.zeros_like(tau)
 
-        # pre-compute terms
-        a = tau[1:] * np.sqrt(4 * np.pi * self.DP * tau[1:] / self.mtt)
-        b = -((1 - tau[1:] / self.mtt) ** 2.0 / (4 * self.DP * tau[1:] / self.mtt))
+        # Pre-compute terms
+        a = tau[3:] * np.sqrt(4 * np.pi * self.DP * tau[3:] / self.mtt)
+        b = -((1 - tau[3:] / self.mtt) ** 2.0 / (4 * self.DP * tau[3:] / self.mtt))
 
-        h[1:] = 1 / a * np.exp(b)
+        h[3:] = 1 / a * np.exp(b)
 
-        # Normalize so that integrated response has unit area (
-        # ensure mass balance)
+        # Normalize so that integrated response has unit area (ensure mass
+        # balance)
         area = float(h.sum() * dt)
         if not np.isfinite(area) or area <= 0:
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
@@ -451,17 +469,22 @@ class EMUnit(Unit):
         if self.mtt <= 0.0:
             return np.zeros_like(tau)
 
-        # base EM shape
-        h = (1 / self.mtt) * np.exp(-tau / self.mtt)
+        # Note: a non-zero response at h[0] corresponds to a response at the
+        # same time step as the forcing. This is usually not what we want, so
+        # we need to make sure the first time bin is 0.
 
-        # Normalize so that integrated response has unit area (
-        # ensure mass balance)
+        # Base EM shape
+        h = np.zeros_like(tau)
+        h[1:] = (1 / self.mtt) * np.exp(-tau[1:] / self.mtt)
+
+        # Normalize so that integrated response has unit area (ensure mass
+        # balance)
         area = float(h.sum() * dt)
         if not np.isfinite(area) or area <= 0:
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
         h /= area
 
-        # radioactive/first-order decay applied to transit time
+        # Radioactive/first-order decay applied to transit time
         h *= np.exp(-lambda_ * tau)
         return h
 
@@ -532,9 +555,16 @@ class PMUnit(Unit):
         ndarray
             Impulse response evaluated at ``tau``.
         """
-        # check for edge cases
+        # Check for edge cases
         if self.mtt <= 0.0:
             return np.zeros_like(tau)
+
+        # Note: a non-zero response at h[0] corresponds to a response at the
+        # same time step as the forcing. This is usually not what we want, so
+        # we need to make sure the first time bin is 0.
+
+        # We don't need to shift the age grid here because we (almost surely)
+        # avoid having non-zero response at h[0] anyways for the PM.
 
         h = np.zeros_like(tau)
         idx = int(round(self.mtt / dt))
