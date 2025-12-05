@@ -360,7 +360,7 @@ class Solver:
         if not isinstance(sigma, (list, tuple, np.ndarray)):
             sig2 = float(sigma) ** 2
             r = resid[mask]
-            sse = float(np.dot(r, r))
+            sse = np.sum(r**2)
             n_eff = int(np.sum(mask))
             return -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
 
@@ -387,6 +387,7 @@ class Solver:
         burn_in: int = 1000,
         thin: int = 1,
         rw_scale: float = 0.05,
+        rw_scale_isotropic: bool = True,
         sigma: Union[float, Sequence[float], None] = None,
         log_prior: callable | None = None,
         start: Sequence[float] | None = None,
@@ -409,7 +410,9 @@ class Solver:
         thin : int, optional
             Thinning factor.
         rw_scale : float, optional
-            Standard deviation of RW proposal distribution.
+            Variance of RW proposal distribution.
+        rw_scale_isotropic : bool, optional
+            If True, use an isotropic RW proposal with rw_scale as variance.
         sigma : float | None, optional
             Standard deviation of Gaussian likelihood.
         log_prior : callable | None, optional
@@ -464,9 +467,12 @@ class Solver:
                 raise ValueError(f"`start` must have length {d}.")
             start_vec = np.clip(start_vec, lo, hi)
 
-        # Proposal steps (diagonal)
-        step = rw_scale * (hi - lo)
-        step = np.where(step <= 0.0, 1e-12, step)
+        # Proposal steps
+        if not rw_scale_isotropic:
+            step = rw_scale * (hi - lo)
+            step = np.where(step <= 0.0, 1e-12, step)
+        else:
+            step = np.full(d, rw_scale)
 
         # Evaluate initial point
         cur = start_vec.copy()
@@ -524,7 +530,8 @@ class Solver:
                     prop_logpost = -np.inf
 
                 log_alpha = prop_logpost - cur_logpost  # symmetric proposal
-                if log_alpha >= 0.0 or np.log(rng.uniform()) < log_alpha:
+                # if log_alpha >= 0.0 or np.log(rng.uniform()) < log_alpha:
+                if np.log(rng.uniform()) <= log_alpha:
                     cur, cur_sim, cur_logpost = prop, prop_sim, prop_logpost
                     accept = True
                 else:
