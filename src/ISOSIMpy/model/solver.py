@@ -145,6 +145,7 @@ class Solver:
 
         # Write back and simulate once more at the best params
         sim = self._simulate_given_free(result.x)
+        # the model parameters are already set at the optimum
         solution = {k: float(self.model.params[k]["value"]) for k in self.model.params}
         return solution, sim
 
