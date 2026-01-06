@@ -139,8 +139,6 @@ class FileInputTab(QWidget):
         self.state.tracer1 = self.cb_t1.currentText()
         t2 = self.cb_t2.currentText()
         self.state.tracer2 = None if t2 == "None" else t2
-        # legacy compatibility
-        self.state.tracer = self.state.tracer1
         self._clear_manual_observations()
         self.changed.emit()
 

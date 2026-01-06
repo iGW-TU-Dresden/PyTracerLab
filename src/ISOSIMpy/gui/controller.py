@@ -121,6 +121,7 @@ class Controller(QObject):
                 target_series=y[1] if y else None,
                 steady_state_input=ss_val,
                 n_warmup_half_lives=self.state.n_warmup_half_lives,
+                time_steps=x[0] if x else None,
             )
 
             # Build per-instance units based on the detailed design
@@ -317,7 +318,12 @@ class Controller(QObject):
             frequency = "1 month"
         else:
             frequency = "1 year"
-        self.ml.write_report(filename=filename, frequency=frequency)
+        tracer_names = []
+        if self.state.tracer1 is not None:
+            tracer_names.append(self.state.tracer1)
+        if self.state.tracer2 is not None:
+            tracer_names.append(self.state.tracer2)
+        self.ml.write_report(filename=filename, frequency=frequency, tracer=tracer_names)
 
     def save_data(self, filename):
         """Save simulation data to ``filename`` using current state."""
@@ -345,6 +351,12 @@ class Controller(QObject):
         lines.append("")
         lines.append("Simulation Data")
         lines.append("---------------")
+        lines.append("")
+        headers = "Time, " + self.state.tracer1
+        if two_tracers:
+            headers += ", " + self.state.tracer2
+        lines.append(headers)
+
         for i in range(len(data)):
             if self.state.is_monthly:
                 if not two_tracers:

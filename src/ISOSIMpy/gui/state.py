@@ -53,7 +53,6 @@ class AppState:
     """
 
     is_monthly: bool = True
-    tracer: str = "Tritium"  # legacy
     tracer1: str = "Tritium"
     tracer2: Optional[str] = None
     # Selected solver (registry key); default to Differential Evolution

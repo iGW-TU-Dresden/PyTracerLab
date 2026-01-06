@@ -510,9 +510,12 @@ class Model:
             for t in range(len(timesteps)):
                 # Only print if observation is available
                 if mask[t]:
-                    lines.append(
-                        "\t".join([f"{timesteps[t]}", f"{y2[t, i]:.3e}", f"{s2[t, i]:.3e}"])
-                    )
+                    # Try to format timesteps as "YYYY-MM"
+                    try:
+                        timestamp = timesteps[t].strftime("%Y-%m")
+                    except AttributeError:
+                        timestamp = timesteps[t]
+                    lines.append("\t".join([f"{timestamp}", f"{y2[t, i]:.3e}", f"{s2[t, i]:.3e}"]))
             lines.append("")
 
         # Parameter table grouped by unit prefix
