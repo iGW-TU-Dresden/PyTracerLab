@@ -38,7 +38,12 @@ class Solver:
     def _simulate_given_free(self, free_params: Sequence[float]) -> np.ndarray:
         """Set free params and return simulation."""
         self.model.set_vector(list(free_params), which="value", free_only=True)
-        return self.model.simulate()
+        try:
+            sim = self.model.simulate()
+        except Exception:
+            sim = np.empty((len(self.model.target_series)))
+            sim[:] = np.nan
+        return sim
 
     def _obj(self, free_params: Sequence[float], *sigma: float | Sequence[float]) -> float:
         """Mean squared error (optionally sigma-weighted) over all tracers."""
@@ -58,6 +63,7 @@ class Solver:
         if not np.any(mask):
             return float("inf")
         resid = s2 - y2
+
         # Get sigma
         sigma = sigma[0]
         if sigma is None:
@@ -78,7 +84,11 @@ class Solver:
         norm = resid / sig
         # np.mean uses the flattened array, to we don't have issues
         # when two tracers are used
-        return float(np.mean((norm[mask]) ** 2))
+        mse = float(np.mean((norm[mask]) ** 2))
+        if np.isnan(mse):
+            # if nan, return a large number
+            return float(1e10)
+        return mse
 
     def differential_evolution(
         self,
@@ -131,6 +141,10 @@ class Solver:
         # Seed current values from initials for a clean, reproducible start
         init_free = self.model.get_vector(which="initial", free_only=True)
         self.model.set_vector(init_free, which="value", free_only=True)
+
+        # TODO: there is an error with DE when using an ExEPM
+        # the simulation goes through but differential_evolution throws
+        # an error
 
         result = differential_evolution(
             self._obj,
