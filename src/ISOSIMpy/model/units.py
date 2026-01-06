@@ -92,6 +92,8 @@ class EPMUnit(Unit):
     mtt: float
     eta: float
     PREFIX = "epm"
+    # The parameter keys are used explicitly in the GUI! Changing them will lead
+    # to the GUI not displaying parameter units properly.
     PARAMS = [
         {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
         {"key": "eta", "label": "Eta", "default": 1.1, "bounds": (1.0, 2.0)},
@@ -202,6 +204,8 @@ class ExEPMUnit(Unit):
     exp_part: float
     piston_part: float
     PREFIX = "epm"
+    # The parameter keys are used explicitly in the GUI! Changing them will lead
+    # to the GUI not displaying parameter units properly.
     PARAMS = [
         {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
         {"key": "exp_part", "label": "Exponential Part", "default": 0.5, "bounds": (0.0, 100.0)},
@@ -316,6 +320,8 @@ class DMUnit(Unit):
     mtt: float
     DP: float
     PREFIX = "dm"
+    # The parameter keys are used explicitly in the GUI! Changing them will lead
+    # to the GUI not displaying parameter units properly.
     PARAMS = [
         {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (1.0, 10000.0)},
         {"key": "DP", "label": "Dispersion Param.", "default": 1.0, "bounds": (0.0001, 10.0)},
@@ -418,6 +424,8 @@ class EMUnit(Unit):
 
     mtt: float
     PREFIX = "em"
+    # The parameter keys are used explicitly in the GUI! Changing them will lead
+    # to the GUI not displaying parameter units properly.
     PARAMS = [
         {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
     ]
@@ -509,6 +517,8 @@ class PMUnit(Unit):
 
     mtt: float
     PREFIX = "pm"
+    # The parameter keys are used explicitly in the GUI! Changing them will lead
+    # to the GUI not displaying parameter units properly.
     PARAMS = [
         {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
     ]

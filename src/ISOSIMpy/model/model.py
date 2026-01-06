@@ -57,6 +57,7 @@ class Model:
     target_series: Optional[np.ndarray] = None
     steady_state_input: Optional[Union[float, Sequence[float]]] = None
     n_warmup_half_lives: int = 2
+    time_steps: Optional[Union[Sequence, np.ndarray]] = None
 
     units: List[Unit] = field(default_factory=list)
     unit_fractions: List[float] = field(default_factory=list)
@@ -368,7 +369,7 @@ class Model:
         filename: str,
         frequency: str,
         tracer: Optional[str] = None,
-        sim: Optional[np.ndarray] = None,
+        sim: Optional[Union[str, Sequence[str]]] = None,
         title: str = "Model Report",
         include_initials: bool = True,
         include_bounds: bool = True,
@@ -383,6 +384,9 @@ class Model:
         frequency : str
             Simulation frequency (e.g., ``"1h"``). This is not checked
             internally and directly written to the report.
+        tracer : str or sequence of str, optional
+            Name(s) of the tracer(s) in the report. If not given, decay
+            constants are shown for all tracers instead of tracer names.
         sim : ndarray, optional
             Simulated series corresponding to the *current* parameters. If not
             provided and `target_series` is present, the method will call
@@ -430,7 +434,12 @@ class Model:
                 )
             )
         else:
-            lines.append(f"Tracer: {tracer}")
+            if isinstance(tracer, str):
+                lines.append(f"Tracer: {tracer}")
+            elif isinstance(tracer, (list, tuple, np.ndarray)):
+                lines.append(f"Tracers: {', '.join(tracer)}")
+            else:
+                raise ValueError("Tracer must be a string or sequence of strings.")
         lines.append(f"Warmup steps: {self._n_warmup} (auto)")
         if self.steady_state_input is None:
             steady = "n/a"
@@ -444,7 +453,7 @@ class Model:
         lines.append(f"Units count: {len(self.units)}")
         lines.append("")
 
-        # MSE if possible
+        # MSE and data if possible
         mse_text = "n/a"
         if self.target_series is not None:
             if sim is None:
@@ -466,10 +475,45 @@ class Model:
                         per_tr_mse.append(f"T{j+1}={mse_j:.6g}")
                 if per_tr_mse:
                     mse_text = ", ".join(per_tr_mse)
+
         lines.append("Global fit")
         lines.append("----------")
         lines.append(f"MSE: {mse_text}")
         lines.append("")
+
+        lines.append("Observed and Simulated Data")
+        lines.append("---------------------------")
+        lines.append("")
+
+        # We make a separate table for each tracer. This is mainly because
+        # for multiple tracers, the number of observations may be different
+
+        # Make list of tracer names if not given
+        if tracer is None:
+            tracer_ = [str(i) for i in range(1, y2.shape[1] + 1)]
+        else:
+            tracer_ = tracer
+
+        # Make list of time steps if not given
+        if self.time_steps is None:
+            timesteps = [i for i in range(y2.shape[0])]
+        else:
+            timesteps = self.time_steps
+
+        for i, tracer in enumerate(list(tracer_)):
+            # append column headers
+            lines.append(f"Tracer {tracer}")
+            lines.append("\t".join(["Time", "Obs.", "Sim."]))
+
+            # Get mask for dates where observations are available
+            mask = ~np.isnan(y2[:, i]) & ~np.isnan(s2[:, i])
+            for t in range(len(timesteps)):
+                # Only print if observation is available
+                if mask[t]:
+                    lines.append(
+                        "\t".join([f"{timesteps[t]}", f"{y2[t, i]:.3e}", f"{s2[t, i]:.3e}"])
+                    )
+            lines.append("")
 
         # Parameter table grouped by unit prefix
         lines.append("Parameters by unit")

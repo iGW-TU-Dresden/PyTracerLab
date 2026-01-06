@@ -76,6 +76,7 @@ class ParametersTab(QWidget):
         # Count instances per unit type to display ordinal labels
         counts: dict[str, int] = {}
         for inst in instances:
+            # Get properties of unit instances (name, prefix, etc.)
             unit_name = inst["name"]
             prefix = inst["prefix"]
             counts[unit_name] = counts.get(unit_name, 0) + 1
@@ -90,6 +91,21 @@ class ParametersTab(QWidget):
 
                 # Row label includes instance number for clarity
                 pname = meta.get("label", key)
+
+                # Attach units if possible
+                # We use the literal parameter keys from the ISOSIMpy units to
+                # match the parameters
+                if key == "mtt":
+                    pname += " [years]"
+                elif key == "eta":
+                    pname += " [-]"
+                elif key == "exp_part":
+                    pname += " [volume]"
+                elif key == "piston_part":
+                    pname += " [volume]"
+                elif key == "DP":
+                    pname += " [-]"
+
                 row_label = QLabel(f"{unit_name} ({ordinal}) - {pname}")
                 row_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
                 self.grid.addWidget(row_label, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)

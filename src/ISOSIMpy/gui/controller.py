@@ -49,7 +49,7 @@ class Controller(QObject):
         parameters in ``state.params``.
         """
         try:
-            # We usually work in months (dt = 1.0); for yearly calculations
+            # We generally work in months (dt = 1.0); for yearly calculations
             # we therefore have to use dt = 12.0
             dt = 1.0 if self.state.is_monthly else 12.0
             # Determine tracer set from state (dual-tracer aware)
