@@ -117,9 +117,7 @@ class TracerTracerTab(QWidget):
         self.notify_sweep_finished()
 
     def _unit_label_text(self) -> str:
-        if getattr(self.state, "is_monthly", True):
-            return "Units: months"
-        return "Units: years"
+        return "Units: [years]"
 
     def refresh(self) -> None:
         """Refresh parameter choices and enable states."""
