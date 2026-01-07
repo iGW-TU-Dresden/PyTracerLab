@@ -49,7 +49,7 @@ class ParameterEditor(QWidget):
         # (Let the external grid handle the final column width; we set a reasonable min.)
         probe = QLineEdit()
         fm = probe.fontMetrics()
-        minw = fm.horizontalAdvance(" -12345.123456 ") + 12
+        minw = fm.horizontalAdvance("-1234.12")
 
         grid = QGridLayout(self)
         grid.setHorizontalSpacing(8)

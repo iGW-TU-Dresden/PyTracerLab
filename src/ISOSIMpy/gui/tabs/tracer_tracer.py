@@ -56,9 +56,9 @@ class TracerTracerTab(QWidget):
 
         self.sb_start = QDoubleSpinBox(self)
         self.sb_start.setDecimals(2)
-        self.sb_start.setRange(1.0, 5000.0)
-        self.sb_start.setValue(60.0)
-        self.sb_start.setSingleStep(12.0)
+        self.sb_start.setRange(1.0, 50000.0)
+        self.sb_start.setValue(5.0)
+        self.sb_start.setSingleStep(1.0)
         row_range.addWidget(self.sb_start)
 
         lbl_stop = QLabel("Stop:")
@@ -66,9 +66,9 @@ class TracerTracerTab(QWidget):
 
         self.sb_stop = QDoubleSpinBox(self)
         self.sb_stop.setDecimals(2)
-        self.sb_stop.setRange(1.0, 20000.0)
-        self.sb_stop.setValue(480.0)
-        self.sb_stop.setSingleStep(12.0)
+        self.sb_stop.setRange(2.0, 200000.0)
+        self.sb_stop.setValue(20.0)
+        self.sb_stop.setSingleStep(1.0)
         row_range.addWidget(self.sb_stop)
 
         lbl_count = QLabel("Points:")
@@ -79,7 +79,7 @@ class TracerTracerTab(QWidget):
         self.sb_count.setValue(21)
         row_range.addWidget(self.sb_count)
 
-        self.lbl_units = QLabel(self._unit_label_text())
+        self.lbl_units = QLabel("[years]")
         self.lbl_units.setStyleSheet("color: #666;")
         row_range.addWidget(self.lbl_units)
 

@@ -253,6 +253,9 @@ class Controller(QObject):
             # to match the internal monthly model resolution.
             base_value = float(self.ml.params[param_key]["value"])
 
+            # We always work in monthly resolution but always
+            # get parameters with time units "years". We therefore
+            # need to convert them to months.
             if "mtt" in param_key:
                 start *= 12
                 stop *= 12
