@@ -365,6 +365,8 @@ class Model:
         # Handle production bool; make it a per-tracer-vector if a single bool
         if isinstance(self.production, bool):
             prod_vec = [self.production] * k
+        else:
+            prod_vec = self.production
 
         sim = np.zeros((n, k), dtype=float)
         for frac, unit in zip(self.unit_fractions, self.units):
