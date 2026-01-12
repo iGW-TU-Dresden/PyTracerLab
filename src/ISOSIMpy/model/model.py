@@ -41,6 +41,9 @@ class Model:
         for single-tracer runs or one value per tracer for multi-tracer runs.
     n_warmup_half_lives : int, optional
         Heuristic warmup scaling in half-lives (kept for compatibility).
+    n_warmup_steps : int, optional
+        Number of warmup time steps prepended to the input series. If given,
+        it overrides the warmup steps calculated from ``n_warmup_half_lives``.
 
     Notes
     -----
@@ -57,6 +60,7 @@ class Model:
     target_series: Optional[np.ndarray] = None
     steady_state_input: Optional[Union[float, Sequence[float]]] = None
     n_warmup_half_lives: int = 2
+    n_warmup_steps: int = None
     time_steps: Optional[Union[Sequence, np.ndarray]] = None
 
     units: List[Unit] = field(default_factory=list)
@@ -270,9 +274,18 @@ class Model:
         warmup length. If ``steady_state_input`` is not provided or length is
         non-positive, no warmup is applied.
         """
-        t12 = 0.693 / np.asarray(self.lambda_)
-        t12 = np.asarray(t12, dtype=float)
-        self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
+        if self.n_warmup_steps is not None:
+            t12 = 0.693 / np.asarray(self.lambda_)
+            t12 = np.asarray(t12, dtype=float)
+            self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
+        else:
+            self._n_warmup = int(self.n_warmup_steps)
+
+        # Ensure that warmup is not too long
+        if self._n_warmup > 5000:
+            # limit warmup to 5000
+            self._n_warmup = 5000
+
         if self.steady_state_input is None or self._n_warmup <= 0:
             # no warmup requested → ensure we don't slice anything off
             self._n_warmup = 0

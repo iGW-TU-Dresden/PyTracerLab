@@ -123,7 +123,9 @@ class EPMUnit(Unit):
         if "eta" in values:
             self.eta = float(values["eta"])
 
-    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+    def get_impulse_response(
+        self, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
         """EPM impulse response with decay.
 
         The continuous-time EPM response (without decay) is
@@ -139,6 +141,9 @@ class EPMUnit(Unit):
             Time step size of the discretization.
         lambda_ : float
             Decay constant (1 / time units of ``tau``).
+        prod : bool, optional
+            If True, calculate production response (used to simulate 3He
+            production from 3H decay).
 
         Returns
         -------
@@ -168,8 +173,11 @@ class EPMUnit(Unit):
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
         h /= area
 
-        # radioactive/first-order decay applied to transit time
-        h *= np.exp(-lambda_ * tau)
+        # radioactive/first-order decay/production
+        if prod:
+            h *= 1 - np.exp(-lambda_ * tau)
+        else:
+            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -242,7 +250,9 @@ class ExEPMUnit(Unit):
         if "piston_part" in values:
             self.piston_part = float(values["piston_part"])
 
-    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+    def get_impulse_response(
+        self, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
         """ExEPM impulse response with decay.
 
         The continuous-time EPM response (without decay) is
@@ -258,6 +268,9 @@ class ExEPMUnit(Unit):
             Time step size of the discretization.
         lambda_ : float
             Decay constant (1 / time units of ``tau``).
+        prod : bool, optional
+            If True, calculate production response (used to simulate 3He
+            production from 3H decay).
 
         Returns
         -------
@@ -290,8 +303,11 @@ class ExEPMUnit(Unit):
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
         h /= area
 
-        # radioactive/first-order decay applied to transit time
-        h *= np.exp(-lambda_ * tau)
+        # radioactive/first-order decay/production
+        if prod:
+            h *= 1 - np.exp(-lambda_ * tau)
+        else:
+            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -351,7 +367,9 @@ class DMUnit(Unit):
         if "DP" in values:
             self.DP = float(values["DP"])
 
-    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+    def get_impulse_response(
+        self, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
         """DM impulse response with decay.
 
         The continuous-time DM response (without decay) is
@@ -367,6 +385,9 @@ class DMUnit(Unit):
             Time step size of the discretization.
         lambda_ : float
             Decay constant (1 / time units of ``tau``).
+        prod : bool, optional
+            If True, calculate production response (used to simulate 3He
+            production from 3H decay).
 
         Returns
         -------
@@ -399,8 +420,11 @@ class DMUnit(Unit):
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
         h /= area
 
-        # Radioactive/first-order decay applied to transit time
-        h *= np.exp(-lambda_ * tau)
+        # radioactive/first-order decay/production
+        if prod:
+            h *= 1 - np.exp(-lambda_ * tau)
+        else:
+            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -452,7 +476,9 @@ class EMUnit(Unit):
         if "mtt" in values:
             self.mtt = float(values["mtt"])
 
-    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+    def get_impulse_response(
+        self, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
         """EM impulse response with decay.
 
         The continuous-time EPM response (without decay) is
@@ -467,6 +493,9 @@ class EMUnit(Unit):
             Time step size of the discretization.
         lambda_ : float
             Decay constant (1 / time units of ``tau``).
+        prod : bool, optional
+            If True, calculate production response (used to simulate 3He
+            production from 3H decay).
 
         Returns
         -------
@@ -492,8 +521,11 @@ class EMUnit(Unit):
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
         h /= area
 
-        # Radioactive/first-order decay applied to transit time
-        h *= np.exp(-lambda_ * tau)
+        # radioactive/first-order decay/production
+        if prod:
+            h *= 1 - np.exp(-lambda_ * tau)
+        else:
+            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -545,7 +577,9 @@ class PMUnit(Unit):
         if "mtt" in values:
             self.mtt = float(values["mtt"])
 
-    def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
+    def get_impulse_response(
+        self, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
         """Discrete delta response on the grid with exponential decay.
 
         The delta is represented by setting the bin at ``round(mtt/dt)`` to
@@ -559,6 +593,9 @@ class PMUnit(Unit):
             Time step size of the discretization.
         lambda_ : float
             Decay constant (1 / time units of ``tau``).
+        prod : bool, optional
+            If True, calculate production response (used to simulate 3He
+            production from 3H decay).
 
         Returns
         -------
@@ -584,5 +621,9 @@ class PMUnit(Unit):
         # sum just gives us 1/dt again.
         if 0 <= idx < len(tau):
             h[idx] = 1.0 / dt
-            h[idx] *= np.exp(-lambda_ * self.mtt)
+            # radioactive/first-order decay/production
+            if prod:
+                h[idx] *= 1 - np.exp(-lambda_ * self.mtt)
+            else:
+                h[idx] *= np.exp(-lambda_ * self.mtt)
         return h

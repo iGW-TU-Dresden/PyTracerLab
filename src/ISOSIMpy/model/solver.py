@@ -424,8 +424,11 @@ class Solver:
             Number of samples to discard as burn-in.
         thin : int, optional
             Thinning factor.
-        rw_scale : float, optional
-            Variance of RW proposal distribution.
+        rw_scale : float | Sequence[float], optional
+            Variance of RW proposal distribution. If given as a sequence
+            (one scale element for each free parameter in the model), the
+            order of the elements has to match the order from
+            ``model.param_keys(free_only=True)``.
         rw_scale_isotropic : bool, optional
             If True, use an isotropic RW proposal with rw_scale as variance.
         sigma : float | None, optional
