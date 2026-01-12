@@ -33,6 +33,12 @@ class Model:
     input_series : ndarray
         Forcing time series of shape ``(N,)`` for single tracer or ``(N, K)``
         for ``K`` tracers.
+    production : bool or sequence of bool, optional
+        If True, simulate production from decay. If a bool, this is a global
+        setting. Use a sequence of bools for per-tracer specification. The
+        order of the sequence must match the order of the columns in the
+        ``input_series``. The input should contain the parent tracer from
+        which production is simulated.
     target_series : ndarray, optional
         Observed output series of shape ``(N,)`` or ``(N, K)``; used only for
         calibration/loss and reporting.
@@ -57,6 +63,7 @@ class Model:
     dt: float
     lambda_: Union[float, np.ndarray]
     input_series: np.ndarray
+    production: Optional[Union[bool, Sequence[bool]]] = False
     target_series: Optional[np.ndarray] = None
     steady_state_input: Optional[Union[float, Sequence[float]]] = None
     n_warmup_half_lives: int = 2
@@ -355,11 +362,15 @@ class Model:
         else:
             lam_vec = np.full(k, float(self.lambda_))
 
+        # Handle production bool; make it a per-tracer-vector if a single bool
+        if isinstance(self.production, bool):
+            prod_vec = [self.production] * k
+
         sim = np.zeros((n, k), dtype=float)
         for frac, unit in zip(self.unit_fractions, self.units):
             # per-tracer impulse responses and contributions
             for j in range(k):
-                h = unit.get_impulse_response(t, self.dt, float(lam_vec[j]))
+                h = unit.get_impulse_response(t, self.dt, float(lam_vec[j]), prod_vec[j])
 
                 # Normalization of the impulse response happens within the
                 # model units. If we normalize here, we remove the effect
