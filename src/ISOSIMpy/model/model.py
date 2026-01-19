@@ -281,7 +281,7 @@ class Model:
         warmup length. If ``steady_state_input`` is not provided or length is
         non-positive, no warmup is applied.
         """
-        if self.n_warmup_steps is not None:
+        if self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
             t12 = 0.693 / np.asarray(self.lambda_)
             t12 = np.asarray(t12, dtype=float)
             self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
@@ -329,6 +329,38 @@ class Model:
         s = sum(self.unit_fractions) if self.unit_fractions else 0.0
         if not (0.99 <= s <= 1.01):
             raise ValueError("Sum of unit fractions must be ~1.0.")
+
+    def get_age_distributions(self) -> List[np.ndarray]:
+        """Return age distributions for all units using current registry
+        values.
+
+        Returns
+        -------
+        Dict
+            Dict of unit fractions and age distributions for all units.
+            Each age distribution is a numpy array with one element per
+            time step. Time steps and time step units correspond to general
+            model settings. Fractions can be used to determine a global
+            model-impulse response from the unit-specific responses.
+        """
+        # initialize age distribution dict for all units
+        age_dists = {"fractions": self.unit_fractions, "distributions": []}
+
+        # Determine number of tracers from input dimensionality
+        x = np.asarray(self.input_series, dtype=float)
+        if x.ndim == 1:
+            x = x.reshape(-1, 1)
+        n, k = x.shape
+        t = np.arange(0.0, n * self.dt, self.dt)
+
+        for unit in self.units:
+            # up to tracer-specific properties (decay), the impulse response
+            # is equal for all tracers in a model and just depends on the
+            # unit
+            h = unit.get_impulse_response(t, self.dt, 0.0, False)
+            age_dists["distributions"].append(h)
+
+        return age_dists
 
     def simulate(self) -> np.ndarray:
         """Run the forward model using current registry values.
