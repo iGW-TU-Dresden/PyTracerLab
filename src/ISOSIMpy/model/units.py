@@ -47,6 +47,27 @@ class Unit(ABC):
         """
         raise NotImplementedError
 
+    def get_block(self, h: np.ndarray, dt: float) -> np.ndarray:
+        """Get 1-dt block response."""
+        area = float(h.sum() * dt)
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+        h /= area
+
+        step = np.cumsum(h) * dt
+        block = np.append(step[0], np.subtract(step[1:], step[:-1]))
+
+        return block
+
+    def normalize_response(self, h: np.ndarray, dt: float) -> np.ndarray:
+        """Normalize impulse response to unit area for conservation of mass."""
+        area = float(h.sum() * dt)
+        if not np.isfinite(area) or area <= 0:
+            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+        h /= area
+
+        return h
+
     @abstractmethod
     def get_impulse_response(self, tau: np.ndarray, dt: float, lambda_: float) -> np.ndarray:
         """Evaluate the unit's impulse response on a time grid.
@@ -168,10 +189,7 @@ class EPMUnit(Unit):
 
         # Normalize so that integrated response has unit area (
         # ensure mass balance)
-        area = float(h.sum() * dt)
-        if not np.isfinite(area) or area <= 0:
-            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
-        h /= area
+        h = self.normalize_response(h, dt)
 
         # radioactive/first-order decay/production
         if prod:
@@ -298,10 +316,7 @@ class ExEPMUnit(Unit):
 
         # Normalize so that integrated response has unit area (
         # ensure mass balance)
-        area = float(h.sum() * dt)
-        if not np.isfinite(area) or area <= 0:
-            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
-        h /= area
+        h = self.normalize_response(h, dt)
 
         # radioactive/first-order decay/production
         if prod:
@@ -408,17 +423,15 @@ class DMUnit(Unit):
         h = np.zeros_like(tau)
 
         # Pre-compute terms
-        a = tau[3:] * np.sqrt(4 * np.pi * self.DP * tau[3:] / self.mtt)
-        b = -((1 - tau[3:] / self.mtt) ** 2.0 / (4 * self.DP * tau[3:] / self.mtt))
+        buffer = 3
+        a = tau[buffer:] * np.sqrt(4 * np.pi * self.DP * tau[buffer:] / self.mtt)
+        b = -((1 - tau[buffer:] / self.mtt) ** 2.0 / (4 * self.DP * tau[buffer:] / self.mtt))
 
-        h[3:] = 1 / a * np.exp(b)
+        h[buffer:] = 1 / a * np.exp(b)
 
-        # Normalize so that integrated response has unit area (ensure mass
-        # balance)
-        area = float(h.sum() * dt)
-        if not np.isfinite(area) or area <= 0:
-            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
-        h /= area
+        # Normalize so that integrated response has unit area (
+        # ensure mass balance)
+        h = self.normalize_response(h, dt)
 
         # radioactive/first-order decay/production
         if prod:
@@ -512,14 +525,15 @@ class EMUnit(Unit):
 
         # Base EM shape
         h = np.zeros_like(tau)
-        h[1:] = (1 / self.mtt) * np.exp(-tau[1:] / self.mtt)
+        h = (1 / self.mtt) * np.exp(-tau / self.mtt)
 
-        # Normalize so that integrated response has unit area (ensure mass
-        # balance)
-        area = float(h.sum() * dt)
-        if not np.isfinite(area) or area <= 0:
-            raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
-        h /= area
+        h_ = np.zeros_like(h)
+        h_[1:] = h.copy()[:-1]
+        h = h_.copy()
+
+        # Normalize so that integrated response has unit area (
+        # ensure mass balance)
+        h = self.normalize_response(h, dt)
 
         # radioactive/first-order decay/production
         if prod:
