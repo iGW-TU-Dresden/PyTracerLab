@@ -410,7 +410,7 @@ class Model:
                 # model units. If we normalize here, we remove the effect
                 # of radioactive decay.
 
-                contrib = scipy.signal.fftconvolve(x[:, j], h)[:n] * self.dt
+                contrib = scipy.signal.fftconvolve(x[:, j], h)[:n]  # * self.dt
                 sim[:, j] += float(frac) * contrib
 
         # Remove warmup
