@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 import numpy as np
+from scipy import integrate
 
 
 class Unit(ABC):
@@ -47,14 +48,24 @@ class Unit(ABC):
         """
         raise NotImplementedError
 
-    def get_block(self, h: np.ndarray, dt: float) -> np.ndarray:
+    def get_block(
+        self, h: np.ndarray, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
         """Get 1-dt block response."""
-        area = float(h.sum() * dt)
+        # area = float(h.sum() * dt)
+        area = integrate.trapezoid(h, dx=dt)
         if not np.isfinite(area) or area <= 0:
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
         h /= area
 
+        # decay / production
+        if prod:
+            h *= 1 - np.exp(-lambda_ * tau)
+        else:
+            h *= np.exp(-lambda_ * tau)
+
         step = np.cumsum(h) * dt
+        step = integrate.cumulative_trapezoid(h, dx=dt, initial=0)
         block = np.append(step[0], np.subtract(step[1:], step[:-1]))
 
         return block
@@ -185,17 +196,11 @@ class EPMUnit(Unit):
         # base EPM shape
         h_prelim = (self.eta / self.mtt) * np.exp(-self.eta * tau / self.mtt + self.eta - 1.0)
         cutoff = self.mtt * (1.0 - 1.0 / self.eta)
-        h = np.where(tau < cutoff, 0.0, h_prelim)
+        h = np.where(tau <= cutoff, 0.0, h_prelim)
 
-        # Normalize so that integrated response has unit area (
-        # ensure mass balance)
-        h = self.normalize_response(h, dt)
+        # get response for constant-input block of length dt
+        h = self.get_block(h, tau, dt, lambda_, prod)
 
-        # radioactive/first-order decay/production
-        if prod:
-            h *= 1 - np.exp(-lambda_ * tau)
-        else:
-            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -314,15 +319,9 @@ class ExEPMUnit(Unit):
         cutoff = self.mtt * (1.0 - 1.0 / eta)
         h = np.where(tau < cutoff, 0.0, h_prelim)
 
-        # Normalize so that integrated response has unit area (
-        # ensure mass balance)
-        h = self.normalize_response(h, dt)
+        # get response for constant-input block of length dt
+        h = self.get_block(h, tau, dt, lambda_, prod)
 
-        # radioactive/first-order decay/production
-        if prod:
-            h *= 1 - np.exp(-lambda_ * tau)
-        else:
-            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -423,21 +422,15 @@ class DMUnit(Unit):
         h = np.zeros_like(tau)
 
         # Pre-compute terms
-        buffer = 3
+        buffer = 1
         a = tau[buffer:] * np.sqrt(4 * np.pi * self.DP * tau[buffer:] / self.mtt)
         b = -((1 - tau[buffer:] / self.mtt) ** 2.0 / (4 * self.DP * tau[buffer:] / self.mtt))
 
         h[buffer:] = 1 / a * np.exp(b)
 
-        # Normalize so that integrated response has unit area (
-        # ensure mass balance)
-        h = self.normalize_response(h, dt)
+        # get response for constant-input block of length dt
+        h = self.get_block(h, tau, dt, lambda_, prod)
 
-        # radioactive/first-order decay/production
-        if prod:
-            h *= 1 - np.exp(-lambda_ * tau)
-        else:
-            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -527,19 +520,9 @@ class EMUnit(Unit):
         h = np.zeros_like(tau)
         h = (1 / self.mtt) * np.exp(-tau / self.mtt)
 
-        h_ = np.zeros_like(h)
-        h_[1:] = h.copy()[:-1]
-        h = h_.copy()
+        # get response for constant-input block of length dt
+        h = self.get_block(h, tau, dt, lambda_, prod)
 
-        # Normalize so that integrated response has unit area (
-        # ensure mass balance)
-        h = self.normalize_response(h, dt)
-
-        # radioactive/first-order decay/production
-        if prod:
-            h *= 1 - np.exp(-lambda_ * tau)
-        else:
-            h *= np.exp(-lambda_ * tau)
         return h
 
 
@@ -628,7 +611,7 @@ class PMUnit(Unit):
         # avoid having non-zero response at h[0] anyways for the PM.
 
         h = np.zeros_like(tau)
-        idx = int(round(self.mtt / dt))
+        idx = max(1, int(round(self.mtt / dt)))
 
         # Mass is already preserved: before radioactive decay, we set a
         # single time bin to 1/dt. Multiplying by dt and dividing by the
