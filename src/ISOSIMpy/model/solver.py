@@ -593,6 +593,320 @@ class Solver:
             out["sims"] = np.asarray(sims, dtype=float)
         return out
 
+    def dream_sample(
+        self,
+        n_samples: int,
+        n_chains: int | None = None,
+        burn_in: int = 1000,
+        thin: int = 1,
+        n_diff_pairs: int = 1,
+        cr: float | Sequence[float] = 0.9,
+        gamma: float | None = None,
+        gamma_jitter: float = 0.1,
+        jitter: float = 1e-6,
+        sigma: Union[float, Sequence[float], None] = None,
+        log_prior: callable | None = None,
+        start: Sequence[float] | np.ndarray | None = None,
+        random_state: int | np.random.Generator | None = None,
+        return_sim: bool = False,
+        set_model_state: bool = False,
+    ):
+        """Basic DREAM sampler (no snooker or adaptive crossover).
+
+        Uses multiple chains and differential-evolution proposals with
+        crossover/subspace updates. Returns samples after burn-in and thinning.
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples to keep per chain.
+        n_chains : int, optional
+            Number of parallel chains. Default is max(3, 2 * d).
+        burn_in : int, optional
+            Number of samples to discard as burn-in.
+        thin : int, optional
+            Thinning factor.
+        n_diff_pairs : int, optional
+            Number of differential evolution pairs.
+        cr : float | Sequence[float], optional
+            Crossover probability (or list of probabilities to sample from).
+        gamma : float | None, optional
+            Differential evolution scale. If None, uses 2.38 / sqrt(2 * m),
+            where m is the number of updated dimensions.
+        gamma_jitter : float, optional
+            Relative jitter applied to gamma (uniform in +/- gamma_jitter).
+        jitter : float, optional
+            Small Gaussian jitter scale relative to bounds.
+        sigma : float | Sequence[float] | None, optional
+            Standard deviation(s) of Gaussian likelihood.
+        log_prior : callable | None, optional
+            Log prior, if not uniform within bounds.
+        start : Sequence[float] | ndarray | None, optional
+            Starting point(s) for chains. If 1D, it is used as a base
+            for all chains with small jitter. If 2D, shape must be
+            (n_chains, d).
+        random_state : int | np.random.Generator | None, optional
+            Random seed.
+        return_sim : bool, optional
+            Return simulated series at each sample.
+        set_model_state : bool, optional
+            Set model state to the posterior median at the end.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys: 'param_names', 'samples', 'logpost',
+            'accept_rate', 'posterior_mean', 'posterior_median',
+            'posterior_map', 'map_logpost', plus chain-level arrays and
+            ['sims' if requested].
+        """
+        rng = (
+            np.random.default_rng(random_state)
+            if not isinstance(random_state, np.random.Generator)
+            else random_state
+        )
+
+        if self.model.target_series is None:
+            raise ValueError("DREAM requires target_series on the model.")
+
+        if n_samples <= 0:
+            raise ValueError("n_samples must be positive.")
+        if burn_in < 0:
+            raise ValueError("burn_in must be non-negative.")
+        if thin <= 0:
+            raise ValueError("thin must be positive.")
+        if n_diff_pairs < 1:
+            raise ValueError("n_diff_pairs must be >= 1.")
+        if gamma is not None and float(gamma) <= 0.0:
+            raise ValueError("gamma must be positive.")
+        if gamma_jitter < 0.0:
+            raise ValueError("gamma_jitter must be non-negative.")
+        if jitter < 0.0:
+            raise ValueError("jitter must be non-negative.")
+
+        y_full = self.model.target_series[self.model.n_warmup :]
+        bounds = np.asarray(self._reduced_bounds(), dtype=float)
+        lo, hi = bounds[:, 0], bounds[:, 1]
+        if np.any(~np.isfinite(lo)) or np.any(~np.isfinite(hi)):
+            raise ValueError("All free parameters must have finite bounds for DREAM.")
+
+        keys_free = self.model.param_keys(free_only=True)
+        d = len(keys_free)
+        if d == 0:
+            raise ValueError("No free parameters to sample.")
+
+        start_arr = None
+        if start is not None:
+            start_arr = np.asarray(start, dtype=float)
+            if start_arr.ndim == 2 and n_chains is None:
+                n_chains = int(start_arr.shape[0])
+
+        if n_chains is None:
+            n_chains = max(3, 2 * d)
+        if n_chains < 3:
+            raise ValueError("n_chains must be at least 3 for DREAM.")
+        if 2 * n_diff_pairs > (n_chains - 1):
+            raise ValueError("n_diff_pairs too large for the number of chains.")
+
+        # Crossover probabilities
+        if isinstance(cr, (list, tuple, np.ndarray)):
+            cr_vals = np.asarray(cr, dtype=float).ravel()
+            if cr_vals.size == 0 or np.any(~np.isfinite(cr_vals)):
+                raise ValueError("cr must contain finite values.")
+        else:
+            cr_vals = np.asarray([float(cr)], dtype=float)
+        if np.any(cr_vals <= 0.0) or np.any(cr_vals > 1.0):
+            raise ValueError("cr values must be in (0, 1].")
+
+        # Build base start vector
+        base_vec = np.asarray(self.model.get_vector(which="value", free_only=True), dtype=float)
+        if np.any(~np.isfinite(base_vec)):
+            base_vec = np.asarray(
+                self.model.get_vector(which="initial", free_only=True), dtype=float
+            )
+        if np.any(~np.isfinite(base_vec)):
+            base_vec = 0.5 * (lo + hi)
+        base_vec = np.clip(base_vec, lo, hi)
+
+        # Initialize chain states
+        if start is None:
+            chains = rng.uniform(lo, hi, size=(n_chains, d))
+            chains[0, :] = base_vec
+        else:
+            if start_arr.shape == (d,):
+                chains = np.tile(start_arr, (n_chains, 1))
+                # small spread to avoid identical chains
+                spread = 0.02 * (hi - lo)
+                spread = np.where(spread > 0.0, spread, 1e-12)
+                chains += rng.normal(0.0, spread, size=(n_chains, d))
+                chains = np.clip(chains, lo, hi)
+            elif start_arr.shape == (n_chains, d):
+                chains = np.clip(start_arr, lo, hi)
+            else:
+                raise ValueError("start must have shape (d,) or (n_chains, d).")
+
+        # Evaluate initial points; resample if needed
+        chain_logpost = np.empty(n_chains, dtype=float)
+        chain_sim: list[np.ndarray] = [np.empty(0) for _ in range(n_chains)]
+        max_init_tries = 50
+        for i in range(n_chains):
+            theta = chains[i].copy()
+            ok = False
+            for _ in range(max_init_tries):
+                lp = (
+                    log_prior(theta)
+                    if log_prior is not None
+                    else self._log_prior_uniform(theta, lo, hi)
+                )
+                if not np.isfinite(lp):
+                    theta = rng.uniform(lo, hi, size=d)
+                    continue
+                sim = self._simulate_given_free(theta)
+                ll = self._loglik_from_sim_multi(y_full, sim, sigma)
+                lpst = lp + ll
+                if np.isfinite(lpst):
+                    chains[i] = theta
+                    chain_sim[i] = sim
+                    chain_logpost[i] = lpst
+                    ok = True
+                    break
+                theta = rng.uniform(lo, hi, size=d)
+            if not ok:
+                raise RuntimeError("Failed to find a finite starting point for DREAM.")
+
+        # Storage
+        n_keep = n_samples
+        total_needed = burn_in + n_keep * thin
+        samples_chain = np.empty((n_chains, n_keep, d), dtype=float)
+        logposts_chain = np.empty((n_chains, n_keep), dtype=float)
+        sims_chain = None
+        if return_sim:
+            sims_chain = [[None] * n_keep for _ in range(n_chains)]
+
+        accepts = np.zeros(n_chains, dtype=int)
+        proposals = np.zeros(n_chains, dtype=int)
+        keep_idx = 0
+
+        # Precompute jitter scale
+        eps_scale = np.where((hi - lo) > 0.0, (hi - lo), 1.0)
+
+        for it in range(total_needed):
+            for i in range(n_chains):
+                proposals[i] += 1
+                cur = chains[i]
+                cur_lpst = chain_logpost[i]
+
+                # Choose differential evolution pairs from other chains
+                others = [j for j in range(n_chains) if j != i]
+                idx = rng.choice(others, size=2 * n_diff_pairs, replace=False)
+                diff = np.zeros(d, dtype=float)
+                for k in range(n_diff_pairs):
+                    a = idx[2 * k]
+                    b = idx[2 * k + 1]
+                    diff += chains[a] - chains[b]
+
+                # Crossover mask
+                cr_i = float(rng.choice(cr_vals))
+                mask = rng.random(d) < cr_i
+                if not np.any(mask):
+                    mask[rng.integers(0, d)] = True
+                m = int(np.sum(mask))
+
+                # Gamma scaling
+                if gamma is None:
+                    gamma_i = 2.38 / np.sqrt(2.0 * n_diff_pairs * m)
+                else:
+                    gamma_i = float(gamma)
+                if gamma_jitter > 0.0:
+                    gamma_i *= 1.0 + rng.uniform(-gamma_jitter, gamma_jitter)
+
+                # Proposal
+                prop = cur.copy()
+                if jitter > 0.0:
+                    eps = rng.normal(0.0, jitter, size=d) * eps_scale
+                    prop[mask] = cur[mask] + gamma_i * diff[mask] + eps[mask]
+                else:
+                    prop[mask] = cur[mask] + gamma_i * diff[mask]
+
+                if np.any(prop < lo) or np.any(prop > hi):
+                    accept = False
+                else:
+                    if log_prior is not None:
+                        prop_lp = float(log_prior(prop))
+                        if not np.isfinite(prop_lp):
+                            accept = False
+                        else:
+                            prop_sim = self._simulate_given_free(prop)
+                            prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
+                            prop_logpost = prop_lp + prop_ll
+                            log_alpha = prop_logpost - cur_lpst
+                            if np.log(rng.uniform()) <= log_alpha:
+                                chains[i] = prop
+                                chain_sim[i] = prop_sim
+                                chain_logpost[i] = prop_logpost
+                                accept = True
+                            else:
+                                accept = False
+                    else:
+                        prop_sim = self._simulate_given_free(prop)
+                        prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
+                        prop_logpost = prop_ll  # uniform prior inside bounds
+                        log_alpha = prop_logpost - cur_lpst
+                        if np.log(rng.uniform()) <= log_alpha:
+                            chains[i] = prop
+                            chain_sim[i] = prop_sim
+                            chain_logpost[i] = prop_logpost
+                            accept = True
+                        else:
+                            accept = False
+
+                accepts[i] += int(accept)
+
+            if it >= burn_in and ((it - burn_in) % thin == 0):
+                for i in range(n_chains):
+                    samples_chain[i, keep_idx, :] = chains[i]
+                    logposts_chain[i, keep_idx] = chain_logpost[i]
+                    if return_sim and sims_chain is not None:
+                        sims_chain[i][keep_idx] = chain_sim[i].copy()
+                keep_idx += 1
+                if keep_idx == n_keep:
+                    break
+
+        accept_rate_chain = accepts / np.maximum(proposals, 1)
+        accept_rate = float(np.mean(accept_rate_chain))
+
+        samples = samples_chain.reshape(-1, d)
+        logposts = logposts_chain.reshape(-1)
+        post_mean_free = samples.mean(axis=0)
+        post_median_free = np.median(samples, axis=0)
+        map_idx = int(np.argmax(logposts))
+        post_map_free = samples[map_idx].copy()
+
+        posterior_mean = {k: float(v) for k, v in zip(keys_free, post_mean_free)}
+        posterior_median = {k: float(v) for k, v in zip(keys_free, post_median_free)}
+        posterior_map = {k: float(v) for k, v in zip(keys_free, post_map_free)}
+
+        if set_model_state:
+            self.model.set_vector(post_median_free.tolist(), which="value", free_only=True)
+
+        out = {
+            "param_names": list(keys_free),
+            "samples": samples,
+            "logpost": logposts,
+            "samples_chain": samples_chain,
+            "logpost_chain": logposts_chain,
+            "accept_rate": accept_rate,
+            "accept_rate_per_chain": accept_rate_chain.tolist(),
+            "posterior_mean": posterior_mean,
+            "posterior_median": posterior_median,
+            "posterior_map": posterior_map,
+            "map_logpost": float(logposts[map_idx]),
+        }
+        if return_sim:
+            sims_arr = np.asarray(sims_chain, dtype=float)
+            out["sims"] = sims_arr
+        return out
+
 
 ###
 # Solver registry for GUI
@@ -729,10 +1043,88 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
     }
 
 
+def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, object]:
+    """Run DREAM and return standardized payload including percentiles and MAP simulation."""
+    p = params or {}
+    n_samples = int(p.get("n_samples", 1000))
+    n_chains = p.get("n_chains", None)
+    n_chains = int(n_chains) if n_chains is not None else None
+    burn_in = int(p.get("burn_in", 2000))
+    thin = int(p.get("thin", 1))
+    n_diff_pairs = int(p.get("n_diff_pairs", 1))
+    cr = p.get("cr", 0.9)
+    gamma = p.get("gamma", None)
+    gamma = float(gamma) if gamma is not None else None
+    gamma_jitter = float(p.get("gamma_jitter", 0.1))
+    jitter = float(p.get("jitter", 1e-6))
+
+    sigma = p.get("sigma", None)
+    # Allow scalar or per-tracer sequence; basic sanity: all finite if provided
+    if isinstance(sigma, (list, tuple, np.ndarray)):
+        arr = np.asarray(sigma, dtype=float)
+        if not np.all(np.isfinite(arr)):
+            sigma = None
+        else:
+            sigma = arr.tolist()
+    elif sigma is not None:
+        try:
+            sigma = float(sigma)
+            if not np.isfinite(sigma):
+                sigma = None
+        except Exception:
+            sigma = None
+
+    sol = Solver(model=model)
+    res = sol.dream_sample(
+        n_samples=n_samples,
+        n_chains=n_chains,
+        burn_in=burn_in,
+        thin=thin,
+        n_diff_pairs=n_diff_pairs,
+        cr=cr,
+        gamma=gamma,
+        gamma_jitter=gamma_jitter,
+        jitter=jitter,
+        sigma=sigma,  # type: ignore[arg-type]
+        return_sim=True,
+        set_model_state=False,
+    )
+
+    sims = res.get("sims")
+    if sims is None or np.asarray(sims).size == 0:
+        median_sim = None
+        env_1_99 = None
+        env_20_80 = None
+    else:
+        sims_arr = np.asarray(sims, dtype=float)
+        sims_flat = sims_arr.reshape((-1,) + sims_arr.shape[2:])
+        median_sim = np.percentile(sims_flat, 50, axis=0)
+        p_low, p_high = np.percentile(sims_flat, [1, 99], axis=0)
+        env_1_99 = {"low": p_low, "high": p_high}
+        p_low, p_high = np.percentile(sims_flat, [20, 80], axis=0)
+        env_20_80 = {"low": p_low, "high": p_high}
+
+    return {
+        "solver": "dream",
+        "sim": median_sim,
+        "envelope_1_99": env_1_99,
+        "envelope_20_80": env_20_80,
+        "meta": {
+            "name": "DREAM",
+            "posterior_median": res.get("posterior_median", {}),
+            "accept_rate": res.get("accept_rate"),
+            "n_chains": int(res.get("samples_chain", np.empty((0,))).shape[0]),
+        },
+    }
+
+
 # Add run-methods to solver registry
 SOLVER_REGISTRY["de"]["run"] = _run_de
 SOLVER_REGISTRY["lsq"]["run"] = _run_lsq
 SOLVER_REGISTRY["mcmc"]["run"] = _run_mcmc
+if "dream" not in SOLVER_REGISTRY:
+    SOLVER_REGISTRY["dream"] = {"name": "DREAM", "run": None}
+SOLVER_REGISTRY["dream"]["run"] = _run_dream
 
 
 def available_solvers() -> List[Tuple[str, str]]:
