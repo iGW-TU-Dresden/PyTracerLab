@@ -368,7 +368,7 @@ class Solver:
             r = resid[mask]
             sse = float(np.dot(r, r))
             if not np.isfinite(sse) or sse <= 0.0:
-                sse = 1e-300
+                sse = 1e10
             n_eff = int(np.sum(mask))
             return -0.5 * n_eff * np.log(sse)
 
@@ -377,7 +377,8 @@ class Solver:
             r = resid[mask]
             sse = np.sum(r**2)
             n_eff = int(np.sum(mask))
-            return -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
+            ll = -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
+            return ll
 
         sig_vec = np.asarray(sigma, dtype=float).ravel()
         if sig_vec.size == 1:
@@ -549,7 +550,8 @@ class Solver:
 
                 log_alpha = prop_logpost - cur_logpost  # symmetric proposal
                 # if log_alpha >= 0.0 or np.log(rng.uniform()) < log_alpha:
-                if np.log(rng.uniform()) <= log_alpha:
+                p_acc = np.min(0.0, log_alpha)
+                if np.log(rng.uniform()) < p_acc:
                     cur, cur_sim, cur_logpost = prop, prop_sim, prop_logpost
                     accept = True
                 else:
@@ -599,7 +601,7 @@ class Solver:
         n_chains: int | None = None,
         burn_in: int = 1000,
         thin: int = 1,
-        n_diff_pairs: int = 1,
+        n_diff_pairs: int = 3,
         cr: float | Sequence[float] = 0.9,
         gamma: float | None = None,
         gamma_jitter: float = 0.1,
@@ -611,7 +613,7 @@ class Solver:
         return_sim: bool = False,
         set_model_state: bool = False,
     ):
-        """Basic DREAM sampler (no snooker or adaptive crossover).
+        """Basic DREAM sampler.
 
         Uses multiple chains and differential-evolution proposals with
         crossover/subspace updates. Returns samples after burn-in and thinning.
@@ -840,7 +842,8 @@ class Solver:
                             prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
                             prop_logpost = prop_lp + prop_ll
                             log_alpha = prop_logpost - cur_lpst
-                            if np.log(rng.uniform()) <= log_alpha:
+                            p_acc = min(0.0, log_alpha)
+                            if np.log(rng.uniform()) < p_acc:
                                 chains[i] = prop
                                 chain_sim[i] = prop_sim
                                 chain_logpost[i] = prop_logpost
@@ -852,7 +855,8 @@ class Solver:
                         prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
                         prop_logpost = prop_ll  # uniform prior inside bounds
                         log_alpha = prop_logpost - cur_lpst
-                        if np.log(rng.uniform()) <= log_alpha:
+                        p_acc = min(0.0, log_alpha)
+                        if np.log(rng.uniform()) < p_acc:
                             chains[i] = prop
                             chain_sim[i] = prop_sim
                             chain_logpost[i] = prop_logpost
