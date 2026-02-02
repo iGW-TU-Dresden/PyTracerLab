@@ -607,6 +607,7 @@ class Solver:
         gamma_jitter: float = 0.1,
         jitter: float = 1e-6,
         sigma: Union[float, Sequence[float], None] = None,
+        init_state_sigma: float = 1e-6,
         log_prior: callable | None = None,
         start: Sequence[float] | np.ndarray | None = None,
         random_state: int | np.random.Generator | None = None,
@@ -641,6 +642,11 @@ class Solver:
             Small Gaussian jitter scale relative to bounds.
         sigma : float | Sequence[float] | None, optional
             Standard deviation(s) of Gaussian likelihood.
+        init_state_sigma : float, optional
+            Standard deviation of the Gaussian noise added to the starting
+            point to ensure all chains are initialized at different points.
+            Has no effect if no starting point is given or if starting
+            points are given for all chains.
         log_prior : callable | None, optional
             Log prior, if not uniform within bounds.
         start : Sequence[float] | ndarray | None, optional
@@ -738,9 +744,7 @@ class Solver:
             if start_arr.shape == (d,):
                 chains = np.tile(start_arr, (n_chains, 1))
                 # small spread to avoid identical chains
-                spread = 0.02 * (hi - lo)
-                spread = np.where(spread > 0.0, spread, 1e-12)
-                chains += rng.normal(0.0, spread, size=(n_chains, d))
+                chains += rng.normal(0.0, init_state_sigma, size=(n_chains, d))
                 chains = np.clip(chains, lo, hi)
             elif start_arr.shape == (n_chains, d):
                 chains = np.clip(start_arr, lo, hi)
@@ -890,6 +894,10 @@ class Solver:
         posterior_median = {k: float(v) for k, v in zip(keys_free, post_median_free)}
         posterior_map = {k: float(v) for k, v in zip(keys_free, post_map_free)}
 
+        # compute gelman rubin statistic
+        gr = self.gelman_rubin(samples_chain)
+        gr = {k: float(v) for k, v in zip(keys_free, gr)}
+
         if set_model_state:
             self.model.set_vector(post_median_free.tolist(), which="value", free_only=True)
 
@@ -905,11 +913,53 @@ class Solver:
             "posterior_median": posterior_median,
             "posterior_map": posterior_map,
             "map_logpost": float(logposts[map_idx]),
+            "gelman_rubin": gr,
         }
         if return_sim:
             sims_arr = np.asarray(sims_chain, dtype=float)
             out["sims"] = sims_arr
         return out
+
+    def gelman_rubin(self, samples: np.ndarray) -> np.ndarray:
+        """Compute the Gelman-Rubin statistic for a set of MCMC samples.
+
+        Parameters
+        ----------
+        samples : array-like
+            Array of MCMC samples of shape (n_chains, n_samples, n_params).
+
+        Returns
+        -------
+        np.ndarray
+            Gelman-Rubin statistic for each parameter.
+        """
+        # get shape
+        n_chains, n_samples, _ = samples.shape
+
+        # means within chains
+        chain_means = np.mean(samples, axis=1)  # (n_chains, n_params)
+
+        # mean of means of all chains
+        mean_of_means = np.mean(chain_means, axis=0)  # (n_params,)
+
+        # variance of means of all chains
+        B = (
+            n_samples / (n_chains - 1) * np.sum((chain_means - mean_of_means) ** 2, axis=0)
+        )  # (n_params,)
+
+        # average variances of chains across all chains
+        # for the inner sum to work, we swap the axes of the array so that the
+        # samples are on the first axis
+        samples = np.swapaxes(samples, 0, 1)
+        W_inner = (
+            1 / (n_samples - 1) * np.sum((samples - chain_means) ** 2, axis=0)
+        )  # (n_chains, n_params)
+        W = 1 / n_chains * np.sum(W_inner, axis=0)  # (n_params,)
+
+        # compute statistic
+        statistic = (((n_samples - 1) / n_samples * W) + ((1 / n_samples) * B)) / W
+
+        return np.atleast_1d(statistic)
 
 
 ###
