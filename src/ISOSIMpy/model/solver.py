@@ -98,6 +98,7 @@ class Solver:
         recombination: float = 0.5,
         tol: float = 1e-3,
         sigma: Union[float, Sequence[float], None] = None,
+        random_state: int | None = None,
     ) -> Tuple[Dict[str, float], np.ndarray]:
         """Run differential evolution and return the best solution.
 
@@ -115,6 +116,8 @@ class Solver:
             Convergence tolerance.
         sigma : float | Sequence[float] | None, optional
             Error standard deviation(s) for weighted mean squared error.
+        random_state : int | None, optional
+            Random seed.
 
         Returns
         -------
@@ -142,10 +145,6 @@ class Solver:
         init_free = self.model.get_vector(which="initial", free_only=True)
         self.model.set_vector(init_free, which="value", free_only=True)
 
-        # TODO: there is an error with DE when using an ExEPM
-        # the simulation goes through but differential_evolution throws
-        # an error
-
         result = differential_evolution(
             self._obj,
             bounds=bounds,
@@ -154,6 +153,7 @@ class Solver:
             mutation=mutation,
             recombination=recombination,
             tol=tol,
+            rng=random_state,
             args=(sigma,),
         )
 
@@ -602,7 +602,7 @@ class Solver:
         burn_in: int = 1000,
         thin: int = 1,
         n_diff_pairs: int = 3,
-        cr: float | Sequence[float] = 0.9,
+        cr: float | Sequence[float] = [0.5, 1.0],
         gamma: float | None = None,
         gamma_jitter: float = 0.1,
         jitter: float = 1e-6,
