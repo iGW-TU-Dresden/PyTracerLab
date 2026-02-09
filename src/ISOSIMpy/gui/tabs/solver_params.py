@@ -226,21 +226,92 @@ class SolverParamsDialog(QDialog):
         mcmc_form.addRow("sigma 1", w_sigma1)
         mcmc_form.addRow("sigma 2", w_sigma2)
 
+        # MCMC tab
+        self._dream_widgets = {}
+
+        dream_box = QGroupBox("DREAM")
+        dream_form = QFormLayout(dream_box)
+
+        w_nsamp = QLineEdit()
+        nsamp_validator = QIntValidator(1, 1_000_000, self)
+        w_nsamp.setValidator(nsamp_validator)
+        w_nsamp.setAlignment(Qt.AlignRight)
+
+        w_nchain = QLineEdit()
+        nchain_validator = QIntValidator(1, 100, self)
+        w_nchain.setValidator(nchain_validator)
+        w_nchain.setAlignment(Qt.AlignRight)
+
+        w_burn = QLineEdit()
+        burn_validator = QIntValidator(0, 1_000_000, self)
+        w_burn.setValidator(burn_validator)
+        w_burn.setAlignment(Qt.AlignRight)
+
+        w_thin = QLineEdit()
+        thin_validator = QIntValidator(1, 10_000, self)
+        w_thin.setValidator(thin_validator)
+        w_thin.setAlignment(Qt.AlignRight)
+
+        w_ndiff = QLineEdit()
+        ndiff_validator = QIntValidator(1, 10_000, self)
+        w_ndiff.setValidator(ndiff_validator)
+        w_ndiff.setAlignment(Qt.AlignRight)
+
+        w_ncr = QLineEdit()
+        ncr_validator = QIntValidator(1, 100, self)
+        w_ncr.setValidator(ncr_validator)
+        w_ncr.setAlignment(Qt.AlignRight)
+
+        w_sigma1 = QLineEdit()
+        w_sigma2 = QLineEdit()
+        sigma_val = QDoubleValidator(self)
+        sigma_val.setNotation(QDoubleValidator.StandardNotation)
+        sigma_val.setDecimals(12)
+        sigma_val.setRange(0.0, 1e100, 12)
+        for w in (w_sigma1, w_sigma2):
+            w.setValidator(sigma_val)
+            w.setAlignment(Qt.AlignRight)
+            w.setPlaceholderText("leave empty to infer")
+
+        self._dream_widgets = {
+            "n_samples": w_nsamp,
+            "n_chains": w_nchain,
+            "n_diff_pairs": w_ndiff,
+            "burn_in": w_burn,
+            "thin": w_thin,
+            "n_cr": w_ncr,
+            "sigma1": w_sigma1,
+            "sigma2": w_sigma2,
+        }
+        dream_form.addRow("n_samples", w_nsamp)
+        dream_form.addRow("n_chains", w_nchain)
+        dream_form.addRow("n_diff_pairs", w_ndiff)
+        dream_form.addRow("n_cr", w_ncr)
+        dream_form.addRow("burn_in", w_burn)
+        dream_form.addRow("thin", w_thin)
+        dream_form.addRow("sigma 1", w_sigma1)
+        dream_form.addRow("sigma 2", w_sigma2)
+
         # Pack tabs
         w_de = QVBoxLayout()
         w_de.addWidget(de_box)
         w_lsq = QVBoxLayout()
         w_lsq.addWidget(lsq_box)
+        w_dream = QVBoxLayout()
+        w_dream.addWidget(dream_box)
         w_mcmc = QVBoxLayout()
         w_mcmc.addWidget(mcmc_box)
         de_widget = QWidget()
         de_widget.setLayout(w_de)
         lsq_widget = QWidget()
         lsq_widget.setLayout(w_lsq)
+        dream_widget = QWidget()
+        dream_widget.setLayout(w_dream)
         mcmc_widget = QWidget()
         mcmc_widget.setLayout(w_mcmc)
         tabs.addTab(de_widget, "DE")
         tabs.addTab(lsq_widget, "Least Squares")
+        tabs.addTab(dream_widget, "DREAM")
         tabs.addTab(mcmc_widget, "MCMC")
 
         # Buttons
@@ -314,6 +385,32 @@ class SolverParamsDialog(QDialog):
             except Exception:
                 self._lsq_widgets["sigma1"].setText("")
             self._lsq_widgets["sigma2"].setText("")
+
+        # Load DREAM
+        dr = getattr(self.state, "solver_params", {}).get("dream") or {}
+        self._dream_widgets["n_samples"].setText(str(int(dr.get("n_samples", 1000))))
+        self._dream_widgets["n_chains"].setText(str(int(dr.get("n_chains", 3))))
+        self._dream_widgets["burn_in"].setText(str(int(dr.get("burn_in", 2000))))
+        self._dream_widgets["thin"].setText(str(int(dr.get("thin", 1))))
+        self._dream_widgets["n_diff_pairs"].setText(str(int(dr.get("n_diff_pairs", 2))))
+        self._dream_widgets["n_cr"].setText(str(int(dr.get("n_cr", 4))))
+        sigma_val = dr.get("sigma", None)
+        if isinstance(sigma_val, (list, tuple)):
+            try:
+                self._dream_widgets["sigma1"].setText(str(float(sigma_val[0])))
+                self._dream_widgets["sigma2"].setText(str(float(sigma_val[1])))
+            except Exception:
+                self._dream_widgets["sigma1"].setText("")
+                self._dream_widgets["sigma2"].setText("")
+        elif sigma_val is None:
+            self._dream_widgets["sigma1"].setText("")
+            self._dream_widgets["sigma2"].setText("")
+        else:
+            try:
+                self._dream_widgets["sigma1"].setText(str(float(sigma_val)))
+            except Exception:
+                self._dream_widgets["sigma1"].setText("")
+            self._dream_widgets["sigma2"].setText("")
 
         # Load MCMC
         mc = getattr(self.state, "solver_params", {}).get("mcmc") or {}

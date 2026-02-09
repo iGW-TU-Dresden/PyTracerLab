@@ -214,7 +214,7 @@ class SimulationTab(QWidget):
             env_1_99 = payload.get("envelope_1_99")
             env_20_80 = payload.get("envelope_20_80")
             label = "Simulation"
-            if payload.get("solver") == "mcmc":
+            if payload.get("solver") == "mcmc" or payload.get("solver") == "dream":
                 label = "Median simulation"
                 # Handle envelopes for single or dual tracer
                 if (

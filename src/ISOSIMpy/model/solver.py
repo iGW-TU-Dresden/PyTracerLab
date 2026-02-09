@@ -530,6 +530,7 @@ class Solver:
         # MH loop
         accepts = 0
         keep_idx = 0
+
         for it in range(total_needed):
             prop = cur + rng.normal(0.0, step, size=d)
 
@@ -538,6 +539,7 @@ class Solver:
             else:
                 prop_sim = self._simulate_given_free(prop)
                 prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
+
                 if np.isfinite(prop_ll):
                     prop_lp = (
                         log_prior(prop)
@@ -547,10 +549,9 @@ class Solver:
                     prop_logpost = prop_ll + prop_lp
                 else:
                     prop_logpost = -np.inf
-
                 log_alpha = prop_logpost - cur_logpost  # symmetric proposal
                 # if log_alpha >= 0.0 or np.log(rng.uniform()) < log_alpha:
-                p_acc = np.min(0.0, log_alpha)
+                p_acc = min(0.0, log_alpha)
                 if np.log(rng.uniform()) < p_acc:
                     cur, cur_sim, cur_logpost = prop, prop_sim, prop_logpost
                     accept = True
@@ -1054,7 +1055,6 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
                 sigma = None
         except Exception:
             sigma = None
-
     sol = Solver(model=model)
     res = sol.mcmc_sample(
         n_samples=n_samples,
@@ -1106,7 +1106,8 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
     burn_in = int(p.get("burn_in", 2000))
     thin = int(p.get("thin", 1))
     n_diff_pairs = int(p.get("n_diff_pairs", 1))
-    cr = p.get("cr", 0.9)
+    n_cr = p.get("n_cr", 4)
+    cr = [i / n_cr for i in range(1, n_cr + 1)]
     gamma = p.get("gamma", None)
     gamma = float(gamma) if gamma is not None else None
     gamma_jitter = float(p.get("gamma_jitter", 0.1))
@@ -1176,8 +1177,6 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
 SOLVER_REGISTRY["de"]["run"] = _run_de
 SOLVER_REGISTRY["lsq"]["run"] = _run_lsq
 SOLVER_REGISTRY["mcmc"]["run"] = _run_mcmc
-if "dream" not in SOLVER_REGISTRY:
-    SOLVER_REGISTRY["dream"] = {"name": "DREAM", "run": None}
 SOLVER_REGISTRY["dream"]["run"] = _run_dream
 
 
