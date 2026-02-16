@@ -76,6 +76,18 @@ class Model:
     # Parameter registry: key -> record
     params: Dict[str, ParamRecord] = field(default_factory=dict, init=False)
 
+    # Parameter uncertainty utility for GUI
+    # We want to have a structure that allows us to transfer uncertainty
+    # estimates of model parameters from the GUI-solver utilities to the
+    # model. Only then can we easily pass those values to the report.
+    # Otherwise we would need to transfer everything via the GUI itself.
+    # For each parameter (keyed in the dict), we contain the 1%-50%-99%
+    # quantiles of parameters.
+    param_uncert: Dict[str, List[float, float, float]] = field(default_factory=dict)
+    # We create a similar dict for the parameter maximum a posteriori (MAP)
+    # values.
+    param_map: Dict[str, float] = field(default_factory=dict)
+
     # Internal warmup state
     _is_warm: bool = field(default=False, init=False, repr=False)
     _n_warmup: int = field(default=0, init=False, repr=False)
@@ -597,6 +609,9 @@ class Model:
             prefix_order.append((prefix, uidx))
         prefix_order.sort(key=lambda t: t[1])
 
+        # print warning regarding model units
+        lines.append("-- --\nATTENTION: Travel Time Parameters are Always Given in [Years]!\n-- --")
+
         # pretty print per group with correct fraction association
         for prefix, uidx in prefix_order:
             frac = self.unit_fractions[uidx] if 0 <= uidx < len(self.unit_fractions) else None
@@ -606,6 +621,10 @@ class Model:
             for k in keys:
                 rec = self.params[k]
                 val = float(rec["value"])
+                # convert to yearly units
+                # we always work in months as base units, so we always have to convert
+                if "mtt" in k:
+                    val /= 12.0
                 fixed = bool(rec.get("fixed", False))
                 row = f"  {k:15s} value={val:.6g}"
                 if include_initials:

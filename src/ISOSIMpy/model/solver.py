@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit, differential_evolution
 
@@ -409,7 +410,7 @@ class Solver:
         start: Sequence[float] | None = None,
         random_state: int | np.random.Generator | None = None,
         return_sim: bool = False,
-        set_model_state: bool = False,
+        set_model_state: bool = True,
     ):
         """Random-Walk Metropolis–Hastings over free parameters.
 
@@ -580,7 +581,7 @@ class Solver:
         posterior_map = {k: float(v) for k, v in zip(keys_free, post_map_free)}
 
         if set_model_state:
-            self.model.set_vector(post_median_free.tolist(), which="value", free_only=True)
+            self.model.set_vector(post_map_free.tolist(), which="value", free_only=True)
 
         out = {
             "param_names": list(keys_free),
@@ -613,7 +614,7 @@ class Solver:
         start: Sequence[float] | np.ndarray | None = None,
         random_state: int | np.random.Generator | None = None,
         return_sim: bool = False,
-        set_model_state: bool = False,
+        set_model_state: bool = True,
     ):
         """Basic DREAM sampler.
 
@@ -900,7 +901,7 @@ class Solver:
         gr = {k: float(v) for k, v in zip(keys_free, gr)}
 
         if set_model_state:
-            self.model.set_vector(post_median_free.tolist(), which="value", free_only=True)
+            self.model.set_vector(post_map_free.tolist(), which="value", free_only=True)
 
         out = {
             "param_names": list(keys_free),
@@ -1084,6 +1085,55 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
         p_low, p_high = np.percentile(sims, [20, 80], axis=0)
         env_20_80 = {"low": p_low, "high": p_high}
 
+    # pass uncertainty estimates to the model object
+    model.param_uncert = {}
+    for num, name in enumerate(res["param_names"]):
+        model.param_uncert[name] = [
+            np.quantile(res["samples"][:, num], 0.01),
+            np.quantile(res["samples"][:, num], 0.5),
+            np.quantile(res["samples"][:, num], 0.99),
+        ]
+    model.param_map = res["posterior_map"]
+
+    # plot chains to inspect convergence
+    fig, ax = plt.subplots(
+        res["samples_chain"].shape[2],
+        2,
+        figsize=(6, 1.5 * res["samples_chain"].shape[2]),
+        sharey="row",
+        gridspec_kw={"width_ratios": [3, 1]},
+    )
+
+    # ensure ax is 2D, even if we just have one parameter
+    ax = np.atleast_2d(ax)
+
+    bbox = dict(boxstyle="round", fc="white", ec="k", alpha=0.5)
+
+    for i in range(res["samples"].shape[1]):
+        ax[i, 0].plot(res["samples"][:, i], c="k", lw=0.5, alpha=0.4)
+        ax[i, 1].hist(
+            res["samples"][:, i], orientation="horizontal", bins=30, density=True, color="grey"
+        )
+        ax[i, 0].set_ylabel(model.param_keys(free_only=True)[i])
+        ax[i, 0].text(
+            0.02,
+            0.75,
+            f"R={list(res['gelman_rubin'].values())[i]:1.3f}",
+            bbox=bbox,
+            transform=ax[i, 0].transAxes,
+        )
+        if i < res["samples"].shape[1] - 1:
+            ax[i, 0].set_xticklabels([])
+            ax[i, 1].set_xticklabels([])
+        if i == 0:
+            ax[i, 0].set_title("Chains")
+            ax[i, 1].set_title("Histograms\n(all Chains)")
+    ax[-1, 0].set_xlabel("Steps")
+    ax[-1, 1].set_xlabel("Density")
+
+    plt.tight_layout()
+    plt.show()
+
     return {
         "solver": "mcmc",
         "sim": median_sim,
@@ -1158,6 +1208,65 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
         env_1_99 = {"low": p_low, "high": p_high}
         p_low, p_high = np.percentile(sims_flat, [20, 80], axis=0)
         env_20_80 = {"low": p_low, "high": p_high}
+
+    # pass uncertainty estimates to the model object
+    model.param_uncert = {}
+    for num, name in enumerate(res["param_names"]):
+        model.param_uncert[name] = [
+            np.quantile(res["samples"][:, num], 0.01),
+            np.quantile(res["samples"][:, num], 0.5),
+            np.quantile(res["samples"][:, num], 0.99),
+        ]
+    model.param_map = res["posterior_map"]
+
+    # plot chains to inspect convergence
+    fig, ax = plt.subplots(
+        res["samples_chain"].shape[2],
+        2,
+        figsize=(6, 1.5 * res["samples_chain"].shape[2]),
+        sharey="row",
+        gridspec_kw={"width_ratios": [3, 1]},
+    )
+    # ensure ax is 2D, even if we just have one parameter
+    ax = np.atleast_2d(ax)
+
+    bbox = dict(boxstyle="round", fc="white", ec="k", alpha=0.5)
+
+    for i in range(res["samples_chain"].shape[2]):
+        param_name = res["param_names"][i]
+        if "mtt" in param_name:
+            # conversion factor for travel time parameters to years
+            factor = 12.0
+        else:
+            factor = 1.0
+        for j in range(res["samples_chain"].shape[0]):
+            ax[i, 0].plot(res["samples_chain"][j, :, i] / factor, c="k", lw=0.5, alpha=0.4)
+            ax[i, 1].hist(
+                res["samples"][:, i] / factor,
+                orientation="horizontal",
+                bins=30,
+                density=True,
+                color="grey",
+            )
+        ax[i, 0].set_ylabel(model.param_keys(free_only=True)[i])
+        ax[i, 0].text(
+            0.02,
+            0.75,
+            f"R={list(res['gelman_rubin'].values())[i]:1.3f}",
+            bbox=bbox,
+            transform=ax[i, 0].transAxes,
+        )
+        if i < res["samples_chain"].shape[2] - 1:
+            ax[i, 0].set_xticklabels([])
+            ax[i, 1].set_xticklabels([])
+        if i == 0:
+            ax[i, 0].set_title("Chains")
+            ax[i, 1].set_title("Histograms\n(all Chains)")
+    ax[-1, 0].set_xlabel("Steps")
+    ax[-1, 1].set_xlabel("Density")
+
+    plt.tight_layout()
+    plt.show()
 
     return {
         "solver": "dream",

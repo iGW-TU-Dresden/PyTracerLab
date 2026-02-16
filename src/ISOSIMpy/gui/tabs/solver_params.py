@@ -388,7 +388,7 @@ class SolverParamsDialog(QDialog):
 
         # Load DREAM
         dr = getattr(self.state, "solver_params", {}).get("dream") or {}
-        self._dream_widgets["n_samples"].setText(str(int(dr.get("n_samples", 1000))))
+        self._dream_widgets["n_samples"].setText(str(int(dr.get("n_samples", 2000))))
         self._dream_widgets["n_chains"].setText(str(int(dr.get("n_chains", 3))))
         self._dream_widgets["burn_in"].setText(str(int(dr.get("burn_in", 2000))))
         self._dream_widgets["thin"].setText(str(int(dr.get("thin", 1))))
@@ -461,6 +461,15 @@ class SolverParamsDialog(QDialog):
                 "rw_scale": 0.05,
                 "sigma": None,
             },
+            "dream": {
+                "n_samples": 2000,
+                "burn_in": 2000,
+                "n_chains": 3,
+                "thin": 1,
+                "n_diff_pairs": 2,
+                "n_cr": 4,
+                "sigma": None,
+            },
         }
 
     def _load_defaults(self) -> None:
@@ -491,6 +500,16 @@ class SolverParamsDialog(QDialog):
         self._mcmc_widgets["rw_scale"].setText(str(float(mc["rw_scale"])))
         self._mcmc_widgets["sigma1"].setText("")
         self._mcmc_widgets["sigma2"].setText("")
+
+        dr = defaults["mcmc"]
+        self._dream_widgets["n_samples"].setText(str(int(dr["n_samples"])))
+        self._dream_widgets["burn_in"].setText(str(int(dr["burn_in"])))
+        self._dream_widgets["thin"].setText(str(int(dr["thin"])))
+        self._dream_widgets["n_chains"].setText(str(int(dr["n_chains"])))
+        self._dream_widgets["n_diff_pairs"].setText(str(int(dr["n_diff_pairs"])))
+        self._dream_widgets["n_cr"].setText(str(int(dr["n_cr"])))
+        self._dream_widgets["sigma1"].setText("")
+        self._dream_widgets["sigma2"].setText("")
 
     def _on_reset(self) -> None:
         """Handle the reset button by reloading built-in defaults."""
@@ -627,11 +646,52 @@ class SolverParamsDialog(QDialog):
             "sigma": sigma_val,
         }
 
+        # MCMC
+        # Save MCMC (sigma1/sigma2)
+        s1_txt = self._dream_widgets["sigma1"].text().strip()
+        s2_txt = self._dream_widgets["sigma2"].text().strip()
+        sigma_val: Any
+        if s1_txt == "" and s2_txt == "":
+            sigma_val = None
+        elif s1_txt != "" and s2_txt == "":
+            try:
+                sigma_val = float(s1_txt)
+            except ValueError:
+                sigma_val = None
+        else:
+            try:
+                s1 = float(s1_txt) if s1_txt != "" else None
+                s2 = float(s2_txt) if s2_txt != "" else None
+                if s1 is None and s2 is None:
+                    sigma_val = None
+                elif s2 is None:
+                    sigma_val = float(s1)
+                else:
+                    sigma_val = (s1, s2)
+            except Exception:
+                sigma_val = None
+        dream = {
+            "n_samples": _to_int(
+                self._dream_widgets["n_samples"], int(defaults["dream"]["n_samples"])
+            ),
+            "burn_in": _to_int(self._dream_widgets["burn_in"], int(defaults["dream"]["burn_in"])),
+            "thin": _to_int(self._dream_widgets["thin"], int(defaults["dream"]["thin"])),
+            "n_chains": _to_int(
+                self._dream_widgets["n_chains"], int(defaults["dream"]["n_chains"])
+            ),
+            "n_diff_pairs": _to_int(
+                self._dream_widgets["n_diff_pairs"], int(defaults["dream"]["n_diff_pairs"])
+            ),
+            "n_cr": _to_int(self._dream_widgets["n_cr"], int(defaults["dream"]["n_cr"])),
+            "sigma": sigma_val,
+        }
+
         # Write back to state
         params = getattr(self.state, "solver_params", {})
         params["de"] = de
         params["lsq"] = lsq
         params["mcmc"] = mcmc
+        params["dream"] = dream
         self.state.solver_params = params
 
         super().accept()
