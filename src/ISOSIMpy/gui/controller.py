@@ -1,5 +1,6 @@
 """Qt controller that builds the model and runs simulations/solvers."""
 
+import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -216,6 +217,42 @@ class Controller(QObject):
             self.status.emit("Calibration finished.")
         except Exception as e:
             self.error.emit(str(e))
+
+    def plot_age_distribution(self):
+        """Plot the age distribution and emit the figure."""
+        # at this point, the model is already built and has parameters assigned
+        # get age distributions
+        age_distributions = self.ml.get_age_distributions()
+
+        # get highest mean travel time of model parameters
+        mtts = []
+        for p in self.ml.params.items():
+            if p[1]["local_name"] == "mtt":
+                mtts.append(p[1]["value"])
+
+        mtt_max = max(mtts)
+        step_limit = int(mtt_max * 3)
+        dt = self.ml.dt / 12.0  # convert to years
+
+        step_limit = int(min(step_limit, len(age_distributions["distributions"][0])))
+        t_plot = [dt * i for i in range(step_limit)]
+
+        # prepare full distribution from fracions
+        dist_plot = np.zeros(len(age_distributions["distributions"][0][:step_limit]))
+        for i, frac in enumerate(age_distributions["fractions"]):
+            dist_plot += frac * age_distributions["distributions"][i][:step_limit]
+
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.plot(t_plot, dist_plot, c="k", zorder=10000)
+        ax.set_xlim(0.0)
+        ax.set_ylim(0.0)
+        ax.grid(True, alpha=0.3, zorder=0)
+        ax.set_xlabel("Time [years]")
+        ax.set_ylabel("Fraction [-]")
+        ax.set_title("Age distribution")
+
+        plt.tight_layout()
+        plt.show()
 
     def run_tracer_tracer(self, start: float, stop: float, count: int, param_key: str) -> None:
         """Sweep mean travel time values and emit tracer-tracer results."""

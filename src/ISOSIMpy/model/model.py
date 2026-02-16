@@ -83,10 +83,10 @@ class Model:
     # Otherwise we would need to transfer everything via the GUI itself.
     # For each parameter (keyed in the dict), we contain the 1%-50%-99%
     # quantiles of parameters.
-    param_uncert: Dict[str, List[float, float, float]] = field(default_factory=dict)
+    param_uncert: Dict[str, List[float, float, float]] = None
     # We create a similar dict for the parameter maximum a posteriori (MAP)
     # values.
-    param_map: Dict[str, float] = field(default_factory=dict)
+    param_map: Dict[str, float] = None
 
     # Internal warmup state
     _is_warm: bool = field(default=False, init=False, repr=False)

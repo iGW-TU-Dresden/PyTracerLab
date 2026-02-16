@@ -38,6 +38,7 @@ class SimulationTab(QWidget):
     calibrate_requested = pyqtSignal()
     report_requested = pyqtSignal(str)  # carries the file path
     savedata_requested = pyqtSignal(str)  # carries the file path
+    plot_age_distribution_requested = pyqtSignal()
 
     def __init__(self, state, parent=None):
         super().__init__(parent)
@@ -95,10 +96,14 @@ class SimulationTab(QWidget):
         lbl_plot = QLabel("Plotting")
         lbl_plot.setStyleSheet("font-weight: 600;")
 
-        # Plot button
+        # Plot buttons
         b_plot = QPushButton("Plot Results")
         b_plot.setFixedSize(QSize(200, 40))
         b_plot.clicked.connect(self._plot)
+
+        b_plot_dist = QPushButton("Plot Age Distribution")
+        b_plot_dist.setFixedSize(QSize(200, 40))
+        b_plot_dist.clicked.connect(self.plot_age_distribution_requested)
 
         # Report label
         lbl_report = QLabel("Report")
@@ -123,6 +128,7 @@ class SimulationTab(QWidget):
         lay.addStretch(1)
         lay.addWidget(lbl_plot)
         lay.addWidget(b_plot)
+        lay.addWidget(b_plot_dist)
         lay.addStretch(1)
         lay.addWidget(lbl_report)
         btn_row = QHBoxLayout()
