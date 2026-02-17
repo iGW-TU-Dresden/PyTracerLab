@@ -163,7 +163,17 @@ class FileInputTab(QWidget):
         times = []
         rows: list[list[float]] = []
         with open(path, "r", encoding="utf-8", newline="") as f:
-            r = csv.reader(f)
+            # try reading with comma separator
+            try:
+                r = csv.reader(f, delimiter=";")
+                try:
+                    r = csv.reader(f, delimiter=",")
+                except Exception:
+                    pass
+            except Exception:
+                # still continue
+                pass
+            # skip header
             _ = next(r, None)  # skip header
             for rec in r:
                 if not rec:
@@ -181,6 +191,9 @@ class FileInputTab(QWidget):
                         vals.append(np.nan)
                     else:
                         try:
+                            # optionally replace commas with decimal points
+                            if "," in tok:
+                                tok = tok.replace(",", ".")
                             vals.append(float(tok))
                         except Exception:
                             vals.append(np.nan)

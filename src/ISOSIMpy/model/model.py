@@ -634,6 +634,18 @@ class Model:
                     row += f", bounds=({float(lo):.6g}, {float(hi):.6g})"
                 row += f", fixed={fixed}"
                 lines.append(row)
+                # check if we have uncertainty estimates
+                if self.param_uncert is not None and self.param_map is not None:
+                    if k in self.param_map:
+                        map = self.param_map[k]
+                        row = f"  {k:15s} MAP (maximum a posteriori estimate)={map:.6g}"
+                        lines.append(row)
+                    if k in self.param_uncert:
+                        unc = self.param_uncert[k]
+                        row = f"  {k:15s} 1%-Quantile={unc[0]:.6g}, 50%-Quantile (Median)=\
+                            {unc[1]:.6g}, 99%-Quantile={unc[2]:.6g}"
+                        lines.append(row)
+                        lines.append("")
             lines.append("")
 
         report_text = "\n".join(lines)

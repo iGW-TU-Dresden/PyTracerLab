@@ -275,7 +275,7 @@ class TracerTracerTab(QWidget):
         x = results[0, :, obs_idx]
         y = results[1, :, obs_idx]
         mtt_values = np.asarray(self.state.tt_mtt_values, dtype=float)
-        scale = 12.0 if getattr(self.state, "is_monthly", True) else 1.0
+        scale = 12.0  # we always run the model in months so we always have to convert
         mtt_years = mtt_values / scale
 
         obs_vals = None

@@ -102,18 +102,7 @@ class Controller(QObject):
             # Set up the model
             x = self.state.input_series
             y = self.state.target_series
-
-            # We have to treat the concentration values according to their time units
-            # Because we generally work in montly resolution, we need to convert
-            # yearly values to monthly values
-            # However, we only have to transform the input series, as those values
-            # actually represent fluxes (mass per unit time); the observed
-            # concentrations are actually concentrations and not fluxes.
-            if not self.state.is_monthly:
-                x_ = x[1] / 12.0
-            else:
-                x_ = x[1]
-            x = (x[0], x_)
+            x = (x[0], x[1])
 
             self.ml = mm.Model(
                 dt,
@@ -290,9 +279,8 @@ class Controller(QObject):
             # to match the internal monthly model resolution.
             base_value = float(self.ml.params[param_key]["value"])
 
-            # We always work in monthly resolution but always
-            # get parameters with time units "years". We therefore
-            # need to convert them to months.
+            # We always get parameters with time units "years". We therefore
+            # need to convert them to months because we always work in months.
             if "mtt" in param_key:
                 start *= 12
                 stop *= 12
@@ -316,7 +304,8 @@ class Controller(QObject):
                         raise ValueError(
                             "Simulation length changed across runs; cannot stack results."
                         )
-                    results[:, idx, :] = sim_arr.T
+                    for i in range(sim_arr.shape[1]):
+                        results[i, idx, :] = sim_arr[:, i]
             finally:
                 self.ml.set_param(param_key, base_value)
 
