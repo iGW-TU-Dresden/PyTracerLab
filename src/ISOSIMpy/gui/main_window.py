@@ -19,7 +19,7 @@ class MainWindow(QWidget):
         """Create the main window and wire up tabs and controller."""
         super().__init__()
         # Initialize the window
-        self.setWindowTitle("ISOSIMpy")
+        self.setWindowTitle("PyTracerLab")
         self.resize(800, 600)
 
         self.state = AppState()
