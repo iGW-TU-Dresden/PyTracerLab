@@ -1,7 +1,7 @@
-ISOSIMpy.model.solver module
+PyTracerLab.model.solver module
 ============================
 
-.. automodule:: ISOSIMpy.model.solver
+.. automodule:: PyTracerLab.model.solver
    :members:
    :show-inheritance:
    :undoc-members:

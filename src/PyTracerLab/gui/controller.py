@@ -43,7 +43,7 @@ class Controller(QObject):
         self.ml = None
 
     def build_model(self):
-        """Construct a :class:`~ISOSIMpy.model.model.Model` from current state.
+        """Construct a :class:`~PyTracerLab.model.model.Model` from current state.
 
         Creates per-instance units (including bounds and fixed flags) based on
         the detailed design in ``state.design_instances`` and the per-instance

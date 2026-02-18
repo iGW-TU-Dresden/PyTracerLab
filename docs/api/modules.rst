@@ -1,7 +1,7 @@
-ISOSIMpy
+PyTracerLab
 ========
 
 .. toctree::
    :maxdepth: 4
 
-   ISOSIMpy
+   PyTracerLab

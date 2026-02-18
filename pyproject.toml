@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel", "setuptools-scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ISOSIMpy"
+name = "PyTracerLab"
 dynamic = ["version"]
 description = "Lumped parameter groundwater age simulations with a simple user interface - in Python"
 readme = "README.md"
@@ -29,16 +29,16 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/iGW-TU-Dresden/ISOSIMpy"
-Documentation = "https://iGW-TU-Dresden.github.io/ISOSIMpy/"
+Homepage = "https://github.com/iGW-TU-Dresden/PyTracerLab"
+Documentation = "https://iGW-TU-Dresden.github.io/PyTracerLab/"
 
 [project.scripts]
 # console entry (shows console on Windows)
-ISOSIMpy = "ISOSIMpy.gui.app:main"
+PyTracerLab = "PyTracerLab.gui.app:main"
 
 [project.gui-scripts]
 # GUI entry (no console on Windows)
-ISOSIMpy-gui = "ISOSIMpy.gui.app:main"
+PyTracerLab-gui = "PyTracerLab.gui.app:main"
 
 [project.optional-dependencies]
 dev = [

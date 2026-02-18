@@ -1,7 +1,7 @@
-ISOSIMpy.gui.state module
+PyTracerLab.gui.state module
 =========================
 
-.. automodule:: ISOSIMpy.gui.state
+.. automodule:: PyTracerLab.gui.state
    :members:
    :show-inheritance:
    :undoc-members:

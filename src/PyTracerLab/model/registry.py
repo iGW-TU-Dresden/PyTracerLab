@@ -15,7 +15,7 @@ UNIT_REGISTRY = {
 }
 
 # Use placeholders for solver run functions
-# Otherwise, we would need to import from ISOSIMpy.model.solver, which
+# Otherwise, we would need to import from PyTracerLab.model.solver, which
 # would create a circular dependency
 SOLVER_REGISTRY: Dict[str, Dict[str, object]] = {
     "de": {"name": "Differential Evolution", "run": None},

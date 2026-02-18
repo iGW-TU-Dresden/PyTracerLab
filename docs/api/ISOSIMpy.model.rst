@@ -1,4 +1,4 @@
-ISOSIMpy.model package
+PyTracerLab.model package
 ======================
 
 Submodules
@@ -7,15 +7,15 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   ISOSIMpy.model.model
-   ISOSIMpy.model.registry
-   ISOSIMpy.model.solver
-   ISOSIMpy.model.units
+   PyTracerLab.model.model
+   PyTracerLab.model.registry
+   PyTracerLab.model.solver
+   PyTracerLab.model.units
 
 Module contents
 ---------------
 
-.. automodule:: ISOSIMpy.model
+.. automodule:: PyTracerLab.model
    :members:
    :show-inheritance:
    :undoc-members:

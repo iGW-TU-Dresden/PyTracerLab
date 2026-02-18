@@ -1,4 +1,4 @@
-"""Holds data of tracers supported in the ISOSIMpy GUI."""
+"""Holds data of tracers supported in the PyTracerLab GUI."""
 
 from abc import ABC
 from dataclasses import dataclass
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Tracers(ABC):
-    """Database of all tracers supported by the ISOSIMpy GUI."""
+    """Database of all tracers supported by the PyTracerLab GUI."""
 
     tracer_data = {
         "Carbon-14": 5700.0,  # years

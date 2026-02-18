@@ -93,7 +93,7 @@ class ParametersTab(QWidget):
                 pname = meta.get("label", key)
 
                 # Attach units if possible
-                # We use the literal parameter keys from the ISOSIMpy units to
+                # We use the literal parameter keys from the PyTracerLab units to
                 # match the parameters
                 if key == "mtt":
                     pname += " [years]"

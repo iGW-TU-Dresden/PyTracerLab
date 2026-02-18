@@ -103,7 +103,7 @@ class Model:
 
         Parameters
         ----------
-        unit : :class:`~ISOSIMpy.model.units.Unit`
+        unit : :class:`~PyTracerLab.model.units.Unit`
             The unit instance to add.
         fraction : float
             Mixture fraction of this unit in the overall response. Fractions

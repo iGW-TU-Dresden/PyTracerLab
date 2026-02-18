@@ -1,5 +1,5 @@
 """
-ISOSIMpy GUI subpackage.
+PyTracerLab GUI subpackage.
 
 Contains the main PyQt5 application window, tabs, and controller/state logic.
 """

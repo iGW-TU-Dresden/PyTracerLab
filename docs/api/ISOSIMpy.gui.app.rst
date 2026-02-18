@@ -1,7 +1,7 @@
-ISOSIMpy.gui.app module
+PyTracerLab.gui.app module
 =======================
 
-.. automodule:: ISOSIMpy.gui.app
+.. automodule:: PyTracerLab.gui.app
    :members:
    :show-inheritance:
    :undoc-members:

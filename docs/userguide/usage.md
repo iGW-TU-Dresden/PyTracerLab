@@ -1,4 +1,4 @@
-# Using ISOSIMpy
+# Using PyTracerLab
 ## Using the Graphical User Interface
 In general, using the Graphical User Interface (GUI) is stricter and less versatile than using the package it is built on. Specifically, the app assumes a certain structure of time series data, is not scalable well to handle many different datasets, and offers limited post-processing functionality. Nevertheless, the GUI is a highly user-friendly option to performing analysis of groundwater residence time distributions using lumped parameter models.
 
@@ -62,7 +62,7 @@ In this **Tab**, simulations can be performed, model parameters can be calibrate
 
 (preparing-datasets)=
 ## Preparing Datasets
-Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in ISOSIMpy.
+Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in PyTracerLab.
 
 Below, instead of "# Date, CTracer" or "# Date, CTracer1, CTracer2", any other description can be used. **The first line in the file is skipped when reading!**
 

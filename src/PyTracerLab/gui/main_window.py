@@ -1,4 +1,4 @@
-"""Main window for the ISOSIMpy GUI, assembling all tabs."""
+"""Main window for the PyTracerLab GUI, assembling all tabs."""
 
 from PyQt5.QtWidgets import QMessageBox, QTabWidget, QVBoxLayout, QWidget
 

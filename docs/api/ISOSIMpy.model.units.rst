@@ -1,7 +1,7 @@
-ISOSIMpy.model.units module
+PyTracerLab.model.units module
 ===========================
 
-.. automodule:: ISOSIMpy.model.units
+.. automodule:: PyTracerLab.model.units
    :members:
    :show-inheritance:
    :undoc-members:

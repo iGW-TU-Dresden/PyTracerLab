@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-project = "ISOSIMpy"
+project = "PyTracerLab"
 author = "Max G. Rudolph"
 
 extensions = [
@@ -52,8 +52,8 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/.ipynb_checkpoints"]
 html_theme = "furo"
 html_static_path = ["_static"]
 html_logo = "_static/logo.png"
-html_title = "ISOSIMpy Documentation"
-html_short_title = "ISOSIMpy"
+html_title = "PyTracerLab Documentation"
+html_short_title = "PyTracerLab"
 html_show_sphinx = True
 html_show_copyright = True
 
@@ -63,7 +63,7 @@ html_show_copyright = True
 #     "icon_links": [
 #         {
 #             "name": "GitHub",
-#             "url": "https://github.com/iGW-TU-Dresden/ISOSIMpy",
+#             "url": "https://github.com/iGW-TU-Dresden/PyTracerLab",
 #             "icon": "fab fa-github-square",
 #             "type": "fontawesome",
 #         }
@@ -82,7 +82,7 @@ autosummary_imported_members = False
 
 # Disambiguate short type names in NumPy-style docstrings
 napoleon_type_aliases = {
-    "Unit": "ISOSIMpy.model.units.Unit",
-    "Model": "ISOSIMpy.model.Model",  # prefer public alias to avoid ambiguity
-    "Solver": "ISOSIMpy.model.solver.Solver",
+    "Unit": "PyTracerLab.model.units.Unit",
+    "Model": "PyTracerLab.model.Model",  # prefer public alias to avoid ambiguity
+    "Solver": "PyTracerLab.model.solver.Solver",
 }

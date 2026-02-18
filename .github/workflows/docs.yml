@@ -25,7 +25,7 @@ jobs:
 
       - name: Generate API stubs (sphinx-apidoc)
         run: |
-          python -m sphinx.ext.apidoc -o docs/api src/ISOSIMpy -f -e
+          python -m sphinx.ext.apidoc -o docs/api src/PyTracerLab -f -e
 
       - name: Build HTML
         run: |

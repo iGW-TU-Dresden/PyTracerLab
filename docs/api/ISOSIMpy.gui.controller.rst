@@ -1,7 +1,7 @@
-ISOSIMpy.gui.controller module
+PyTracerLab.gui.controller module
 ==============================
 
-.. automodule:: ISOSIMpy.gui.controller
+.. automodule:: PyTracerLab.gui.controller
    :members:
    :show-inheritance:
    :undoc-members:

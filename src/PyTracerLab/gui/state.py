@@ -83,6 +83,15 @@ class AppState:
                 "rw_scale": 0.05,
                 "sigma": None,
             },
+            "dream": {
+                "n_samples": 2000,
+                "burn_in": 2000,
+                "thin": 1,
+                "n_chains": 3,
+                "n_diff_pairs": 2,
+                "n_cr": 4,
+                "sigma": None,
+            },
         }
     )
     input_series: Optional[Tuple[ArrayLike, ArrayLike]] = None

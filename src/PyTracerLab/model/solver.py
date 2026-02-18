@@ -1,4 +1,4 @@
-"""Optimization wrapper for :class:`~ISOSIMpy.model.model.Model`."""
+"""Optimization wrapper for :class:`~PyTracerLab.model.model.Model`."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .registry import SOLVER_REGISTRY
 
 @dataclass
 class Solver:
-    """Optimization wrapper for :class:`~ISOSIMpy.model.model.Model`.
+    """Optimization wrapper for :class:`~PyTracerLab.model.model.Model`.
 
     The solver interacts **only** with the model's parameter registry. It
     constructs a free-parameter vector and corresponding bounds, runs a chosen
@@ -1305,7 +1305,7 @@ def run_solver(model: Model, key: str, params: Dict[str, Any] | None = None) -> 
 
     Parameters
     ----------
-    model : ISOSIMpy.model.Model
+    model : PyTracerLab.model.Model
         Model instance with inputs, targets, and parameter registry.
     key : str
         Solver registry key (e.g., ``"de"`` or ``"mcmc"``).

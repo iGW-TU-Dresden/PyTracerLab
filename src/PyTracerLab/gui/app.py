@@ -1,4 +1,4 @@
-"""Application entry point for the ISOSIMpy GUI."""
+"""Application entry point for the PyTracerLab GUI."""
 
 import sys
 

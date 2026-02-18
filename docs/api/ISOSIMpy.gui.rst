@@ -1,4 +1,4 @@
-ISOSIMpy.gui package
+PyTracerLab.gui package
 ====================
 
 Submodules
@@ -7,15 +7,15 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   ISOSIMpy.gui.app
-   ISOSIMpy.gui.controller
-   ISOSIMpy.gui.main_window
-   ISOSIMpy.gui.state
+   PyTracerLab.gui.app
+   PyTracerLab.gui.controller
+   PyTracerLab.gui.main_window
+   PyTracerLab.gui.state
 
 Module contents
 ---------------
 
-.. automodule:: ISOSIMpy.gui
+.. automodule:: PyTracerLab.gui
    :members:
    :show-inheritance:
    :undoc-members:

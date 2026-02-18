@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ISOSIMpy.model import EPMUnit, Model, PMUnit, Solver
+from PyTracerLab.model import EPMUnit, Model, PMUnit, Solver
 
 
 def make_simple_model(target_series=True):

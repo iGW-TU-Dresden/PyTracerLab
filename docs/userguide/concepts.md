@@ -1,3 +1,3 @@
 # Concepts
 
-ISOSIMpy uses the convolution integral as a central concept.
+PyTracerLab uses the convolution integral as a central concept.
