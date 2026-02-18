@@ -154,6 +154,12 @@ class Controller(QObject):
                     rec = self.state.params.get(prefix, {}).get(key)
                     lb = rec["lb"] if rec is not None else default_lb
                     ub = rec["ub"] if rec is not None else default_ub
+
+                    # convert mtt bounds to monthly time units
+                    if key == "mtt":
+                        lb *= 12
+                        ub *= 12
+
                     bounds.append((lb, ub))
 
                 self.ml.add_unit(
@@ -352,7 +358,11 @@ class Controller(QObject):
             tracer_names.append(self.state.tracer1)
         if self.state.tracer2 is not None:
             tracer_names.append(self.state.tracer2)
-        self.ml.write_report(filename=filename, frequency=frequency, tracer=tracer_names)
+        # we always work in monthly frequency, so we always want to
+        # convert to years as units for mean travel time in the report
+        self.ml.write_report(
+            filename=filename, frequency=frequency, tracer=tracer_names, convert_mtt_to_years=True
+        )
 
     def save_data(self, filename):
         """Save simulation data to ``filename`` using current state."""

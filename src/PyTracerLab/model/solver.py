@@ -1064,7 +1064,7 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
         rw_scale=rw_scale,
         sigma=sigma,  # type: ignore[arg-type]
         return_sim=True,
-        set_model_state=False,
+        set_model_state=True,
     )
 
     sims = res.get("sims")
@@ -1122,6 +1122,8 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
             bbox=bbox,
             transform=ax[i, 0].transAxes,
         )
+        # set x axis limits
+        ax[i, 0].set_xlim(0, res["samples_chain"].shape[1])
         if i < res["samples"].shape[1] - 1:
             ax[i, 0].set_xticklabels([])
             ax[i, 1].set_xticklabels([])
@@ -1192,7 +1194,7 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
         jitter=jitter,
         sigma=sigma,  # type: ignore[arg-type]
         return_sim=True,
-        set_model_state=False,
+        set_model_state=True,
     )
 
     sims = res.get("sims")
@@ -1256,6 +1258,8 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
             bbox=bbox,
             transform=ax[i, 0].transAxes,
         )
+        # set x axis limits
+        ax[i, 0].set_xlim(0, res["samples_chain"].shape[1])
         if i < res["samples_chain"].shape[2] - 1:
             ax[i, 0].set_xticklabels([])
             ax[i, 1].set_xticklabels([])

@@ -443,6 +443,7 @@ class Model:
         title: str = "Model Report",
         include_initials: bool = True,
         include_bounds: bool = True,
+        convert_mtt_to_years: bool = False,
     ) -> str:
         """
         Create a simple text report of the current model configuration and fit.
@@ -467,6 +468,8 @@ class Model:
             Whether to include initial values in the parameter table.
         include_bounds : bool, optional
             Whether to include optimizer bounds in the parameter table.
+        convert_mtt_to_years : bool, optional
+            Whether to convert mean travel times to years from months.
 
         Returns
         -------
@@ -623,14 +626,22 @@ class Model:
                 val = float(rec["value"])
                 # convert to yearly units
                 # we always work in months as base units, so we always have to convert
-                if "mtt" in k:
+                if "mtt" in k and convert_mtt_to_years:
                     val /= 12.0
                 fixed = bool(rec.get("fixed", False))
                 row = f"  {k:15s} value={val:.6g}"
                 if include_initials:
-                    row += f", initial={float(rec['initial']):.6g}"
+                    ini = float(rec["initial"])
+                    # convert to yearly units
+                    if "mtt" in k and convert_mtt_to_years:
+                        ini /= 12.0
+                    row += f", initial={ini:.6g}"
                 if include_bounds and rec.get("bounds") is not None:
                     lo, hi = rec["bounds"]  # type: ignore
+                    # convert to yearly units
+                    if "mtt" in k and convert_mtt_to_years:
+                        lo /= 12.0
+                        hi /= 12.0
                     row += f", bounds=({float(lo):.6g}, {float(hi):.6g})"
                 row += f", fixed={fixed}"
                 lines.append(row)
@@ -638,12 +649,24 @@ class Model:
                 if self.param_uncert is not None and self.param_map is not None:
                     if k in self.param_map:
                         map = self.param_map[k]
+                        # convert to yearly units
+                        if "mtt" in k and convert_mtt_to_years:
+                            map /= 12.0
                         row = f"  {k:15s} MAP (maximum a posteriori estimate)={map:.6g}"
                         lines.append(row)
                     if k in self.param_uncert:
                         unc = self.param_uncert[k]
-                        row = f"  {k:15s} 1%-Quantile={unc[0]:.6g}, 50%-Quantile (Median)=\
-                            {unc[1]:.6g}, 99%-Quantile={unc[2]:.6g}"
+                        # convert to yearly units
+                        if "mtt" in k and convert_mtt_to_years:
+                            lower = unc[0] / 12.0
+                            median = unc[1] / 12.0
+                            upper = unc[2] / 12.0
+                        else:
+                            lower = unc[0]
+                            median = unc[1]
+                            upper = unc[2]
+                        row = f"  {k:15s} 1%-Quantile={lower:.6g}, "
+                        row += f"50%-Quantile (Median)={median:.6g}, 99%-Quantile={upper:.6g}"
                         lines.append(row)
                         lines.append("")
             lines.append("")
