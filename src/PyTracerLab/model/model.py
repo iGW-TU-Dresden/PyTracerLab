@@ -342,7 +342,7 @@ class Model:
         if not (0.99 <= s <= 1.01):
             raise ValueError("Sum of unit fractions must be ~1.0.")
 
-    def get_age_distributions(self) -> List[np.ndarray]:
+    def get_age_distributions(self, n_steps: Optional[int] = None) -> List[np.ndarray]:
         """Return age distributions for all units using current registry
         values.
 
@@ -358,12 +358,15 @@ class Model:
         # initialize age distribution dict for all units
         age_dists = {"fractions": self.unit_fractions, "distributions": []}
 
-        # Determine number of tracers from input dimensionality
-        x = np.asarray(self.input_series, dtype=float)
-        if x.ndim == 1:
-            x = x.reshape(-1, 1)
-        n, k = x.shape
-        t = np.arange(0.0, n * self.dt, self.dt)
+        if n_steps is None:
+            # Determine number of time steps from input dimensionality
+            x = np.asarray(self.input_series, dtype=float)
+            if x.ndim == 1:
+                x = x.reshape(-1, 1)
+            n, k = x.shape
+            t = np.arange(0.0, n * self.dt, self.dt)
+        else:
+            t = np.arange(0.0, n_steps * self.dt, self.dt)
 
         for unit in self.units:
             # up to tracer-specific properties (decay), the impulse response
