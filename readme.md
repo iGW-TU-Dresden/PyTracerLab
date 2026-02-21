@@ -17,7 +17,7 @@ PyTracerLab is an open-source framework for the analysis of groundwater residenc
 
 ## Installing PyTracerLab
 
-The package can be found on [PyPI](https://pypi.org/project/PyTracerLab/). To install the Python package, simply
+The package can be found on [PyPI](https://pypi.org/project/PyTracerLab/). To install the Python package, simply use
 
 `pip install PyTracerLab`
 
