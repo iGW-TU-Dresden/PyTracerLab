@@ -1,5 +1,5 @@
 PyTracerLab.gui package
-====================
+=======================
 
 Submodules
 ----------
@@ -9,6 +9,7 @@ Submodules
 
    PyTracerLab.gui.app
    PyTracerLab.gui.controller
+   PyTracerLab.gui.database
    PyTracerLab.gui.main_window
    PyTracerLab.gui.state
 

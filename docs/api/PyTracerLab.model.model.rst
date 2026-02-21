@@ -1,7 +1,7 @@
-PyTracerLab.gui.controller module
+PyTracerLab.model.model module
 ==============================
 
-.. automodule:: PyTracerLab.gui.controller
+.. automodule:: PyTracerLab.model.model
    :members:
    :show-inheritance:
    :undoc-members:

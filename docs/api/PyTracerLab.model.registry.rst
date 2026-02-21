@@ -1,5 +1,5 @@
 PyTracerLab.model.registry module
-==============================
+=================================
 
 .. automodule:: PyTracerLab.model.registry
    :members:

@@ -1,5 +1,5 @@
 PyTracerLab.model.units module
-===========================
+==============================
 
 .. automodule:: PyTracerLab.model.units
    :members:

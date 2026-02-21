@@ -1,5 +1,5 @@
 PyTracerLab.gui.app module
-=======================
+==========================
 
 .. automodule:: PyTracerLab.gui.app
    :members:

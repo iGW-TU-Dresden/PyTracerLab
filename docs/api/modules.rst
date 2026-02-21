@@ -1,5 +1,5 @@
 PyTracerLab
-========
+===========
 
 .. toctree::
    :maxdepth: 4

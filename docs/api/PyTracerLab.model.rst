@@ -1,5 +1,5 @@
 PyTracerLab.model package
-======================
+=========================
 
 Submodules
 ----------
