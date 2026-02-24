@@ -67,9 +67,15 @@ class Controller(QObject):
 
             # Determine the decay constants for the selected tracers
             lam = []
-            for name, half_life in Tracers.tracer_data.items():
+            prod = []
+            for name, tracerdata in Tracers.tracer_data.items():
                 if name in tracer_names:
-                    lam.append(0.693 / (half_life * 12.0))  # convert to monthly
+                    # tracerdata : [half life, production-trigger]
+                    lam.append(0.693 / (tracerdata[0] * 12.0))  # convert to monthly
+                    if tracerdata[1]:
+                        prod.append(True)
+                    else:
+                        prod.append(False)
             if len(lam) == 1:
                 lam = lam[0]
 
@@ -112,6 +118,7 @@ class Controller(QObject):
                 steady_state_input=ss_val,
                 n_warmup_half_lives=self.state.n_warmup_half_lives,
                 time_steps=x[0] if x else None,
+                production=prod,
             )
 
             # Build per-instance units based on the detailed design
