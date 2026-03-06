@@ -505,7 +505,7 @@ class Solver:
 
         if not np.isfinite(cur_logpost):
             # Try to find a finite start by small jitters
-            for _ in range(20):
+            for _ in range(100):
                 trial = np.clip(cur + rng.normal(0.0, step), lo, hi)
                 sim = self._simulate_given_free(trial)
                 ll = self._loglik_from_sim_multi(y_full, sim, sigma)
@@ -756,7 +756,7 @@ class Solver:
         # Evaluate initial points; resample if needed
         chain_logpost = np.empty(n_chains, dtype=float)
         chain_sim: list[np.ndarray] = [np.empty(0) for _ in range(n_chains)]
-        max_init_tries = 50
+        max_init_tries = 100
         for i in range(n_chains):
             theta = chains[i].copy()
             ok = False
@@ -1097,9 +1097,9 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
 
     # plot chains to inspect convergence
     fig, ax = plt.subplots(
-        res["samples_chain"].shape[2],
+        res["samples"].shape[1],
         2,
-        figsize=(6, 1.5 * res["samples_chain"].shape[2]),
+        figsize=(6, 1.5 * res["samples"].shape[1]),
         sharey="row",
         gridspec_kw={"width_ratios": [3, 1]},
     )
@@ -1107,29 +1107,20 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
     # ensure ax is 2D, even if we just have one parameter
     ax = np.atleast_2d(ax)
 
-    bbox = dict(boxstyle="round", fc="white", ec="k", alpha=0.5)
-
     for i in range(res["samples"].shape[1]):
         ax[i, 0].plot(res["samples"][:, i], c="k", lw=0.5, alpha=0.4)
         ax[i, 1].hist(
             res["samples"][:, i], orientation="horizontal", bins=30, density=True, color="grey"
         )
         ax[i, 0].set_ylabel(model.param_keys(free_only=True)[i])
-        ax[i, 0].text(
-            0.02,
-            0.75,
-            f"R={list(res['gelman_rubin'].values())[i]:1.3f}",
-            bbox=bbox,
-            transform=ax[i, 0].transAxes,
-        )
         # set x axis limits
-        ax[i, 0].set_xlim(0, res["samples_chain"].shape[1])
+        ax[i, 0].set_xlim(0, res["samples"].shape[0])
         if i < res["samples"].shape[1] - 1:
             ax[i, 0].set_xticklabels([])
             ax[i, 1].set_xticklabels([])
         if i == 0:
-            ax[i, 0].set_title("Chains")
-            ax[i, 1].set_title("Histograms\n(all Chains)")
+            ax[i, 0].set_title("Chain")
+            ax[i, 1].set_title("Histograms")
     ax[-1, 0].set_xlabel("Steps")
     ax[-1, 1].set_xlabel("Density")
 

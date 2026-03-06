@@ -16,6 +16,6 @@ class Tracers(ABC):
         "Carbon-14": [5700.0, False],
         "Tritium": [12.32, False],
         "Krypton-85": [10.73, False],
-        "Stable tracer (no decay)": [False],  # artificially large decay time
+        "Stable tracer (no decay)": [1e12, False],  # artificially large decay time
         "Helium (tritiogenic)": [12.32, True],
     }
