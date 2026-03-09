@@ -127,7 +127,7 @@ class EPMUnit(Unit):
     # The parameter keys are used explicitly in the GUI! Changing them will lead
     # to the GUI not displaying parameter units properly.
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Travel Time", "default": 10.0, "bounds": (0.0, 10000.0)},
         {"key": "eta", "label": "Eta", "default": 1.1, "bounds": (1.0, 2.0)},
     ]
 
@@ -238,7 +238,7 @@ class ExEPMUnit(Unit):
     # The parameter keys are used explicitly in the GUI! Changing them will lead
     # to the GUI not displaying parameter units properly.
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Travel Time", "default": 10.0, "bounds": (0.0, 10000.0)},
         {"key": "exp_part", "label": "Exponential Part", "default": 0.5, "bounds": (0.0, 100.0)},
         {"key": "piston_part", "label": "Piston Part", "default": 1.0, "bounds": (0.0, 100.0)},
     ]
@@ -353,7 +353,7 @@ class DMUnit(Unit):
     # The parameter keys are used explicitly in the GUI! Changing them will lead
     # to the GUI not displaying parameter units properly.
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (1.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Travel Time", "default": 10.0, "bounds": (1.0, 10000.0)},
         {"key": "DP", "label": "Dispersion Param.", "default": 1.0, "bounds": (0.0001, 10.0)},
     ]
 
@@ -457,7 +457,7 @@ class EMUnit(Unit):
     # The parameter keys are used explicitly in the GUI! Changing them will lead
     # to the GUI not displaying parameter units properly.
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Travel Time", "default": 10.0, "bounds": (0.0, 10000.0)},
     ]
 
     def param_values(self) -> Dict[str, float]:
@@ -549,7 +549,7 @@ class PMUnit(Unit):
     # The parameter keys are used explicitly in the GUI! Changing them will lead
     # to the GUI not displaying parameter units properly.
     PARAMS = [
-        {"key": "mtt", "label": "Mean Transit Time", "default": 10.0, "bounds": (0.0, 10000.0)},
+        {"key": "mtt", "label": "Mean Travel Time", "default": 10.0, "bounds": (0.0, 10000.0)},
     ]
 
     def param_values(self) -> Dict[str, float]:
