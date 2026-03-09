@@ -93,3 +93,22 @@ napoleon_type_aliases = {
     "Model": "PyTracerLab.model.model.Model",
     "Solver": "PyTracerLab.model.solver.Solver",
 }
+
+# Skip package-level re-exports in ``PyTracerLab.model`` to avoid duplicate
+# Python domain targets (e.g., both ``PyTracerLab.model.Model`` and
+# ``PyTracerLab.model.model.Model``).
+_MODEL_PACKAGE_REEXPORTS = {"Model", "Unit", "EPMUnit", "EMUnit", "PMUnit", "DMUnit"}
+
+
+def _skip_model_reexports(app, what, name, obj, skip, options):
+    env = getattr(app, "env", None)
+    temp_data = getattr(env, "temp_data", {}) if env is not None else {}
+    current_module = temp_data.get("autodoc:module")
+    if what == "module" and current_module == "PyTracerLab.model":
+        if name in _MODEL_PACKAGE_REEXPORTS:
+            return True
+    return None
+
+
+def setup(app):
+    app.connect("autodoc-skip-member", _skip_model_reexports)
