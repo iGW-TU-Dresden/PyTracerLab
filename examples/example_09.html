@@ -1,0 +1,832 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Development" href="../development/index.html"><link rel="prev" title="Example 7: Benchmark PyTracerLab against TracerLPM" href="example_08.html">
+        <link rel="prefetch" href="../_static/logo.png" as="image">
+
+    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
+        <title>Example X: Modelling with PyTracerLab in the Bayesian Statistical Framework - PyTracerLab Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">PyTracerLab Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../_static/logo.png" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">PyTracerLab Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../userguide/index.html">User Guide</a><input aria-label="Toggle navigation of User Guide" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../userguide/usage.html">Using PyTracerLab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../userguide/usage_de.html">Verwendung von PyTracerLab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../userguide/concepts.html">Concepts</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Examples</a><input aria-label="Toggle navigation of Examples" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="example_01.html">Example 1: Basic Modelling with PyTracerLab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_02.html">Example 2: Modelling with PyTracerLab in the Bayesian Statistical Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_03.html">Example 3: Analysis Involving Multiple Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_04.html">Example 4: Generate Synthetic Data for a Single Tracer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_05.html">Example 5: Generate Synthetic Data for Two Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_06.html">Example 6: Temporal Resolution Demonstration and Benchmark</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_07.html">Example 8: Analysis Involving Multiple Tracers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_08.html">Example 7: Benchmark PyTracerLab against TracerLPM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="example_08.html#create-global-figures">Create Global Figures</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Example X: Modelling with PyTracerLab in the Bayesian Statistical Framework</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../development/index.html">Development</a><input aria-label="Toggle navigation of Development" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../development/devguide.html">Development</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Code Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/modules.html">PyTracerLab</a><input aria-label="Toggle navigation of PyTracerLab" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/PyTracerLab.html">PyTracerLab package</a><input aria-label="Toggle navigation of PyTracerLab package" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/PyTracerLab.gui.html">PyTracerLab.gui package</a><input aria-label="Toggle navigation of PyTracerLab.gui package" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.gui.app.html">PyTracerLab.gui.app module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.gui.controller.html">PyTracerLab.gui.controller module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.gui.database.html">PyTracerLab.gui.database module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.gui.main_window.html">PyTracerLab.gui.main_window module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.gui.state.html">PyTracerLab.gui.state module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/PyTracerLab.model.html">PyTracerLab.model package</a><input aria-label="Toggle navigation of PyTracerLab.model package" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.model.model.html">PyTracerLab.model.model module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.model.registry.html">PyTracerLab.model.registry module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.model.solver.html">PyTracerLab.model.solver module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/PyTracerLab.model.units.html">PyTracerLab.model.units module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/examples/example_09.ipynb.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="example-x-modelling-with-pytracerlab-in-the-bayesian-statistical-framework">
+<h1>Example X: Modelling with PyTracerLab in the Bayesian Statistical Framework<a class="headerlink" href="#example-x-modelling-with-pytracerlab-in-the-bayesian-statistical-framework" title="Link to this heading">¶</a></h1>
+<p>Here we show how to use the PyTracerLab package to perform a basic standard application of lumped parameter models (see Examples 1 and 2), but using another synthetically generated dataset. As in Example 2, we stay in a Bayesian statistical framework using a Markov-chain Monte Carlo sampler. The data, however, is not generated with a Lumped Parameter Model anymore - so we don’t expect our model to match the data perfectly and we don’t expect our model to recover some “true” parameters. We still know the process that generated the data but this process is not parameterized in the same way as our Lumped Parameter Models; it is a moderately complex MODFLOW model. The observations we consider here reflect average tracer concentration in river water. Tracer enters the system via recharge (bell-shaped pulse over a 50-year period, similar to the real tritium input) and has the same decay coefficient as tritium. Tracer-free water also enters the system via an infiltration well.</p>
+<section id="conceptualizing-the-problem-for-lpms">
+<h2>Conceptualizing the Problem for LPMs<a class="headerlink" href="#conceptualizing-the-problem-for-lpms" title="Link to this heading">¶</a></h2>
+<p>We know that there is an infiltration well in our system that supplies tracer-free water. We can model such a contribution by adding a model unit that has a fixed, very large mean residence time (e.g., 500 years). We even know the flow rate with which the well infiltrates water - but we do not know the fraction of well water in river water. So we have to consider a model with at least two components: one component represent the tracer-free well water, the other component represents the actual system. Because we do not know the mixing ratio of the components, we have to consider several different scenarios of mixing ratios.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">PyTracerLab.model</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ism</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="load-synthetic-observation-data">
+<h2>1. Load (Synthetic) Observation Data<a class="headerlink" href="#load-synthetic-observation-data" title="Link to this heading">¶</a></h2>
+<p>See the PyTracerLab Paper on how this data is generated. The data generating model is described in more detail in <a class="reference external" href="https://doi.org/10.1029/2025WR041972">Rudolph et al. (2025)</a>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># load input series</span>
+<span class="c1"># this would be the tracer concentration in precipitation or recharge in a</span>
+<span class="c1"># practical problem</span>
+<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;input_monthly_modflow.csv&quot;</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="p">,</span>
+    <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">,</span>
+    <span class="n">dtype</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;&lt;U7&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+    <span class="n">skip_header</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+
+<span class="n">timestamps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">r</span><span class="s2">&quot;%Y-%m&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+<span class="n">input_series</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+
+<span class="c1"># load observation series</span>
+<span class="c1"># this would be the measured tracer concentration in groudnwater in a</span>
+<span class="c1"># practical problem</span>
+<span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;obs_monthly_modflow.csv&quot;</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span>
+    <span class="n">file_name</span><span class="p">,</span>
+    <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">,</span>
+    <span class="n">dtype</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;&lt;U7&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+    <span class="n">skip_header</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+
+<span class="n">timestamps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">r</span><span class="s2">&quot;%Y-%m&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+<span class="n">obs_series</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">### plot input series, output series, and observations</span>
+
+<span class="c1"># get observation timesteps</span>
+<span class="n">timesteps</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">year</span> <span class="o">+</span> <span class="n">t</span><span class="o">.</span><span class="n">month</span> <span class="o">/</span> <span class="mf">12.0</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">timestamps</span><span class="p">]</span>
+
+<span class="c1"># create figure</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="c1"># plot input series</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+    <span class="n">timesteps</span><span class="p">,</span>
+    <span class="n">input_series</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Tracer Input&quot;</span><span class="p">,</span>
+    <span class="n">c</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span>
+<span class="p">)</span>
+<span class="c1"># plot observations</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+    <span class="n">timesteps</span><span class="p">,</span>
+    <span class="n">obs_series</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Observations&quot;</span><span class="p">,</span>
+    <span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span>
+    <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span>
+    <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">timesteps</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">timesteps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">105.</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time [months]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Tracer concentration [-]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/264eaa2f01f83159d822868f4194979271594984d75be78fae51eafd3d16b2eb.png" src="../_images/264eaa2f01f83159d822868f4194979271594984d75be78fae51eafd3d16b2eb.png" />
+</div>
+</div>
+</section>
+<section id="set-up-models-run-mcmc-for-model-parameters">
+<h2>2. Set up Models, Run MCMC for Model Parameters<a class="headerlink" href="#set-up-models-run-mcmc-for-model-parameters" title="Link to this heading">¶</a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">run_mixing_fraction</span><span class="p">(</span><span class="n">em_fraction</span><span class="p">):</span>
+    <span class="n">t_half</span> <span class="o">=</span> <span class="mf">12.3</span> <span class="o">*</span> <span class="mf">12.0</span>
+    <span class="n">lambda_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">t_half</span>
+
+    <span class="c1">### define model (use the same structure / units as the true model)</span>
+    <span class="c1"># time step is 1 month</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">ism</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span>
+        <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">lambda_</span><span class="o">=</span><span class="n">lambda_</span><span class="p">,</span>
+        <span class="n">input_series</span><span class="o">=</span><span class="n">input_series</span><span class="p">,</span>
+        <span class="n">target_series</span><span class="o">=</span><span class="n">obs_series</span><span class="p">,</span>
+        <span class="n">steady_state_input</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_warmup_half_lives</span><span class="o">=</span><span class="mi">2</span>
+    <span class="p">)</span>
+
+    <span class="c1"># add an exponential-flow unit</span>
+    <span class="c1"># define the initial model parameters for inference</span>
+    <span class="n">em_mtt_init</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">2</span> <span class="c1"># 1 year</span>
+
+    <span class="n">m</span><span class="o">.</span><span class="n">add_unit</span><span class="p">(</span>
+        <span class="n">ism</span><span class="o">.</span><span class="n">EMUnit</span><span class="p">(</span><span class="n">mtt</span><span class="o">=</span><span class="n">em_mtt_init</span><span class="p">),</span>
+        <span class="n">fraction</span><span class="o">=</span><span class="n">em_fraction</span><span class="p">,</span> <span class="c1"># fraciton of the overall response</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="p">[(</span><span class="mf">12.</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">12.0</span> <span class="o">*</span> <span class="mf">1000.</span><span class="p">)],</span>
+        <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;em&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># add an piston-flow unit</span>
+    <span class="c1"># define the initial model parameters for inference</span>
+    <span class="n">pm_mtt_init</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">500</span> <span class="c1"># 500 years, tracer-free water</span>
+    <span class="n">m</span><span class="o">.</span><span class="n">add_unit</span><span class="p">(</span>
+        <span class="n">ism</span><span class="o">.</span><span class="n">PMUnit</span><span class="p">(</span><span class="n">mtt</span><span class="o">=</span><span class="n">pm_mtt_init</span><span class="p">),</span>
+        <span class="n">fraction</span><span class="o">=</span><span class="mi">1</span> <span class="o">-</span> <span class="n">em_fraction</span><span class="p">,</span> <span class="c1"># 100 percent of the overall response</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="p">[(</span><span class="mf">12.</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">12.0</span> <span class="o">*</span> <span class="mf">1000.</span><span class="p">)],</span>
+        <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;pm&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># fix mtt of pm</span>
+    <span class="n">m</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="s2">&quot;pm.mtt&quot;</span><span class="p">)</span>
+
+    <span class="c1"># create a solver</span>
+    <span class="n">solver</span> <span class="o">=</span> <span class="n">ism</span><span class="o">.</span><span class="n">Solver</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+    <span class="c1"># run DREAM</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">solver</span><span class="o">.</span><span class="n">dream_sample</span><span class="p">(</span>
+        <span class="n">n_samples</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="c1"># effective samples after burn-in and thinning</span>
+        <span class="n">burn_in</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span>
+        <span class="n">thin</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">n_chains</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">n_diff_pairs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">cr</span><span class="o">=</span><span class="p">[</span><span class="n">i</span> <span class="o">/</span> <span class="mi">10</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">)],</span>
+        <span class="n">gamma_jitter</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">jitter</span><span class="o">=</span><span class="mf">1.e-5</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="mi">123456</span><span class="p">,</span>
+        <span class="n">return_sim</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">set_model_state</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="c1"># plot chains to inspect convergence</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples_chain&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples_chain&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples_chain&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples_chain&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">ax</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples_chain&quot;</span><span class="p">][</span><span class="n">j</span><span class="p">,</span> <span class="p">:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="mf">12.</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">.5</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+        <span class="n">ax</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">param_keys</span><span class="p">(</span><span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="n">i</span><span class="p">])</span>
+        <span class="n">ax</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples_chain&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ax</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Steps&quot;</span><span class="p">)</span>
+
+    <span class="c1"># print gelman rubin convergence statistics</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;gelman_rubin&quot;</span><span class="p">])</span>
+
+    <span class="c1"># get travel time distributions</span>
+    <span class="n">step_limit</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">1000</span>
+    <span class="c1"># iterate over samples</span>
+    <span class="n">age_dists</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples&quot;</span><span class="p">]</span>
+    <span class="c1"># get random subset</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;samples&quot;</span><span class="p">]:</span>
+        <span class="c1"># set model parameters</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">param_keys</span><span class="p">(</span><span class="n">free_only</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">sample</span><span class="p">):</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">set_param</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># get age distribution</span>
+        <span class="n">age_distributions</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get_age_distributions</span><span class="p">(</span><span class="n">n_steps</span><span class="o">=</span><span class="n">step_limit</span><span class="p">)</span>
+        <span class="n">age_dists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">age_distributions</span><span class="p">[</span><span class="s2">&quot;fractions&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">age_distributions</span><span class="p">[</span><span class="s2">&quot;distributions&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> \
+            <span class="n">age_distributions</span><span class="p">[</span><span class="s2">&quot;fractions&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">age_distributions</span><span class="p">[</span><span class="s2">&quot;distributions&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">res</span><span class="p">,</span> <span class="n">age_dists</span><span class="p">,</span> <span class="n">m</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">.35</span><span class="p">,</span> <span class="mf">.65</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([0.35 , 0.425, 0.5  , 0.575, 0.65 ])
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">results</span><span class="p">,</span> <span class="n">age_distributions</span><span class="p">,</span> <span class="n">models</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+
+<span class="n">mixing_ratios</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">.35</span><span class="p">,</span> <span class="mf">.65</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span> <span class="c1"># np.linspace(.45, .5, 3)</span>
+
+<span class="k">for</span> <span class="n">fraction</span> <span class="ow">in</span> <span class="n">mixing_ratios</span><span class="p">:</span>
+    <span class="n">r_</span><span class="p">,</span> <span class="n">a_</span><span class="p">,</span> <span class="n">m_</span> <span class="o">=</span> <span class="n">run_mixing_fraction</span><span class="p">(</span><span class="n">fraction</span><span class="p">)</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r_</span><span class="p">)</span>
+    <span class="n">age_distributions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a_</span><span class="p">)</span>
+    <span class="n">models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m_</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;em.mtt&#39;: 1.0007227597768051}
+{&#39;em.mtt&#39;: 1.0045099640221042}
+{&#39;em.mtt&#39;: 1.044586280057089}
+{&#39;em.mtt&#39;: 1.0016811375079617}
+{&#39;em.mtt&#39;: 1.0034975046278718}
+</pre></div>
+</div>
+<img alt="../_images/e65a98414eb7d8fb2d181e9e74519d66769fcb5972a3575cfb9a8224b5460a29.png" src="../_images/e65a98414eb7d8fb2d181e9e74519d66769fcb5972a3575cfb9a8224b5460a29.png" />
+<img alt="../_images/7211cbcfbc470ce430843de5ad10ec865fec97cca1da8bb9fd99e7931917bb96.png" src="../_images/7211cbcfbc470ce430843de5ad10ec865fec97cca1da8bb9fd99e7931917bb96.png" />
+<img alt="../_images/dccd677b6d8b461e4e805041fcf398e17c3f2de6ca871c031ab3036617917bfb.png" src="../_images/dccd677b6d8b461e4e805041fcf398e17c3f2de6ca871c031ab3036617917bfb.png" />
+<img alt="../_images/64a3e0b3e3aa46112b53acad12fb3bfeea0199e0360b618402106b6dd55a4d28.png" src="../_images/64a3e0b3e3aa46112b53acad12fb3bfeea0199e0360b618402106b6dd55a4d28.png" />
+<img alt="../_images/0ab9764594aabefeb3b8da677239b31ba4ba60414746df75f5037cd680b54b65.png" src="../_images/0ab9764594aabefeb3b8da677239b31ba4ba60414746df75f5037cd680b54b65.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">nse</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">sim</span><span class="p">):</span>
+    <span class="n">obs_</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">sim_</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">obs_</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">sim_</span><span class="p">)</span>
+    <span class="n">resid</span> <span class="o">=</span> <span class="n">sim_</span> <span class="o">-</span> <span class="n">obs_</span>
+    <span class="n">dev</span> <span class="o">=</span> <span class="n">obs_</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">obs_</span><span class="p">)</span>
+    <span class="n">nse_</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dev</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">nse_</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># load modflow travel times from csv</span>
+<span class="n">tts_mf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;tts_weights_modflow.csv&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="n">tts_mf</span><span class="p">[</span><span class="s2">&quot;tts&quot;</span><span class="p">]</span> <span class="o">/=</span> <span class="mf">30.</span>
+<span class="n">tts_mf</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>tts</th>
+      <th>weights</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>59.99600</td>
+      <td>0.000344</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>59.99600</td>
+      <td>0.000344</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>59.99600</td>
+      <td>0.000344</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>59.99600</td>
+      <td>0.000344</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>19.33943</td>
+      <td>0.000344</td>
+    </tr>
+  </tbody>
+</table>
+</div></div></div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
+                       <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;height_ratios&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">],</span> <span class="s2">&quot;hspace&quot;</span><span class="p">:</span> <span class="mf">.5</span><span class="p">,</span> <span class="s2">&quot;wspace&quot;</span><span class="p">:</span> <span class="mf">.1</span><span class="p">},</span>
+                       <span class="n">sharey</span><span class="o">=</span><span class="s2">&quot;row&quot;</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="s2">&quot;row&quot;</span><span class="p">)</span>
+
+<span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">end</span> <span class="o">=</span> <span class="mi">900</span>
+
+<span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;limegreen&quot;</span><span class="p">,</span> <span class="s2">&quot;royalblue&quot;</span><span class="p">,</span> <span class="s2">&quot;darkorange&quot;</span><span class="p">,</span> <span class="s2">&quot;black&quot;</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)):</span>
+    <span class="c1"># plot ssimulations</span>
+    <span class="n">sim_data</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;sims&quot;</span><span class="p">]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+        <span class="n">timestamps</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span>
+        <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span>
+        <span class="n">c</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+        <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;-&quot;</span><span class="p">,</span>
+        <span class="n">lw</span><span class="o">=</span><span class="mf">2.</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="sa">fr</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mixing_ratios</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">% EM, &quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> \
+            <span class="sa">fr</span><span class="s2">&quot;$ NSE $ = </span><span class="si">{</span><span class="n">nse</span><span class="p">(</span><span class="n">obs_series</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span><span class="w"> </span><span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">])</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span>
+        <span class="n">timestamps</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span>
+        <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">],</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># plot age distributions</span>
+    <span class="n">step_limit</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">100</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="mf">1.</span>
+
+    <span class="c1"># integrate age distributions to check area integrates to 1</span>
+    <span class="c1"># use trapezoidal rule</span>
+    <span class="n">integrals</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">age_dists_</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">age_distributions</span><span class="p">[</span><span class="n">i</span><span class="p">])):</span>
+        <span class="n">I</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapezoid</span><span class="p">(</span><span class="n">age_distributions</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">][:</span><span class="n">step_limit</span><span class="p">],</span> <span class="n">dx</span><span class="o">=</span><span class="n">dt</span><span class="p">)</span>
+        <span class="n">age_dists_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">age_distributions</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">][:</span><span class="n">step_limit</span><span class="p">]</span> <span class="o">/</span> <span class="n">I</span><span class="p">)</span>
+        <span class="n">integrals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">integrals</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">integrals</span><span class="p">))</span>
+
+    <span class="n">t_plot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">step_limit</span> <span class="o">*</span> <span class="n">dt</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span> <span class="c1"># years</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+        <span class="n">t_plot</span><span class="p">,</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">age_dists_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span>
+        <span class="n">c</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+        <span class="n">lw</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span>
+        <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;-&quot;</span><span class="p">,</span>
+        <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="sa">fr</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mixing_ratios</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">% EM&quot;</span>
+    <span class="p">)</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span>
+        <span class="n">t_plot</span><span class="p">,</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">age_dists_</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">age_dists_</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mf">.1</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="p">)</span>
+
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+    <span class="n">timestamps</span><span class="p">,</span> <span class="n">obs_series</span><span class="p">,</span>
+    <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">,</span>
+    <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+    <span class="n">zorder</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">lw</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Obs.&quot;</span>
+<span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">handlelength</span><span class="o">=</span><span class="mf">1.</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">timestamps</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">timestamps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Concentration $ [-] $&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Simluated and Observed Concentrations&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+
+<span class="c1"># _ = ax[1].hist(</span>
+<span class="c1">#     tts_mf[&quot;tts&quot;] / 30.,</span>
+<span class="c1">#     weights=tts_mf[&quot;weights&quot;],</span>
+<span class="c1">#     bins=100,</span>
+<span class="c1">#     color=&quot;k&quot;,</span>
+<span class="c1">#     alpha=1.,</span>
+<span class="c1">#     zorder=1000,</span>
+<span class="c1">#     density=True,</span>
+<span class="c1">#     histtype=&quot;step&quot;,</span>
+<span class="c1">#     lw=1.5, ls=&quot;--&quot;,</span>
+<span class="c1">#     label=&quot;MODPATH&quot;</span>
+<span class="c1"># )</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">tts_mf</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s2">&quot;tts&quot;</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="s2">&quot;weights&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">step_limit</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">2.</span><span class="p">,</span> <span class="n">bw_adjust</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;MODFLOW&quot;</span><span class="p">)</span>
+
+<span class="c1"># _ = ax[1].hist(</span>
+<span class="c1">#     tts_mf[&quot;tts&quot;] / 30.,</span>
+<span class="c1">#     weights=tts_mf[&quot;weights&quot;],</span>
+<span class="c1">#     bins=100,</span>
+<span class="c1">#     color=&quot;w&quot;,</span>
+<span class="c1">#     alpha=1.,</span>
+<span class="c1">#     zorder=1000,</span>
+<span class="c1">#     density=True,</span>
+<span class="c1">#     histtype=&quot;step&quot;,</span>
+<span class="c1">#     lw=1.5, ls=&quot;--&quot;,</span>
+<span class="c1">#     label=&quot;MODPATH&quot;</span>
+<span class="c1"># )</span>
+
+<span class="c1"># the xticks of the age distribution plot are in months</span>
+<span class="c1"># we want them in years</span>
+<span class="n">xmax</span> <span class="o">=</span> <span class="n">step_limit</span> <span class="c1"># 250 years</span>
+<span class="n">step_years</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="mi">12</span> <span class="o">*</span> <span class="n">step_years</span><span class="p">))</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">xmax</span> <span class="o">/</span> <span class="mi">12</span><span class="p">,</span> <span class="n">step_years</span><span class="p">,</span> <span class="nb">int</span><span class="p">))</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Residence Time $ [a] $&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Fraction $ [-] $&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Inferred and Observed Residence Time Distributions&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+
+<span class="c1"># ax[1].set_yscale(&quot;log&quot;)</span>
+<span class="c1"># ax[1].set_ylim(1e-5)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;modflow_PyTracerLab.png&quot;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>0.34222592261113316 0.00614455446109455
+0.3855271223734189 0.024796749860033166
+0.33098806501063355 0.09446046973423981
+0.18774220839037972 0.0925718751274217
+0.14247340502611522 0.05143481341824395
+</pre></div>
+</div>
+<img alt="../_images/0af0189b85b331b99b45ce674d7c933773c6a77bccb0828d21fd11c98590ea59.png" src="../_images/0af0189b85b331b99b45ce674d7c933773c6a77bccb0828d21fd11c98590ea59.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="mi">3000</span><span class="o">/</span><span class="mi">13603</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>0.22053958685584063
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../development/index.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Development</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="example_08.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Example 7: Benchmark PyTracerLab against TracerLPM</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Example X: Modelling with PyTracerLab in the Bayesian Statistical Framework</a><ul>
+<li><a class="reference internal" href="#conceptualizing-the-problem-for-lpms">Conceptualizing the Problem for LPMs</a></li>
+<li><a class="reference internal" href="#load-synthetic-observation-data">1. Load (Synthetic) Observation Data</a></li>
+<li><a class="reference internal" href="#set-up-models-run-mcmc-for-model-parameters">2. Set up Models, Run MCMC for Model Parameters</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

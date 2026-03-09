@@ -1,7 +1,0 @@
-ISOSIMpy.gui.database module
-============================
-
-.. automodule:: ISOSIMpy.gui.database
-   :members:
-   :show-inheritance:
-   :undoc-members:

@@ -11,4 +11,7 @@ example_03
 example_04
 example_05
 example_06
+example_07
+example_08
+example_09
 ```

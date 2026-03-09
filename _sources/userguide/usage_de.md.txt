@@ -1,3 +1,3 @@
-# Verwendung von ISOSIMpy
+# Verwendung von PyTracerLab
 
 ## Verwendung der Grafischen Benutzeroberfläche

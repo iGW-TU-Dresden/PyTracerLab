@@ -1,18 +1,18 @@
-# ISOSIMpy
-ISOSIMpy is an open-source Python package and graphical user interface (GUI) for the analysis of groundwater residence time distributions using lumped parameter models.
+# PyTracerLab
+PyTracerLab is an open-source Python package and graphical user interface (GUI) for the analysis of groundwater residence time distributions using lumped parameter models.
 
 ::::{grid} 2
 :::{grid-item-card}  User Guide
 :link: userguide/usage
 :link-type: doc
 
-User guide on installation, usage, and the basic concepts of ISOSIMpy.
+User guide on installation, usage, and the basic concepts of PyTracerLab.
 :::
 :::{grid-item-card}  Examples
 :link: examples/example_01
 :link-type: doc
 
-Examples of ISOSIMpy in action.
+Examples of PyTracerLab in action.
 :::
 ::::
 
@@ -21,21 +21,21 @@ Examples of ISOSIMpy in action.
 :link: api/modules
 :link-type: doc
 
-ISOSIMpy code reference.
+PyTracerLab code reference.
 :::
 :::{grid-item-card}  Development
 :link: development/devguide
 :link-type: doc
 
-ISOSIMpy development guide.
+PyTracerLab development guide.
 :::
 ::::
 
-This webpage provides the package documentation, user guides, and examples. The package is hosted on [GitHub](https://github.com/iGW-TU-Dresden/ISOSIMpy), where you can also find the executable that contains the GUI. The package can also be found on [PyPI](https://pypi.org/project/ISOSIMpy/). To install the Python package, simply
+This webpage provides the package documentation, user guides, and examples. The package is hosted on [GitHub](https://github.com/iGW-TU-Dresden/PyTracerLab), where you can also find the executable that contains the GUI. The package can also be found on [PyPI](https://pypi.org/project/PyTracerLab/). To install the Python package, simply
 
-`pip install ISOSIMpy`
+`pip install PyTracerLab`
 
-To use the GUI, the Python package does not need to be installed. You can simply download and use the latest version from [GitHub](https://github.com/iGW-TU-Dresden/ISOSIMpy/releases) (look for the ISOSIMpy-vX.X.X.exe in any release).
+To use the GUI, the Python package does not need to be installed. You can simply download and use the latest version from [GitHub](https://github.com/iGW-TU-Dresden/PyTracerLab/releases) (look for the PyTracerLab-vX.X.X.exe in any release).
 
 ```{toctree}
 :maxdepth: 4
