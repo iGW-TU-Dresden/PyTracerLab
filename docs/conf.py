@@ -31,6 +31,13 @@ autodoc_mock_imports = ["PyQt5", "numpy", "scipy", "matplotlib"]
 
 autosummary_generate = True
 autodoc_default_options = {"members": True, "undoc-members": False, "show-inheritance": False}
+# Use fully qualified paths for type-hint cross references to avoid
+# ambiguous short names like "Model" and "Unit".
+autodoc_typehints_format = "fully-qualified"
+autodoc_type_aliases = {
+    "Model": "PyTracerLab.model.model.Model",
+    "Unit": "PyTracerLab.model.units.Unit",
+}
 
 napoleon_google_docstring = False  # True if using Google style
 napoleon_numpy_docstring = True  # True if using NumPy style
@@ -83,6 +90,6 @@ autosummary_imported_members = False
 # Disambiguate short type names in NumPy-style docstrings
 napoleon_type_aliases = {
     "Unit": "PyTracerLab.model.units.Unit",
-    "Model": "PyTracerLab.model.Model",  # prefer public alias to avoid ambiguity
+    "Model": "PyTracerLab.model.model.Model",
     "Solver": "PyTracerLab.model.solver.Solver",
 }
