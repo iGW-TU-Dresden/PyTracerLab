@@ -9,8 +9,8 @@
 
 <img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/logo.png" width="400">
 
-[!IMPORTANT]
-PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
+> [!IMPORTANT]
+> PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
 
 # PyTracerLab
 
