@@ -9,11 +9,16 @@
 
 <img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/logo.png" width="400">
 
+[!IMPORTANT]
+PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
+
 # PyTracerLab
 
 Lumped parameter groundwater age simulations with a simple user interface - in Python.
 
 PyTracerLab is an open-source framework for the analysis of groundwater residence time distributions with lumped parameter models. PyTracerLab is not only usable as a Python package but is also released as standalone application with a graphical user interface (GUI). The GUI closes the gap in accessibility between complex Python-based workflows and practical applications outside Python.
+
+See the [documentation page](https://igw-tu-dresden.github.io/PyTracerLab/) for further information.
 
 ## Installing PyTracerLab
 
