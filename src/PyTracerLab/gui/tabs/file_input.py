@@ -132,7 +132,15 @@ class FileInputTab(QWidget):
 
     def _freq_changed(self, checked):
         self.state.is_monthly = checked
-        self._clear_manual_observations()
+        cleared = self._clear_loaded_series()
+        if cleared:
+            frequency = "monthly" if checked else "yearly"
+            QMessageBox.information(
+                self,
+                "Temporal Resolution Changed",
+                "Loaded input and observation data were cleared after changing "
+                f"the temporal resolution to {frequency}. Please reload compatible data.",
+            )
         self.changed.emit()
 
     def _tracer_changed(self):
@@ -218,6 +226,25 @@ class FileInputTab(QWidget):
             self.state.target_series = None
             self.lbl_tg.setText("No observation series selected")
         self._manual_target_active = False
+
+    def _clear_loaded_series(self) -> bool:
+        """Clear loaded input/output data after a frequency change."""
+        had_input = self.state.input_series is not None
+        had_target = (
+            self.state.target_series is not None
+            or bool(self.state.manual_observations)
+            or self._manual_target_active
+        )
+        if not had_input and not had_target:
+            return False
+
+        self.state.input_series = None
+        self.state.target_series = None
+        self.state.manual_observations.clear()
+        self._manual_target_active = False
+        self.lbl_in.setText("No input series selected")
+        self.lbl_tg.setText("No observation series selected")
+        return True
 
     def _active_tracer_names(self) -> List[str]:
         """Return the currently selected tracers for manual observation input."""
