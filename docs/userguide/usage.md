@@ -4,6 +4,12 @@ In general, using the Graphical User Interface (GUI) is stricter and less versat
 
 The GUI is structured into different **Tabs**. Those **Tabs** represent the typical workflow and should be considered in their present order. The individual **Tabs** are described in more detail below.
 
+> [!IMPORTANT]
+> PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
+
+> [!TIP]
+> To avoid issues when using the GUI, please perform all steps on all tabs in the order they are shown on the tab. For example, on the input tab, first specify the temporal resolution, then specify the tracer(s), then load corresponding input data, then load corresponding observation data.
+
 ### 1. The Input Tab
 In this **Tab**, datasets are loaded and the most basic settings for subsequent modelling are made.
 - select temporal resolution (yearly or monthly data in time series and model simulations)
