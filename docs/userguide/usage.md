@@ -4,11 +4,17 @@ In general, using the Graphical User Interface (GUI) is stricter and less versat
 
 The GUI is structured into different **Tabs**. Those **Tabs** represent the typical workflow and should be considered in their present order. The individual **Tabs** are described in more detail below.
 
-> [!IMPORTANT]
-> PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
+```{warning}
+PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
+```
 
-> [!TIP]
-> To avoid issues when using the GUI, please perform all steps on all tabs in the order they are shown on the tab. For example, on the input tab, first specify the temporal resolution, then specify the tracer(s), then load corresponding input data, then load corresponding observation data.
+```{warning}
+PyTracerLab does not support any pre-processing steps of input data at the moment. Precipitation weighting, gas exchange, etc. have to be performed by the user beforehand.
+```
+
+```{tip}
+To avoid issues when using the GUI, please perform all steps on all tabs in the order they are shown on the tab. For example, on the input tab, first specify the temporal resolution, then specify the tracer(s), then load corresponding input data, then load corresponding observation data.
+```
 
 ### 1. The Input Tab
 In this **Tab**, datasets are loaded and the most basic settings for subsequent modelling are made.
@@ -17,7 +23,9 @@ In this **Tab**, datasets are loaded and the most basic settings for subsequent 
 - select and load tracer input time series file using the file dialog that opens up; see [here](#preparing-datasets) for details on how to prepare tracer input time series files
 - select and load tracer observation time series file using the file dialog that opens up; see [here](#preparing-datasets) for details on how to prepare tracer observation time series files
 
-**Note**: the same units of tracer concentration should be used in both the tracer input data and the observation data. Units are not checked internally. **If units are not equal, unwanted and wrong results are obtained!**
+```{important}
+The same units of tracer concentration should be used in both the tracer input data and the observation data. Units are not checked internally. **If units are not equal, unwanted and wrong results are obtained!**
+```
 
 ![An image of the Input Tab.](tab01.png)
 
@@ -36,7 +44,9 @@ In this **Tab**, the different model parts are selected that are included in the
     - model warmup helps to remove unwanted irregularities that can appear in early phases of simulations; see [here](#model-warmup) for more details
     - in the case of two tracers, **the longer of the two half lives is used**
 
-**Note**: the steady state input value is interpreted in the same units that are used in the tracer input and observation datasets. Units are not checked internally. **If units are not equal, unwanted and wrong results are obtained!**
+```{important}
+The steady state input value is interpreted in the same units that are used in the tracer input and observation datasets. Units are not checked internally. **If units are not equal, unwanted and wrong results are obtained!**
+```
 
 ![An image of the Model Tab.](tab02.png)
 
@@ -46,7 +56,9 @@ In this **Tab**, settings are made regarding model parameters, how they are boun
     - the value that is specified for a parameter will be used as its value for simple simulation and as the initial value for calibration
     - parameters that are set to *fixed* remain at their specified value during calibration
 
-**Note**: parameter time units are always in months. Half lives are internally converted but other parameters having time units are interpreted in months.
+```{important}
+Parameter time units are always in years. Half lives are internally converted but other parameters having time units are interpreted in months.
+```
 
 ![An image of the Parameters Tab.](tab03.png)
 
@@ -113,6 +125,8 @@ Below, instead of "# Date, CTracer" or "# Date, CTracer1, CTracer2", any other d
 1996-01, nan, nan
 1996-02, 1.14, 0.01
 1996-03, nan, nan
+1996-04, 1.17, nan
+1996-05, nan, 0.05
 ...
 2009-11, nan, nan
 ```
@@ -158,6 +172,8 @@ Below, instead of "# Date, CTracer" or "# Date, CTracer1, CTracer2", any other d
 1996, nan, nan
 1997, 1.14, 0.01
 1998, nan, nan
+1998, 1.16, nan
+1998, nan, 0.06
 ...
 2009, nan, nan
 ```
