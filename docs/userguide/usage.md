@@ -30,6 +30,9 @@ The same units of tracer concentration should be used in both the tracer input d
 ![An image of the Input Tab.](tab01.png)
 
 ### 2. The Model Tab
+```{warning}
+Lumped parameter model structure should always be based on a conceptual understanding of the groundwater flow system under study. There is a lot of literature on this topic. If you have never heard of things like "Exponential Model", "Binary Mixing Model", or "Convolution Integral", you should read up on those topics before continuing. Lumped parameter models are easy to use but hard to master - corresponding modelling results should always be carefully interpreted before drawing any conclusion.
+```
 In this **Tab**, the different model parts are selected that are included in the simulations.
 - select up to 4 model units to be used in parallel
     - available units:
