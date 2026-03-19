@@ -220,11 +220,11 @@ class Controller(QObject):
         except Exception as e:
             self.error.emit(str(e))
 
-    def plot_age_distribution(self):
-        """Plot the age distribution and emit the figure."""
+    def plot_ttd(self):
+        """Plot the travel time distribution and emit the figure."""
         # at this point, the model is already built and has parameters assigned
-        # get age distributions
-        age_distributions = self.ml.get_age_distributions()
+        # get travel time distributions
+        tt_distributions = self.ml.get_ttds()
 
         # get highest mean travel time of model parameters
         mtts = []
@@ -236,13 +236,13 @@ class Controller(QObject):
         step_limit = int(mtt_max * 3)
         dt = self.ml.dt / 12.0  # convert to years
 
-        step_limit = int(min(step_limit, len(age_distributions["distributions"][0])))
+        step_limit = int(min(step_limit, len(tt_distributions["distributions"][0])))
         t_plot = [dt * i for i in range(step_limit)]
 
         # prepare full distribution from fracions
-        dist_plot = np.zeros(len(age_distributions["distributions"][0][:step_limit]))
-        for i, frac in enumerate(age_distributions["fractions"]):
-            dist_plot += frac * age_distributions["distributions"][i][:step_limit]
+        dist_plot = np.zeros(len(tt_distributions["distributions"][0][:step_limit]))
+        for i, frac in enumerate(tt_distributions["fractions"]):
+            dist_plot += frac * tt_distributions["distributions"][i][:step_limit]
 
         fig, ax = plt.subplots(figsize=(6, 3))
         ax.plot(t_plot, dist_plot, c="k", zorder=10000)
@@ -251,7 +251,7 @@ class Controller(QObject):
         ax.grid(True, alpha=0.3, zorder=0)
         ax.set_xlabel("Time [years]")
         ax.set_ylabel("Fraction [-]")
-        ax.set_title("Age distribution")
+        ax.set_title("Travel Time distribution")
 
         plt.tight_layout()
         plt.show()

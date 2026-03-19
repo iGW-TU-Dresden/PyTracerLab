@@ -313,7 +313,7 @@ class TracerTracerTab(QWidget):
             label = f"{int((1 - frac) * 100)}% Tracer-Free Water"
             ax.plot(x * frac, y * frac, c="k", lw=1.0, alpha=0.8 * frac, label=label)
 
-        plt.colorbar(scatter, ax=ax, label="Mean residence time [years]")
+        plt.colorbar(scatter, ax=ax, label="Mean travel time [years]")
 
         tracer1 = getattr(self.state, "tracer1", "Tracer 1")
         tracer2 = getattr(self.state, "tracer2", "Tracer 2") or "Tracer 2"

@@ -190,7 +190,7 @@ class EPMUnit(Unit):
         # same time step as the forcing. This is usually not what we want, so
         # we need to make sure the first time bin is 0.
 
-        # We don't need to shift the age grid here because we (almost surely)
+        # We don't need to shift the travel time grid here because we (almost surely)
         # avoid having non-zero response at h[0] anyways for the EPM.
 
         # base EPM shape
@@ -311,7 +311,7 @@ class ExEPMUnit(Unit):
         # same time step as the forcing. This is usually not what we want, so
         # we need to make sure the first time bin is 0.
 
-        # We don't need to shift the age grid here because we (almost surely)
+        # We don't need to shift the travel time grid here because we (almost surely)
         # avoid having non-zero response at h[0] anyways for the EPM.
 
         # base EPM shape
@@ -607,7 +607,7 @@ class PMUnit(Unit):
         # same time step as the forcing. This is usually not what we want, so
         # we need to make sure the first time bin is 0.
 
-        # We don't need to shift the age grid here because we (almost surely)
+        # We don't need to shift the travel time grid here because we (almost surely)
         # avoid having non-zero response at h[0] anyways for the PM.
 
         h = np.zeros_like(tau)

@@ -38,7 +38,7 @@ class SimulationTab(QWidget):
     calibrate_requested = pyqtSignal()
     report_requested = pyqtSignal(str)  # carries the file path
     savedata_requested = pyqtSignal(str)  # carries the file path
-    plot_age_distribution_requested = pyqtSignal()
+    plot_ttd_requested = pyqtSignal()
 
     def __init__(self, state, parent=None):
         super().__init__(parent)
@@ -101,9 +101,9 @@ class SimulationTab(QWidget):
         b_plot.setFixedSize(QSize(200, 40))
         b_plot.clicked.connect(self._plot)
 
-        b_plot_dist = QPushButton("Plot Age Distribution")
+        b_plot_dist = QPushButton("Plot Travel Time Distribution")
         b_plot_dist.setFixedSize(QSize(200, 40))
-        b_plot_dist.clicked.connect(self.plot_age_distribution_requested)
+        b_plot_dist.clicked.connect(self.plot_ttd_requested)
 
         # Report label
         lbl_report = QLabel("Report")

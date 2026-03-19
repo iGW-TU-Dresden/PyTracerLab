@@ -1,5 +1,5 @@
 # PyTracerLab
-PyTracerLab is an open-source Python package and graphical user interface (GUI) for the analysis of groundwater residence time distributions using lumped parameter models.
+PyTracerLab is an open-source Python package and graphical user interface (GUI) for the analysis of groundwater travel time distributions using lumped parameter models.
 
 ::::{grid} 2
 :::{grid-item-card}  User Guide

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "PyTracerLab"
 dynamic = ["version"]
-description = "Lumped parameter groundwater age simulations with a simple user interface - in Python"
+description = "Lumped parameter groundwater travel time simulations with a simple user interface - in Python"
 readme = "README.md"
 authors = [{ name = "Max G. Rudolph" }]
 license = { text = "MIT" }
@@ -25,6 +25,7 @@ classifiers = [
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",
   "Operating System :: Microsoft :: Windows :: Windows 10",
+  "Operating System :: Microsoft :: Windows :: Windows 11",
   "Typing :: Typed",
 ]
 

@@ -66,3 +66,6 @@ Solver parameters are generally set at robust defaults. They should only be chan
 ![An image of the Simulation Tab.](ex04.png)
 
 ![An Example Plot that Appears When Plotting Results.](ex07.png)
+
+## Perform Tracer-Tracer Analysis
+To perform analysis involving multiple tracers, the `Tracer-Tracer` tab of the GUI can be used. At the moment, the GUI is limited to the analysis of at most 2 tracers in parallel, this limitation does not exit with the Python package. After a model structure is specified (potentially involving multiple model units), tracer-tracer analysis performs a number of model simulations with different values of **one** mean travel time parameter - if more than one model units is used, one mean travel time parameter has to be specified that is changed during the analysis. In the present example, only one model unit is considered and only one mean travel time parameter exists in the model.

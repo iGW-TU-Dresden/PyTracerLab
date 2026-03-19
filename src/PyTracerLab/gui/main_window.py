@@ -51,9 +51,7 @@ class MainWindow(QWidget):
         t2.selection_changed.connect(t5.reset_results)
         t4.simulate_requested.connect(lambda: (t3.commit(), self.ctrl.simulate()))
         t4.calibrate_requested.connect(lambda: (t3.commit(), self.ctrl.calibrate()))
-        t4.plot_age_distribution_requested.connect(
-            lambda: (t3.commit(), self.ctrl.plot_age_distribution())
-        )
+        t4.plot_ttd_requested.connect(lambda: (t3.commit(), self.ctrl.plot_ttd()))
         t4.report_requested.connect(lambda fname: (t3.commit(), self.ctrl.write_report(fname)))
         t4.savedata_requested.connect(lambda fname: (t3.commit(), self.ctrl.save_data(fname)))
         t5.sweep_requested.connect(

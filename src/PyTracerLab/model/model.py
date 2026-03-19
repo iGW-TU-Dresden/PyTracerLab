@@ -342,21 +342,21 @@ class Model:
         if not (0.99 <= s <= 1.01):
             raise ValueError("Sum of unit fractions must be ~1.0.")
 
-    def get_age_distributions(self, n_steps: Optional[int] = None) -> List[np.ndarray]:
-        """Return age distributions for all units using current registry
+    def get_ttds(self, n_steps: Optional[int] = None) -> List[np.ndarray]:
+        """Return travel time distributions for all units using current registry
         values.
 
         Returns
         -------
         Dict
-            Dict of unit fractions and age distributions for all units.
-            Each age distribution is a numpy array with one element per
+            Dict of unit fractions and travel time distributions for all units.
+            Each travel time distribution is a numpy array with one element per
             time step. Time steps and time step units correspond to general
             model settings. Fractions can be used to determine a global
             model-impulse response from the unit-specific responses.
         """
-        # initialize age distribution dict for all units
-        age_dists = {"fractions": self.unit_fractions, "distributions": []}
+        # initialize travel time distribution dict for all units
+        tt_dists = {"fractions": self.unit_fractions, "distributions": []}
 
         if n_steps is None:
             # Determine number of time steps from input dimensionality
@@ -373,9 +373,9 @@ class Model:
             # is equal for all tracers in a model and just depends on the
             # unit
             h = unit.get_impulse_response(t, self.dt, 0.0, False)
-            age_dists["distributions"].append(h)
+            tt_dists["distributions"].append(h)
 
-        return age_dists
+        return tt_dists
 
     def simulate(self) -> np.ndarray:
         """Run the forward model using current registry values.
