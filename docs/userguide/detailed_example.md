@@ -68,4 +68,13 @@ Solver parameters are generally set at robust defaults. They should only be chan
 ![An Example Plot that Appears When Plotting Results.](ex07.png)
 
 ## Perform Tracer-Tracer Analysis
-To perform analysis involving multiple tracers, the `Tracer-Tracer` tab of the GUI can be used. At the moment, the GUI is limited to the analysis of at most 2 tracers in parallel, this limitation does not exit with the Python package. After a model structure is specified (potentially involving multiple model units), tracer-tracer analysis performs a number of model simulations with different values of **one** mean travel time parameter - if more than one model units is used, one mean travel time parameter has to be specified that is changed during the analysis. In the present example, only one model unit is considered and only one mean travel time parameter exists in the model.
+To perform analysis involving multiple tracers, the `Tracer-Tracer` tab of the GUI can be used. At the moment, the GUI is limited to the analysis of at most 2 tracers in parallel, this limitation does not exit with the Python package. After a model structure is specified (potentially involving multiple model units), tracer-tracer analysis performs a number of model simulations with different values of **one** mean travel time parameter - if more than one model units is used, one mean travel time parameter has to be specified that is changed during the analysis. In the present example, only one model unit is considered and only one mean travel time parameter exists in the model. For the different mean travel time parameter values (typically spanning a certain range, e.g., 1 to 50 years), the model is then simulated and the resulting time series of simulated concentrations is stored. In the last step of the analysis, it is possible to select an available observation date (from all available dates that have an observed value attached to it) for which a tracer-tracer plot can be generated. In this example, we perform the following steps:
+1. Select the `Mean Travel Time Parameter`, that should be changed during the analysis, from the list.
+2. Set the starting point and endpoint for the analysis as well as the total number of mean travel time values to use during the analysis. This defines the "sweep range".
+3. Run the "sweep" of different mean travel time values.
+4. Select an observation date from the list of available observation dates.
+5. Generate the tracer-tracer plot for this observation date.
+
+![An image of the Tracer-Tracer Tab.](ex05.png)
+
+![An Example Plot that Appears When Generating a Tracer-Tracer Plot.](ex06.png)

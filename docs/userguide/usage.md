@@ -75,6 +75,10 @@ In this **Tab**, simulations can be performed, model parameters can be calibrate
 - plot results of current simulation / calibrated model simulation
 - write a report including the calibrated parameters, error metrics, and other model details to a text file; uses a file dialog to store the report file
 
+```{tip}
+All plots that PyTracerLab generates can be interactively adapted in the plot-view. See the (matplotlib documentation)[https://matplotlib.org/stable/users/explain/figure/interactive.html] for more details on how to change plot appearance.
+```
+
 ![An image of the Simulation Tab.](tab04.png)
 
 ![An example plot after parameter inference (calibration) using an MCMC sampler; case of one tracer.](plot.png)
