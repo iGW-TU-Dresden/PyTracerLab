@@ -32,5 +32,5 @@ To use the GUI, the Python package does not need to be installed. You can simply
 
 We thank TU Dresden and HGN Beratungsgesellschaft mbH for the support.
 
-<img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/hgn_logo.svg" width="200">
-<img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/hgn_logo.svg" width="200">
+<img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/tud_logo.svg" width="150">
+<img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/hgn_logo.svg" width="150">
