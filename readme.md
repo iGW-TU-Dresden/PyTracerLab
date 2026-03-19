@@ -27,3 +27,10 @@ The package can be found on [PyPI](https://pypi.org/project/PyTracerLab/). To in
 `pip install PyTracerLab`
 
 To use the GUI, the Python package does not need to be installed. You can simply download and use the latest version from [the releases on GitHub](https://github.com/iGW-TU-Dresden/PyTracerLab/releases) (look for the PyTracerLab-vX.X.X.exe in any release).
+
+## Acknowledgment
+
+We thank TU Dresden and HGN Beratungsgesellschaft mbH for the support.
+
+<img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/hgn_logo.svg" width="200">
+<img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/hgn_logo.svg" width="200">
