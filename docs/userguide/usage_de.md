@@ -245,6 +245,25 @@ und Linux.
 ## Verwendung der grafischen Benutzeroberfläche
 Im Allgemeinen ist die Verwendung der grafischen Benutzeroberfläche (GUI) strikter und weniger vielseitig als die Verwendung des zugrunde liegenden Pakets. Konkret setzt die App eine bestimmte Struktur der Zeitreihendaten voraus, lässt sich nicht gut skalieren, um viele unterschiedliche Datensätze zu verarbeiten, und bietet nur begrenzte Nachbearbeitungsfunktionen. Dennoch ist die GUI eine sehr benutzerfreundliche Option, um Analysen von Grundwasserlaufzeitverteilungen mit Lumped-Parameter-Modellen durchzuführen.
 
+```{important}
+Die GUI kann nur Eingangs- und Beobachtungsdateien einlesen, die einer bestimmten Struktur folgen: CSV-Dateien mit Kommas als Trennzeichen, eine erste Zeile, die als Kopfzeile übersprungen wird, eine Datumsspalte im Format `YYYY-MM` (monatliche Daten) oder `YYYY` (jährliche Daten), eine oder zwei Tracer-Spalten, Eingangs- und Beobachtungsreihen derselben Länge sowie `nan` für fehlende Beobachtungen. Eine ausführliche Beschreibung der erforderlichen Dateistruktur finden Sie unter [Vorbereitung der Datensätze](#preparing-datasets-de).
+```
+
+(example-datasets-de)=
+### Beispieldateien
+Die folgenden Beispieldateien können heruntergeladen und direkt in die GUI geladen werden. Sie decken verschiedene Anwendungsfälle hinsichtlich der zeitlichen Auflösung und der Anzahl der Tracer ab. Wählen Sie beim Laden einer Datei auf dem Eingabe-Tab die zeitliche Auflösung und den bzw. die Tracer, die zur Datei passen.
+
+| Eingangsdatei | Beobachtungsdatei | Auflösung | Tracer | Zeitraum | Hinweise |
+| --- | --- | --- | --- | --- | --- |
+| {download}`example_input_series_1tracer.csv <../examples/example_input_series_1tracer.csv>` | {download}`example_observation_series_1tracer.csv <../examples/example_observation_series_1tracer.csv>` | monatlich | 1 | 1960-01 – 2009-12 | |
+| {download}`example_input_series_2tracer.csv <../examples/example_input_series_2tracer.csv>` | {download}`example_observation_series_2tracer.csv <../examples/example_observation_series_2tracer.csv>` | monatlich | 2 (Tritium, Krypton-85) | 1900-01 – 1999-12 | verwendet im [detaillierten Beispiel](detailed_example_de.md) |
+| {download}`TracerLPM_benchmark_input_yearly.csv <../examples/TracerLPM_benchmark_input_yearly.csv>` | {download}`TracerLPM_benchmark_observations_yearly.csv <../examples/TracerLPM_benchmark_observations_yearly.csv>` | jährlich | 1 | 1850 – 2020 | TracerLPM-Benchmark |
+| {download}`3H_SF6_input.csv <../examples/3H_SF6_input.csv>` | {download}`3H_SF6_observations.csv <../examples/3H_SF6_observations.csv>` | jährlich | 2 (Tritium, SF6) | 1900 – 2020 | SF6 ist nicht in der Tracer-Liste der GUI enthalten; wählen Sie dafür *Stable tracer (no decay)* |
+| {download}`input_monthly_modflow.csv <../examples/input_monthly_modflow.csv>` | – | monatlich | 1 | 1970-01 – 2019-12 | keine Beobachtungsdatei; Beobachtungen über *Manual Observation Input* eingeben |
+| {download}`benchmark_input_monthly.csv <../examples/benchmark_input_monthly.csv>` | – | monatlich | 1 | 1960-01 – 1969-12 | Impulseingang zur Untersuchung der Modellantwort |
+| {download}`benchmark_input_yearly.csv <../examples/benchmark_input_yearly.csv>` | – | jährlich | 1 | 1960 – 1969 | Impulseingang zur Untersuchung der Modellantwort |
+
+### Aufbau der GUI
 Die GUI ist in verschiedene **Tabs** gegliedert. Diese **Tabs** repräsentieren den typischen Arbeitsablauf und sollten in ihrer vorliegenden Reihenfolge betrachtet werden. Die einzelnen **Tabs** werden im Folgenden ausführlicher beschrieben.
 
 ```{warning}
@@ -331,7 +350,7 @@ Alle Plots, die PyTracerLab erzeugt, können in der Plot-Ansicht interaktiv ange
 
 (preparing-datasets-de)=
 ## Vorbereitung der Datensätze
-Datensätze müssen auf eine bestimmte Weise vorbereitet werden, damit die App die Daten einlesen kann. Dateien müssen stets CSVs sein. Die Tracer-Eingangs- und Beobachtungszeitreihendaten müssen dieselbe Länge haben. Zeitstempel, die in der Tracer-Eingangsreihe vorhanden sind, für die aber keine Beobachtung verfügbar ist, müssen als fehlende Werte markiert werden (siehe unten). Es wird angenommen, dass die Zeitreihen keine Lücken aufweisen und vor der Verwendung in PyTracerLab entsprechend aufbereitet werden.
+Datensätze müssen auf eine bestimmte Weise vorbereitet werden, damit die App die Daten einlesen kann. Dateien müssen stets CSVs sein. Die Tracer-Eingangs- und Beobachtungszeitreihendaten müssen dieselbe Länge haben. Zeitstempel, die in der Tracer-Eingangsreihe vorhanden sind, für die aber keine Beobachtung verfügbar ist, müssen als fehlende Werte markiert werden (siehe unten). Es wird angenommen, dass die Zeitreihen keine Lücken aufweisen und vor der Verwendung in PyTracerLab entsprechend aufbereitet werden. Vollständige Beispieldateien mit dieser Struktur können unter [Beispieldateien](#example-datasets-de) heruntergeladen werden.
 
 Unten kann anstelle von „# Date, CTracer“ oder „# Date, CTracer1, CTracer2“ jede andere Beschreibung verwendet werden. **Die erste Zeile in der Datei wird beim Einlesen übersprungen!**
 

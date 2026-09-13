@@ -218,6 +218,25 @@ which works on macOS and Linux as well.
 ## Using the Graphical User Interface
 In general, using the Graphical User Interface (GUI) is stricter and less versatile than using the package it is built on. Specifically, the app assumes a certain structure of time series data, is not scalable well to handle many different datasets, and offers limited post-processing functionality. Nevertheless, the GUI is a highly user-friendly option to performing analysis of groundwater travel time distributions using lumped parameter models.
 
+```{important}
+The GUI can only read input and observation data files that follow a specific structure: CSV files with commas as separators, a first line that is skipped as a header, a date column in the format `YYYY-MM` (monthly data) or `YYYY` (yearly data), one or two tracer columns, input and observation series of the same length, and `nan` for missing observations. See [Preparing Datasets](#preparing-datasets) for a detailed description of the required file structure.
+```
+
+(example-datasets)=
+### Example Files
+The following example files can be downloaded and loaded directly into the GUI. They cover different use cases regarding temporal resolution and the number of tracers. When loading a file, select the temporal resolution and the tracer(s) that match the file on the Input Tab.
+
+| Input file | Observation file | Resolution | Tracers | Period | Notes |
+| --- | --- | --- | --- | --- | --- |
+| {download}`example_input_series_1tracer.csv <../examples/example_input_series_1tracer.csv>` | {download}`example_observation_series_1tracer.csv <../examples/example_observation_series_1tracer.csv>` | monthly | 1 | 1960-01 – 2009-12 | |
+| {download}`example_input_series_2tracer.csv <../examples/example_input_series_2tracer.csv>` | {download}`example_observation_series_2tracer.csv <../examples/example_observation_series_2tracer.csv>` | monthly | 2 (Tritium, Krypton-85) | 1900-01 – 1999-12 | used in the [detailed example](detailed_example.md) |
+| {download}`TracerLPM_benchmark_input_yearly.csv <../examples/TracerLPM_benchmark_input_yearly.csv>` | {download}`TracerLPM_benchmark_observations_yearly.csv <../examples/TracerLPM_benchmark_observations_yearly.csv>` | yearly | 1 | 1850 – 2020 | TracerLPM benchmark |
+| {download}`3H_SF6_input.csv <../examples/3H_SF6_input.csv>` | {download}`3H_SF6_observations.csv <../examples/3H_SF6_observations.csv>` | yearly | 2 (Tritium, SF6) | 1900 – 2020 | SF6 is not in the GUI tracer list; select *Stable tracer (no decay)* for it |
+| {download}`input_monthly_modflow.csv <../examples/input_monthly_modflow.csv>` | – | monthly | 1 | 1970-01 – 2019-12 | no observation file; enter observations via *Manual Observation Input* |
+| {download}`benchmark_input_monthly.csv <../examples/benchmark_input_monthly.csv>` | – | monthly | 1 | 1960-01 – 1969-12 | pulse input for inspecting the model response |
+| {download}`benchmark_input_yearly.csv <../examples/benchmark_input_yearly.csv>` | – | yearly | 1 | 1960 – 1969 | pulse input for inspecting the model response |
+
+### Structure of the GUI
 The GUI is structured into different **Tabs**. Those **Tabs** represent the typical workflow and should be considered in their present order. The individual **Tabs** are described in more detail below.
 
 ```{warning}
@@ -304,7 +323,7 @@ All plots that PyTracerLab generates can be interactively adapted in the plot-vi
 
 (preparing-datasets)=
 ## Preparing Datasets
-Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in PyTracerLab.
+Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in PyTracerLab. Complete example files that follow this structure can be downloaded in [Example Files](#example-datasets).
 
 Below, instead of "# Date, CTracer" or "# Date, CTracer1, CTracer2", any other description can be used. **The first line in the file is skipped when reading!**
 
