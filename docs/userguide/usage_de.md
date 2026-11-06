@@ -329,12 +329,14 @@ Zeiteinheiten von Parametern sind stets in Jahren. Halbwertszeiten werden intern
 
 ![Ein Bild des Parameter-Tabs.](tab03.png)
 
+(simulation-tab-de)=
 ### 4. Der Simulations-Tab
 In diesem **Tab** können Simulationen durchgeführt, Modellparameter automatisch kalibriert, Ergebnisse geplottet und Berichte erzeugt werden.
 - Durchführung einer Modellsimulation mit den aktuellen Parametern
 - Durchführung einer Modellkalibrierung
     - Auswahl eines Solvers
     - Änderung der Solver-Parameter (erfordert mindestens ein grundlegendes Verständnis der Solver)
+    - Festlegen der Messunsicherheit der Beobachtungen (gilt für alle Solver; siehe [Messunsicherheit](#measurement-uncertainty-de)); die aktuelle Einstellung wird unter der Schaltfläche *Edit Solver Parameters* angezeigt
     - Ausführung der automatischen Kalibrierung
 - Plotten der Ergebnisse der aktuellen Simulation / der kalibrierten Modellsimulation
 - Erstellung eines Berichts einschließlich der kalibrierten Parameter, Fehlermetriken und weiterer Modelldetails in einer Textdatei; verwendet einen Dateidialog zum Speichern der Berichtsdatei
@@ -372,7 +374,7 @@ PyTracerLab enthält die Eigenschaften der unterstützten Tracer (z. B. Halbwert
 - **Trennzeichen:** Komma, Semikolon, Tabulator oder Leerzeichen; wird automatisch erkannt. Dateien mit Semikolon, Tabulator oder Leerzeichen als Trennzeichen dürfen ein Dezimalkomma verwenden (`10,5`).
 - **Datum:** `YYYY`, `YYYY-MM`, `YYYY-MM-DD` (auch mit `/`), `DD.MM.YYYY`, `MM.YYYY` oder ein Dezimaljahr (z. B. `1985.5`). Eine Uhrzeit nach dem Datum wird ignoriert; eine reine Jahresangabe bezeichnet den 1. Januar dieses Jahres.
 - **Fehlende Werte:** leere Zelle, `nan`, `NA`, `n/a` oder `-`.
-- **Messunsicherheit (optional):** Eine Spalte mit dem Namen `<Tracer>_sd` (z. B. `3H_sd`) enthält die Messunsicherheit der Spalte `<Tracer>` als Standardabweichung, in derselben Einheit wie der Tracer.
+- **Messunsicherheit (optional):** Eine Spalte mit dem Namen `<Tracer>_sd` (z. B. `3H_sd`) enthält die Messunsicherheit der Spalte `<Tracer>` als Standardabweichung, in derselben Einheit wie der Tracer. Sie wird zur Gewichtung der Beobachtungen bei der Kalibrierung verwendet (siehe [Messunsicherheit](#measurement-uncertainty-de)).
 - **Einheiten:** Für einen Tracer muss in der Eingangs- und in der Beobachtungsdatei dieselbe Einheit verwendet werden. Einheiten werden nicht überprüft.
 - **Anzahl der Werte:** Es gibt keine feste Obergrenze für die Anzahl der Zeilen oder Beobachtungen.
 
@@ -444,6 +446,49 @@ model = lab.Model(
 ```
 
 Das Ergebnis von `read_series` enthält die Daten (`times`), die Werte (`values`), die Tracer-Namen aus der Kopfzeile (`tracers`), die Messunsicherheiten aus den `_sd`-Spalten (`uncertainty`) und den Zeitschritt (`step`). Details finden Sie in der {py:func}`API-Dokumentation <PyTracerLab.model.io.read_series>`.
+
+(measurement-uncertainty-de)=
+## Messunsicherheit
+Die Messunsicherheit der Beobachtungen bestimmt, wie stark jede Beobachtung bei der Kalibrierung gewichtet wird: Jedes Residuum (simulierter minus beobachteter Wert) wird durch die Standardabweichung σ der Beobachtung geteilt. Das ist besonders wichtig für Tracer, deren Werte sich über Größenordnungen erstrecken, wie z. B. Tritium. Mit einem einzigen σ für alle Beobachtungen dominieren die Beobachtungen mit den größten Werten (und den größten absoluten Abweichungen) die Kalibrierung.
+
+Die Messunsicherheit kann auf drei Arten angegeben werden:
+
+- **je Beobachtung** in den `_sd`-Spalten der Beobachtungsdatei (siehe [Dateistruktur](#preparing-datasets-de));
+- **absolut** als eine Standardabweichung je Tracer, in der Einheit des Tracers;
+- **relativ** als Prozentsatz des beobachteten Werts (z. B. 5 %).
+
+Werte aus der Beobachtungsdatei werden verwendet, wo sie angegeben sind; die absolute oder relative Unsicherheit gilt für alle übrigen Beobachtungen. Bleibt eine Beobachtung ohne Unsicherheit, meldet PyTracerLab dies, statt die Beobachtung zu ignorieren.
+
+Die Solver verwenden die Unsicherheit wie folgt:
+
+- **Differential Evolution und Least Squares** minimieren die quadrierten, durch σ geteilten Residuen. Ohne Angabe einer Unsicherheit werden alle Beobachtungen gleich gewichtet.
+- **MCMC und DREAM** verwenden eine Gauß'sche Likelihood mit den angegebenen Standardabweichungen, die als bekannt angenommen werden. Ohne Angabe einer Unsicherheit wird die Standardabweichung jedes Tracers als unbekannt behandelt und aus der Likelihood herausintegriert, d. h. sie wird effektiv aus der Abweichung zwischen Simulation und Beobachtungen geschätzt.
+
+```{note}
+Die mit MCMC oder DREAM ermittelte Parameterunsicherheit gilt nur unter der Annahme der gewählten Modellstruktur und der angegebenen Messunsicherheit. Beschreibt σ nur die analytische Unsicherheit, während das Modell die Beobachtungen innerhalb dieser Unsicherheit nicht wiedergeben kann, kann die Posterior-Verteilung zu schmal sein.
+```
+
+**In der GUI** wird die Messunsicherheit im [Simulations-Tab](#simulation-tab-de) unter *Edit Solver Parameters* → *Measurement uncertainty (all solvers)* festgelegt und gilt für alle Solver. Die aktuelle Einstellung wird unter der Schaltfläche *Edit Solver Parameters* angezeigt. Sind Unsicherheiten angegeben, zeigt der Ergebnis-Plot die Beobachtungen mit Fehlerbalken (± 1 σ).
+
+**In Python** akzeptieren alle Solver-Methoden `sigma` (absolute Standardabweichung: ein Wert, ein Wert je Tracer oder ein Wert je Beobachtung) und `sigma_rel` (relative Standardabweichung als Anteil des beobachteten Werts):
+
+```python
+solver = lab.Solver(model)
+
+# Unsicherheiten aus den _sd-Spalten der Beobachtungsdatei
+result = solver.dream_sample(n_samples=2000, sigma=obs.uncertainty)
+
+# 5 % des beobachteten Werts
+result = solver.dream_sample(n_samples=2000, sigma_rel=0.05)
+
+# aus der Datei, wo angegeben, sonst 5 % des beobachteten Werts
+result = solver.dream_sample(n_samples=2000, sigma=obs.uncertainty, sigma_rel=0.05)
+
+# ein absoluter Wert je Tracer (hier: zwei Tracer)
+best, sim = solver.differential_evolution(sigma=[1.0, 0.5])
+```
+
+Andere Unsicherheitsmodelle können berechnet und als `sigma` übergeben werden, z. B. eine absolute Unsicherheit von 0,3 TU kombiniert mit 5 % des beobachteten Werts: `sigma=np.sqrt(0.3**2 + (0.05 * obs.values) ** 2)`. Details finden Sie in der {py:class}`API-Dokumentation <PyTracerLab.model.solver.Solver>`.
 
 (model-warmup-de)=
 ## Modell-Warmlauf

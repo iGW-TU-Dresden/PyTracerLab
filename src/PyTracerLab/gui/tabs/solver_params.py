@@ -2,27 +2,68 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5.QtWidgets import (
+    QButtonGroup,
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
+    QHBoxLayout,
+    QLabel,
     QLineEdit,
+    QMessageBox,
+    QRadioButton,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from ..uncertainty import file_uncertainty
+from .file_input import _current_tracer_names
+
+
+def _int_edit(parent, lo: int, hi: int) -> QLineEdit:
+    edit = QLineEdit()
+    edit.setValidator(QIntValidator(lo, hi, parent))
+    edit.setAlignment(Qt.AlignRight)
+    return edit
+
+
+def _float_edit(parent, lo: float, hi: float, decimals: int, scientific: bool) -> QLineEdit:
+    edit = QLineEdit()
+    val = QDoubleValidator(parent)
+    val.setNotation(
+        QDoubleValidator.ScientificNotation if scientific else QDoubleValidator.StandardNotation
+    )
+    val.setDecimals(decimals)
+    val.setRange(lo, hi, decimals)
+    edit.setValidator(val)
+    edit.setAlignment(Qt.AlignRight)
+    return edit
+
+
+def _parse_float(edit: QLineEdit) -> Optional[float]:
+    """Float value of ``edit`` (decimal point or comma), ``None`` if empty/invalid."""
+    txt = edit.text().strip().replace(",", ".")
+    try:
+        return float(txt)
+    except ValueError:
+        return None
+
 
 class SolverParamsDialog(QDialog):
-    """Tabbed dialog for editing DE, Least Squares, and MCMC solver parameters.
+    """Dialog for editing solver parameters and the measurement uncertainty.
 
-    The dialog reads current values from ``state.solver_params`` and writes
-    back updated values on accept.
+    One tab per solver (DE, Least Squares, DREAM, MCMC) and, below the tabs,
+    the measurement uncertainty of the observations, which applies to all
+    solvers (see :mod:`PyTracerLab.gui.uncertainty`). The dialog reads current
+    values from the state and writes back updated values on accept.
     """
 
     def __init__(self, state, parent=None):
@@ -33,286 +74,78 @@ class SolverParamsDialog(QDialog):
         tabs = QTabWidget()
 
         # DE tab
-        self._de_widgets = {}
-
         de_box = QGroupBox("Differential Evolution")
         de_form = QFormLayout(de_box)
-
-        w_maxiter = QLineEdit()
-        maxiter_validator = QIntValidator(1, 1_000_000, self)
-        w_maxiter.setValidator(maxiter_validator)
-        w_maxiter.setAlignment(Qt.AlignRight)
-
-        w_popsize = QLineEdit()
-        popsize_validator = QIntValidator(1, 10_000, self)
-        w_popsize.setValidator(popsize_validator)
-        w_popsize.setAlignment(Qt.AlignRight)
-
-        w_mut_lo = QLineEdit()
-        mut_lo_val = QDoubleValidator(self)
-        mut_lo_val.setNotation(QDoubleValidator.StandardNotation)
-        mut_lo_val.setDecimals(4)
-        mut_lo_val.setRange(0.0, 3.0, 4)
-        w_mut_lo.setValidator(mut_lo_val)
-        w_mut_lo.setAlignment(Qt.AlignRight)
-
-        w_mut_hi = QLineEdit()
-        mut_hi_val = QDoubleValidator(self)
-        mut_hi_val.setNotation(QDoubleValidator.StandardNotation)
-        mut_hi_val.setDecimals(4)
-        mut_hi_val.setRange(0.0, 3.0, 4)
-        w_mut_hi.setValidator(mut_hi_val)
-        w_mut_hi.setAlignment(Qt.AlignRight)
-
-        w_recomb = QLineEdit()
-        recomb_val = QDoubleValidator(self)
-        recomb_val.setNotation(QDoubleValidator.StandardNotation)
-        recomb_val.setDecimals(4)
-        recomb_val.setRange(0.0, 1.0, 4)
-        w_recomb.setValidator(recomb_val)
-        w_recomb.setAlignment(Qt.AlignRight)
-
-        w_tol = QLineEdit()
-        tol_val = QDoubleValidator(self)
-        tol_val.setNotation(QDoubleValidator.StandardNotation)
-        tol_val.setDecimals(9)
-        tol_val.setRange(1e-12, 1.0, 9)
-        w_tol.setValidator(tol_val)
-        w_tol.setAlignment(Qt.AlignRight)
-
-        de_sigma1 = QLineEdit()
-        de_sigma2 = QLineEdit()
-        sigma_val_de = QDoubleValidator(self)
-        sigma_val_de.setNotation(QDoubleValidator.ScientificNotation)
-        sigma_val_de.setDecimals(12)
-        sigma_val_de.setRange(0.0, 1e100, 12)
-        for w in (de_sigma1, de_sigma2):
-            w.setValidator(sigma_val_de)
-            w.setAlignment(Qt.AlignRight)
-            w.setPlaceholderText("leave empty to infer")
-
         self._de_widgets = {
-            "maxiter": w_maxiter,
-            "popsize": w_popsize,
-            "mutation_lo": w_mut_lo,
-            "mutation_hi": w_mut_hi,
-            "recombination": w_recomb,
-            "tol": w_tol,
-            "sigma1": de_sigma1,
-            "sigma2": de_sigma2,
+            "maxiter": _int_edit(self, 1, 1_000_000),
+            "popsize": _int_edit(self, 1, 10_000),
+            "mutation_lo": _float_edit(self, 0.0, 3.0, 4, False),
+            "mutation_hi": _float_edit(self, 0.0, 3.0, 4, False),
+            "recombination": _float_edit(self, 0.0, 1.0, 4, False),
+            "tol": _float_edit(self, 1e-12, 1.0, 9, False),
         }
-        de_form.addRow("maxiter", w_maxiter)
-        de_form.addRow("popsize", w_popsize)
-        de_form.addRow("mutation low", w_mut_lo)
-        de_form.addRow("mutation high", w_mut_hi)
-        de_form.addRow("recombination", w_recomb)
-        de_form.addRow("tol", w_tol)
-        de_form.addRow("sigma 1 (optional)", de_sigma1)
-        de_form.addRow("sigma 2 (optional)", de_sigma2)
+        for label, key in [
+            ("maxiter", "maxiter"),
+            ("popsize", "popsize"),
+            ("mutation low", "mutation_lo"),
+            ("mutation high", "mutation_hi"),
+            ("recombination", "recombination"),
+            ("tol", "tol"),
+        ]:
+            de_form.addRow(label, self._de_widgets[key])
 
         # Least Squares tab
-        self._lsq_widgets = {}
-
         lsq_box = QGroupBox("Least Squares")
         lsq_form = QFormLayout(lsq_box)
-
-        w_ftol = QLineEdit()
-        ftol_val = QDoubleValidator(self)
-        ftol_val.setNotation(QDoubleValidator.ScientificNotation)
-        ftol_val.setDecimals(12)
-        ftol_val.setRange(1e-12, 1.0, 12)
-        w_ftol.setValidator(ftol_val)
-        w_ftol.setAlignment(Qt.AlignRight)
-
-        w_xtol = QLineEdit()
-        xtol_val = QDoubleValidator(self)
-        xtol_val.setNotation(QDoubleValidator.ScientificNotation)
-        xtol_val.setDecimals(12)
-        xtol_val.setRange(1e-12, 1.0, 12)
-        w_xtol.setValidator(xtol_val)
-        w_xtol.setAlignment(Qt.AlignRight)
-
-        w_gtol = QLineEdit()
-        gtol_val = QDoubleValidator(self)
-        gtol_val.setNotation(QDoubleValidator.ScientificNotation)
-        gtol_val.setDecimals(12)
-        gtol_val.setRange(1e-12, 1.0, 12)
-        w_gtol.setValidator(gtol_val)
-        w_gtol.setAlignment(Qt.AlignRight)
-
-        w_max_nfev = QLineEdit()
-        max_nfev_val = QIntValidator(1, 10_000_000, self)
-        w_max_nfev.setValidator(max_nfev_val)
-        w_max_nfev.setAlignment(Qt.AlignRight)
-
-        lsq_sigma1 = QLineEdit()
-        lsq_sigma2 = QLineEdit()
-        sigma_val_lsq = QDoubleValidator(self)
-        sigma_val_lsq.setNotation(QDoubleValidator.ScientificNotation)
-        sigma_val_lsq.setDecimals(12)
-        sigma_val_lsq.setRange(0.0, 1e100, 12)
-        for w in (lsq_sigma1, lsq_sigma2):
-            w.setValidator(sigma_val_lsq)
-            w.setAlignment(Qt.AlignRight)
-            w.setPlaceholderText("leave empty to infer")
-
         self._lsq_widgets = {
-            "ftol": w_ftol,
-            "xtol": w_xtol,
-            "gtol": w_gtol,
-            "max_nfev": w_max_nfev,
-            "sigma1": lsq_sigma1,
-            "sigma2": lsq_sigma2,
+            "ftol": _float_edit(self, 1e-12, 1.0, 12, True),
+            "xtol": _float_edit(self, 1e-12, 1.0, 12, True),
+            "gtol": _float_edit(self, 1e-12, 1.0, 12, True),
+            "max_nfev": _int_edit(self, 1, 10_000_000),
         }
-        lsq_form.addRow("ftol", w_ftol)
-        lsq_form.addRow("xtol", w_xtol)
-        lsq_form.addRow("gtol", w_gtol)
-        lsq_form.addRow("max_nfev", w_max_nfev)
-        lsq_form.addRow("sigma 1 (optional)", lsq_sigma1)
-        lsq_form.addRow("sigma 2 (optional)", lsq_sigma2)
+        for key in ("ftol", "xtol", "gtol", "max_nfev"):
+            lsq_form.addRow(key, self._lsq_widgets[key])
 
         # MCMC tab
-        self._mcmc_widgets = {}
-
         mcmc_box = QGroupBox("MCMC")
         mcmc_form = QFormLayout(mcmc_box)
-
-        w_nsamp = QLineEdit()
-        nsamp_validator = QIntValidator(1, 1_000_000, self)
-        w_nsamp.setValidator(nsamp_validator)
-        w_nsamp.setAlignment(Qt.AlignRight)
-
-        w_burn = QLineEdit()
-        burn_validator = QIntValidator(0, 1_000_000, self)
-        w_burn.setValidator(burn_validator)
-        w_burn.setAlignment(Qt.AlignRight)
-
-        w_thin = QLineEdit()
-        thin_validator = QIntValidator(1, 10_000, self)
-        w_thin.setValidator(thin_validator)
-        w_thin.setAlignment(Qt.AlignRight)
-
-        w_rw = QLineEdit()
-        rw_val = QDoubleValidator(self)
-        rw_val.setNotation(QDoubleValidator.StandardNotation)
-        rw_val.setDecimals(6)
-        rw_val.setRange(1e-9, 10.0, 6)
-        w_rw.setValidator(rw_val)
-        w_rw.setAlignment(Qt.AlignRight)
-
-        w_sigma1 = QLineEdit()
-        w_sigma2 = QLineEdit()
-        sigma_val = QDoubleValidator(self)
-        sigma_val.setNotation(QDoubleValidator.StandardNotation)
-        sigma_val.setDecimals(12)
-        sigma_val.setRange(0.0, 1e100, 12)
-        for w in (w_sigma1, w_sigma2):
-            w.setValidator(sigma_val)
-            w.setAlignment(Qt.AlignRight)
-            w.setPlaceholderText("leave empty to infer")
-
         self._mcmc_widgets = {
-            "n_samples": w_nsamp,
-            "burn_in": w_burn,
-            "thin": w_thin,
-            "rw_scale": w_rw,
-            "sigma1": w_sigma1,
-            "sigma2": w_sigma2,
+            "n_samples": _int_edit(self, 1, 1_000_000),
+            "burn_in": _int_edit(self, 0, 1_000_000),
+            "thin": _int_edit(self, 1, 10_000),
+            "rw_scale": _float_edit(self, 1e-9, 10.0, 6, False),
         }
-        mcmc_form.addRow("n_samples", w_nsamp)
-        mcmc_form.addRow("burn_in", w_burn)
-        mcmc_form.addRow("thin", w_thin)
-        mcmc_form.addRow("rw_scale", w_rw)
-        mcmc_form.addRow("sigma 1", w_sigma1)
-        mcmc_form.addRow("sigma 2", w_sigma2)
+        for key in ("n_samples", "burn_in", "thin", "rw_scale"):
+            mcmc_form.addRow(key, self._mcmc_widgets[key])
 
-        # MCMC tab
-        self._dream_widgets = {}
-
+        # DREAM tab
         dream_box = QGroupBox("DREAM")
         dream_form = QFormLayout(dream_box)
-
-        w_nsamp = QLineEdit()
-        nsamp_validator = QIntValidator(1, 1_000_000, self)
-        w_nsamp.setValidator(nsamp_validator)
-        w_nsamp.setAlignment(Qt.AlignRight)
-
-        w_nchain = QLineEdit()
-        nchain_validator = QIntValidator(1, 100, self)
-        w_nchain.setValidator(nchain_validator)
-        w_nchain.setAlignment(Qt.AlignRight)
-
-        w_burn = QLineEdit()
-        burn_validator = QIntValidator(0, 1_000_000, self)
-        w_burn.setValidator(burn_validator)
-        w_burn.setAlignment(Qt.AlignRight)
-
-        w_thin = QLineEdit()
-        thin_validator = QIntValidator(1, 10_000, self)
-        w_thin.setValidator(thin_validator)
-        w_thin.setAlignment(Qt.AlignRight)
-
-        w_ndiff = QLineEdit()
-        ndiff_validator = QIntValidator(1, 10_000, self)
-        w_ndiff.setValidator(ndiff_validator)
-        w_ndiff.setAlignment(Qt.AlignRight)
-
-        w_ncr = QLineEdit()
-        ncr_validator = QIntValidator(1, 100, self)
-        w_ncr.setValidator(ncr_validator)
-        w_ncr.setAlignment(Qt.AlignRight)
-
-        w_sigma1 = QLineEdit()
-        w_sigma2 = QLineEdit()
-        sigma_val = QDoubleValidator(self)
-        sigma_val.setNotation(QDoubleValidator.StandardNotation)
-        sigma_val.setDecimals(12)
-        sigma_val.setRange(0.0, 1e100, 12)
-        for w in (w_sigma1, w_sigma2):
-            w.setValidator(sigma_val)
-            w.setAlignment(Qt.AlignRight)
-            w.setPlaceholderText("leave empty to infer")
-
         self._dream_widgets = {
-            "n_samples": w_nsamp,
-            "n_chains": w_nchain,
-            "n_diff_pairs": w_ndiff,
-            "burn_in": w_burn,
-            "thin": w_thin,
-            "n_cr": w_ncr,
-            "sigma1": w_sigma1,
-            "sigma2": w_sigma2,
+            "n_samples": _int_edit(self, 1, 1_000_000),
+            "n_chains": _int_edit(self, 1, 100),
+            "n_diff_pairs": _int_edit(self, 1, 10_000),
+            "burn_in": _int_edit(self, 0, 1_000_000),
+            "thin": _int_edit(self, 1, 10_000),
+            "n_cr": _int_edit(self, 1, 100),
         }
-        dream_form.addRow("n_samples", w_nsamp)
-        dream_form.addRow("n_chains", w_nchain)
-        dream_form.addRow("n_diff_pairs", w_ndiff)
-        dream_form.addRow("n_cr", w_ncr)
-        dream_form.addRow("burn_in", w_burn)
-        dream_form.addRow("thin", w_thin)
-        dream_form.addRow("sigma 1", w_sigma1)
-        dream_form.addRow("sigma 2", w_sigma2)
+        for key in ("n_samples", "n_chains", "n_diff_pairs", "n_cr", "burn_in", "thin"):
+            dream_form.addRow(key, self._dream_widgets[key])
 
         # Pack tabs
-        w_de = QVBoxLayout()
-        w_de.addWidget(de_box)
-        w_lsq = QVBoxLayout()
-        w_lsq.addWidget(lsq_box)
-        w_dream = QVBoxLayout()
-        w_dream.addWidget(dream_box)
-        w_mcmc = QVBoxLayout()
-        w_mcmc.addWidget(mcmc_box)
-        de_widget = QWidget()
-        de_widget.setLayout(w_de)
-        lsq_widget = QWidget()
-        lsq_widget.setLayout(w_lsq)
-        dream_widget = QWidget()
-        dream_widget.setLayout(w_dream)
-        mcmc_widget = QWidget()
-        mcmc_widget.setLayout(w_mcmc)
-        tabs.addTab(de_widget, "DE")
-        tabs.addTab(lsq_widget, "Least Squares")
-        tabs.addTab(dream_widget, "DREAM")
-        tabs.addTab(mcmc_widget, "MCMC")
+        for box, title in [
+            (de_box, "DE"),
+            (lsq_box, "Least Squares"),
+            (dream_box, "DREAM"),
+            (mcmc_box, "MCMC"),
+        ]:
+            page = QWidget()
+            page_lay = QVBoxLayout(page)
+            page_lay.addWidget(box)
+            tabs.addTab(page, title)
+
+        # Measurement uncertainty (all solvers)
+        unc_box = self._build_uncertainty_box()
 
         # Buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -325,14 +158,119 @@ class SolverParamsDialog(QDialog):
         # Main layout
         lay = QVBoxLayout(self)
         lay.addWidget(tabs)
+        lay.addWidget(unc_box)
         lay.addWidget(buttons)
 
         self._load_from_state()
 
+    # ------------------------------------------------------ uncertainty box
+    def _build_uncertainty_box(self) -> QGroupBox:
+        box = QGroupBox("Measurement uncertainty (all solvers)")
+        grid = QGridLayout(box)
+
+        self.cb_file = QCheckBox(
+            "Use uncertainties from the observation file ('<tracer>_sd' columns)"
+        )
+        self._file_available = file_uncertainty(self.state) is not None
+        if not self._file_available:
+            self.cb_file.setEnabled(False)
+            self.cb_file.setText(self.cb_file.text() + " – none loaded")
+        self.lbl_other = QLabel()
+
+        self.rb_none = QRadioButton(
+            "Not specified (DE, least squares: unweighted; MCMC, DREAM: estimated per tracer)"
+        )
+        self.rb_abs = QRadioButton("Absolute standard deviation:")
+        self.rb_rel = QRadioButton("Relative standard deviation [% of observed value]:")
+        self._mode_group = QButtonGroup(self)
+        for rb in (self.rb_none, self.rb_abs, self.rb_rel):
+            self._mode_group.addButton(rb)
+
+        names = _current_tracer_names(self.state)
+        abs_row = QHBoxLayout()
+        self.ed_abs: List[QLineEdit] = []
+        for i in range(2):
+            lbl = QLabel(names[i] if i < len(names) else f"Tracer {i + 1}")
+            edit = _float_edit(self, 0.0, 1e100, 12, False)
+            edit.setPlaceholderText("σ (tracer unit)")
+            if i >= len(names):  # second tracer not selected
+                lbl.hide()
+                edit.hide()
+            abs_row.addWidget(lbl)
+            abs_row.addWidget(edit)
+            self.ed_abs.append(edit)
+        self._n_abs = min(len(names), 2)
+        self.ed_rel = _float_edit(self, 0.0, 1000.0, 6, False)
+        self.ed_rel.setPlaceholderText("e.g. 5")
+
+        grid.addWidget(self.cb_file, 0, 0, 1, 2)
+        grid.addWidget(self.lbl_other, 1, 0, 1, 2)
+        grid.addWidget(self.rb_none, 2, 0, 1, 2)
+        grid.addWidget(self.rb_abs, 3, 0)
+        grid.addLayout(abs_row, 3, 1)
+        grid.addWidget(self.rb_rel, 4, 0)
+        grid.addWidget(self.ed_rel, 4, 1)
+
+        self.cb_file.toggled.connect(self._update_uncertainty_widgets)
+        for rb in (self.rb_none, self.rb_abs, self.rb_rel):
+            rb.toggled.connect(self._update_uncertainty_widgets)
+        return box
+
+    def _update_uncertainty_widgets(self) -> None:
+        """Enable the input fields of the selected option; adapt the label."""
+        for edit in self.ed_abs:
+            edit.setEnabled(self.rb_abs.isChecked())
+        self.ed_rel.setEnabled(self.rb_rel.isChecked())
+        if self.cb_file.isEnabled() and self.cb_file.isChecked():
+            self.lbl_other.setText("For observations without uncertainty in the file:")
+        else:
+            self.lbl_other.setText("For all observations:")
+
+    def _load_uncertainty(self, use_file: bool, mode: str, sigma_abs, sigma_rel_percent) -> None:
+        self.cb_file.setChecked(bool(use_file) and self._file_available)
+        {"absolute": self.rb_abs, "relative": self.rb_rel}.get(mode, self.rb_none).setChecked(True)
+        sigma_abs = list(sigma_abs or []) + [None, None]
+        for edit, val in zip(self.ed_abs, sigma_abs):
+            edit.setText("" if val is None else f"{float(val):g}")
+        self.ed_rel.setText("" if sigma_rel_percent is None else f"{float(sigma_rel_percent):g}")
+        self._update_uncertainty_widgets()
+
+    def _save_uncertainty(self) -> bool:
+        """Validate and write the uncertainty settings to the state."""
+        mode = "absolute" if self.rb_abs.isChecked() else "none"
+        if self.rb_rel.isChecked():
+            mode = "relative"
+        sigma_abs = [_parse_float(e) for e in self.ed_abs]
+        sigma_rel = _parse_float(self.ed_rel)
+        if mode == "absolute" and any(v is None or v <= 0 for v in sigma_abs[: self._n_abs]):
+            QMessageBox.warning(
+                self,
+                "Measurement Uncertainty",
+                "Please enter a positive absolute standard deviation for each tracer.",
+            )
+            return False
+        if mode == "relative" and (sigma_rel is None or sigma_rel <= 0):
+            QMessageBox.warning(
+                self,
+                "Measurement Uncertainty",
+                "Please enter a positive relative standard deviation (in %).",
+            )
+            return False
+        if self._file_available:  # keep the setting if the checkbox is disabled
+            self.state.use_file_uncertainty = self.cb_file.isChecked()
+        self.state.uncertainty_mode = mode
+        self.state.sigma_abs = [v if v is not None and v > 0 else None for v in sigma_abs]
+        self.state.sigma_rel_percent = (
+            sigma_rel if sigma_rel is not None and sigma_rel > 0 else None
+        )
+        return True
+
+    # ------------------------------------------------------------- loading
     def _load_from_state(self) -> None:
         """Populate the UI from ``state.solver_params`` with safe defaults."""
-        # Load DE
-        de = getattr(self.state, "solver_params", {}).get("de") or {}
+        params = getattr(self.state, "solver_params", {})
+
+        de = params.get("de") or {}
         self._de_widgets["maxiter"].setText(str(int(de.get("maxiter", 10000))))
         self._de_widgets["popsize"].setText(str(int(de.get("popsize", 100))))
         mut = de.get("mutation", (0.5, 1.99))
@@ -344,100 +282,36 @@ class SolverParamsDialog(QDialog):
         self._de_widgets["mutation_hi"].setText(str(hi))
         self._de_widgets["recombination"].setText(str(float(de.get("recombination", 0.5))))
         self._de_widgets["tol"].setText(str(float(de.get("tol", 1e-3))))
-        de_sigma = de.get("sigma", None)
-        if isinstance(de_sigma, (list, tuple)):
-            try:
-                self._de_widgets["sigma1"].setText(str(float(de_sigma[0])))
-                self._de_widgets["sigma2"].setText(str(float(de_sigma[1])))
-            except Exception:
-                self._de_widgets["sigma1"].setText("")
-                self._de_widgets["sigma2"].setText("")
-        elif de_sigma is None:
-            self._de_widgets["sigma1"].setText("")
-            self._de_widgets["sigma2"].setText("")
-        else:
-            try:
-                self._de_widgets["sigma1"].setText(str(float(de_sigma)))
-            except Exception:
-                self._de_widgets["sigma1"].setText("")
-            self._de_widgets["sigma2"].setText("")
 
-        # Load Least Squares
-        lsq = getattr(self.state, "solver_params", {}).get("lsq") or {}
+        lsq = params.get("lsq") or {}
         self._lsq_widgets["ftol"].setText(str(float(lsq.get("ftol", 1e-8))))
         self._lsq_widgets["xtol"].setText(str(float(lsq.get("xtol", 1e-8))))
         self._lsq_widgets["gtol"].setText(str(float(lsq.get("gtol", 1e-8))))
         self._lsq_widgets["max_nfev"].setText(str(int(lsq.get("max_nfev", 10000))))
-        lsq_sigma = lsq.get("sigma", None)
-        if isinstance(lsq_sigma, (list, tuple)):
-            try:
-                self._lsq_widgets["sigma1"].setText(str(float(lsq_sigma[0])))
-                self._lsq_widgets["sigma2"].setText(str(float(lsq_sigma[1])))
-            except Exception:
-                self._lsq_widgets["sigma1"].setText("")
-                self._lsq_widgets["sigma2"].setText("")
-        elif lsq_sigma is None:
-            self._lsq_widgets["sigma1"].setText("")
-            self._lsq_widgets["sigma2"].setText("")
-        else:
-            try:
-                self._lsq_widgets["sigma1"].setText(str(float(lsq_sigma)))
-            except Exception:
-                self._lsq_widgets["sigma1"].setText("")
-            self._lsq_widgets["sigma2"].setText("")
 
-        # Load DREAM
-        dr = getattr(self.state, "solver_params", {}).get("dream") or {}
+        dr = params.get("dream") or {}
         self._dream_widgets["n_samples"].setText(str(int(dr.get("n_samples", 2000))))
         self._dream_widgets["n_chains"].setText(str(int(dr.get("n_chains", 3))))
         self._dream_widgets["burn_in"].setText(str(int(dr.get("burn_in", 2000))))
         self._dream_widgets["thin"].setText(str(int(dr.get("thin", 1))))
         self._dream_widgets["n_diff_pairs"].setText(str(int(dr.get("n_diff_pairs", 2))))
         self._dream_widgets["n_cr"].setText(str(int(dr.get("n_cr", 4))))
-        sigma_val = dr.get("sigma", None)
-        if isinstance(sigma_val, (list, tuple)):
-            try:
-                self._dream_widgets["sigma1"].setText(str(float(sigma_val[0])))
-                self._dream_widgets["sigma2"].setText(str(float(sigma_val[1])))
-            except Exception:
-                self._dream_widgets["sigma1"].setText("")
-                self._dream_widgets["sigma2"].setText("")
-        elif sigma_val is None:
-            self._dream_widgets["sigma1"].setText("")
-            self._dream_widgets["sigma2"].setText("")
-        else:
-            try:
-                self._dream_widgets["sigma1"].setText(str(float(sigma_val)))
-            except Exception:
-                self._dream_widgets["sigma1"].setText("")
-            self._dream_widgets["sigma2"].setText("")
 
-        # Load MCMC
-        mc = getattr(self.state, "solver_params", {}).get("mcmc") or {}
+        mc = params.get("mcmc") or {}
         self._mcmc_widgets["n_samples"].setText(str(int(mc.get("n_samples", 1000))))
         self._mcmc_widgets["burn_in"].setText(str(int(mc.get("burn_in", 2000))))
         self._mcmc_widgets["thin"].setText(str(int(mc.get("thin", 1))))
         self._mcmc_widgets["rw_scale"].setText(str(float(mc.get("rw_scale", 0.05))))
-        sigma_val = mc.get("sigma", None)
-        if isinstance(sigma_val, (list, tuple)):
-            try:
-                self._mcmc_widgets["sigma1"].setText(str(float(sigma_val[0])))
-                self._mcmc_widgets["sigma2"].setText(str(float(sigma_val[1])))
-            except Exception:
-                self._mcmc_widgets["sigma1"].setText("")
-                self._mcmc_widgets["sigma2"].setText("")
-        elif sigma_val is None:
-            self._mcmc_widgets["sigma1"].setText("")
-            self._mcmc_widgets["sigma2"].setText("")
-        else:
-            try:
-                self._mcmc_widgets["sigma1"].setText(str(float(sigma_val)))
-            except Exception:
-                self._mcmc_widgets["sigma1"].setText("")
-            self._mcmc_widgets["sigma2"].setText("")
+
+        self._load_uncertainty(
+            getattr(self.state, "use_file_uncertainty", True),
+            getattr(self.state, "uncertainty_mode", "none"),
+            getattr(self.state, "sigma_abs", None),
+            getattr(self.state, "sigma_rel_percent", None),
+        )
 
     def _default_params(self) -> Dict[str, Dict[str, Any]]:
-        """Return built-in defaults for DE, Least Squares, and MCMC parameters."""
+        """Return built-in defaults for DE, Least Squares, MCMC and DREAM parameters."""
         return {
             "de": {
                 "maxiter": 1000,
@@ -445,21 +319,18 @@ class SolverParamsDialog(QDialog):
                 "mutation": (0.5, 1.0),
                 "recombination": 0.7,
                 "tol": 1e-2,
-                "sigma": None,
             },
             "lsq": {
                 "ftol": 1e-8,
                 "xtol": 1e-8,
                 "gtol": 1e-8,
                 "max_nfev": 10_000,
-                "sigma": None,
             },
             "mcmc": {
                 "n_samples": 10000,
                 "burn_in": 2000,
                 "thin": 2,
                 "rw_scale": 0.05,
-                "sigma": None,
             },
             "dream": {
                 "n_samples": 2000,
@@ -468,7 +339,6 @@ class SolverParamsDialog(QDialog):
                 "thin": 1,
                 "n_diff_pairs": 2,
                 "n_cr": 4,
-                "sigma": None,
             },
         }
 
@@ -482,208 +352,74 @@ class SolverParamsDialog(QDialog):
         self._de_widgets["mutation_hi"].setText(str(float(de["mutation"][1])))
         self._de_widgets["recombination"].setText(str(float(de["recombination"])))
         self._de_widgets["tol"].setText(str(float(de["tol"])))
-        self._de_widgets["sigma1"].setText("")
-        self._de_widgets["sigma2"].setText("")
 
         lsq = defaults["lsq"]
-        self._lsq_widgets["ftol"].setText(str(float(lsq["ftol"])))
-        self._lsq_widgets["xtol"].setText(str(float(lsq["xtol"])))
-        self._lsq_widgets["gtol"].setText(str(float(lsq["gtol"])))
+        for key in ("ftol", "xtol", "gtol"):
+            self._lsq_widgets[key].setText(str(float(lsq[key])))
         self._lsq_widgets["max_nfev"].setText(str(int(lsq["max_nfev"])))
-        self._lsq_widgets["sigma1"].setText("")
-        self._lsq_widgets["sigma2"].setText("")
 
         mc = defaults["mcmc"]
-        self._mcmc_widgets["n_samples"].setText(str(int(mc["n_samples"])))
-        self._mcmc_widgets["burn_in"].setText(str(int(mc["burn_in"])))
-        self._mcmc_widgets["thin"].setText(str(int(mc["thin"])))
+        for key in ("n_samples", "burn_in", "thin"):
+            self._mcmc_widgets[key].setText(str(int(mc[key])))
         self._mcmc_widgets["rw_scale"].setText(str(float(mc["rw_scale"])))
-        self._mcmc_widgets["sigma1"].setText("")
-        self._mcmc_widgets["sigma2"].setText("")
 
-        dr = defaults["mcmc"]
-        self._dream_widgets["n_samples"].setText(str(int(dr["n_samples"])))
-        self._dream_widgets["burn_in"].setText(str(int(dr["burn_in"])))
-        self._dream_widgets["thin"].setText(str(int(dr["thin"])))
-        self._dream_widgets["n_chains"].setText(str(int(dr["n_chains"])))
-        self._dream_widgets["n_diff_pairs"].setText(str(int(dr["n_diff_pairs"])))
-        self._dream_widgets["n_cr"].setText(str(int(dr["n_cr"])))
-        self._dream_widgets["sigma1"].setText("")
-        self._dream_widgets["sigma2"].setText("")
+        dr = defaults["dream"]  # was defaults["mcmc"] -> KeyError (O.22)
+        for key in ("n_samples", "burn_in", "thin", "n_chains", "n_diff_pairs", "n_cr"):
+            self._dream_widgets[key].setText(str(int(dr[key])))
+
+        self._load_uncertainty(True, "none", None, None)
 
     def _on_reset(self) -> None:
         """Handle the reset button by reloading built-in defaults."""
         self._load_defaults()
 
+    # --------------------------------------------------------------- saving
     def accept(self) -> None:  # noqa: D401
-        """Validate and save parameters back to ``state.solver_params``."""
-        # Save DE
+        """Validate and save parameters back to the state."""
+        if not self._save_uncertainty():
+            return
         defaults = self._default_params()
 
         def _to_int(edit: QLineEdit, default_val: int) -> int:
-            txt = edit.text().strip()
             try:
-                val = int(txt)
-            except Exception:
+                return int(edit.text().strip())
+            except ValueError:
                 return default_val
-            return val
 
         def _to_float(edit: QLineEdit, default_val: float) -> float:
-            txt = edit.text().strip()
-            try:
-                val = float(txt)
-            except Exception:
-                return default_val
-            return val
+            val = _parse_float(edit)
+            return default_val if val is None else val
 
-        # Differential Evolution
+        d_de, d_lsq, d_mc, d_dr = (defaults[k] for k in ("de", "lsq", "mcmc", "dream"))
+        w = self._de_widgets
         de = {
-            "maxiter": _to_int(self._de_widgets["maxiter"], int(defaults["de"]["maxiter"])),
-            "popsize": _to_int(self._de_widgets["popsize"], int(defaults["de"]["popsize"])),
+            "maxiter": _to_int(w["maxiter"], int(d_de["maxiter"])),
+            "popsize": _to_int(w["popsize"], int(d_de["popsize"])),
             "mutation": (
-                _to_float(self._de_widgets["mutation_lo"], float(defaults["de"]["mutation"][0])),
-                _to_float(self._de_widgets["mutation_hi"], float(defaults["de"]["mutation"][1])),
+                _to_float(w["mutation_lo"], float(d_de["mutation"][0])),
+                _to_float(w["mutation_hi"], float(d_de["mutation"][1])),
             ),
-            "recombination": _to_float(
-                self._de_widgets["recombination"], float(defaults["de"]["recombination"])
-            ),
-            "tol": _to_float(self._de_widgets["tol"], float(defaults["de"]["tol"])),
+            "recombination": _to_float(w["recombination"], float(d_de["recombination"])),
+            "tol": _to_float(w["tol"], float(d_de["tol"])),
         }
-
-        # Build DE sigma from optional fields
-        ds1 = self._de_widgets.get("sigma1")
-        ds2 = self._de_widgets.get("sigma2")
-        if ds1 is not None and ds2 is not None:
-            t1 = ds1.text().strip()
-            t2 = ds2.text().strip()
-            if t1 == "" and t2 == "":
-                de_sigma = None
-            elif t1 != "" and t2 == "":
-                try:
-                    de_sigma = float(t1)
-                except Exception:
-                    de_sigma = None
-            else:
-                try:
-                    s1 = float(t1) if t1 != "" else None
-                    s2 = float(t2) if t2 != "" else None
-                    if s1 is None and s2 is None:
-                        de_sigma = None
-                    elif s2 is None:
-                        de_sigma = float(s1)  # type: ignore[arg-type]
-                    else:
-                        de_sigma = (s1, s2)
-                except Exception:
-                    de_sigma = None
-            de["sigma"] = de_sigma
-
-        # Least Squares
+        w = self._lsq_widgets
         lsq = {
-            "ftol": _to_float(self._lsq_widgets["ftol"], float(defaults["lsq"]["ftol"])),
-            "xtol": _to_float(self._lsq_widgets["xtol"], float(defaults["lsq"]["xtol"])),
-            "gtol": _to_float(self._lsq_widgets["gtol"], float(defaults["lsq"]["gtol"])),
-            "max_nfev": _to_int(self._lsq_widgets["max_nfev"], int(defaults["lsq"]["max_nfev"])),
+            "ftol": _to_float(w["ftol"], float(d_lsq["ftol"])),
+            "xtol": _to_float(w["xtol"], float(d_lsq["xtol"])),
+            "gtol": _to_float(w["gtol"], float(d_lsq["gtol"])),
+            "max_nfev": _to_int(w["max_nfev"], int(d_lsq["max_nfev"])),
         }
-        ls1 = self._lsq_widgets.get("sigma1")
-        ls2 = self._lsq_widgets.get("sigma2")
-        if ls1 is not None and ls2 is not None:
-            t1 = ls1.text().strip()
-            t2 = ls2.text().strip()
-            if t1 == "" and t2 == "":
-                lsq_sigma = None
-            elif t1 != "" and t2 == "":
-                try:
-                    lsq_sigma = float(t1)
-                except Exception:
-                    lsq_sigma = None
-            else:
-                try:
-                    s1 = float(t1) if t1 != "" else None
-                    s2 = float(t2) if t2 != "" else None
-                    if s1 is None and s2 is None:
-                        lsq_sigma = None
-                    elif s2 is None:
-                        lsq_sigma = float(s1)  # type: ignore[arg-type]
-                    else:
-                        lsq_sigma = (s1, s2)
-                except Exception:
-                    lsq_sigma = None
-            lsq["sigma"] = lsq_sigma
-
-        # MCMC
-        # Save MCMC (sigma1/sigma2)
-        s1_txt = self._mcmc_widgets["sigma1"].text().strip()
-        s2_txt = self._mcmc_widgets["sigma2"].text().strip()
-        sigma_val: Any
-        if s1_txt == "" and s2_txt == "":
-            sigma_val = None
-        elif s1_txt != "" and s2_txt == "":
-            try:
-                sigma_val = float(s1_txt)
-            except ValueError:
-                sigma_val = None
-        else:
-            try:
-                s1 = float(s1_txt) if s1_txt != "" else None
-                s2 = float(s2_txt) if s2_txt != "" else None
-                if s1 is None and s2 is None:
-                    sigma_val = None
-                elif s2 is None:
-                    sigma_val = float(s1)
-                else:
-                    sigma_val = (s1, s2)
-            except Exception:
-                sigma_val = None
+        w = self._mcmc_widgets
         mcmc = {
-            "n_samples": _to_int(
-                self._mcmc_widgets["n_samples"], int(defaults["mcmc"]["n_samples"])
-            ),
-            "burn_in": _to_int(self._mcmc_widgets["burn_in"], int(defaults["mcmc"]["burn_in"])),
-            "thin": _to_int(self._mcmc_widgets["thin"], int(defaults["mcmc"]["thin"])),
-            "rw_scale": _to_float(
-                self._mcmc_widgets["rw_scale"], float(defaults["mcmc"]["rw_scale"])
-            ),
-            "sigma": sigma_val,
+            "n_samples": _to_int(w["n_samples"], int(d_mc["n_samples"])),
+            "burn_in": _to_int(w["burn_in"], int(d_mc["burn_in"])),
+            "thin": _to_int(w["thin"], int(d_mc["thin"])),
+            "rw_scale": _to_float(w["rw_scale"], float(d_mc["rw_scale"])),
         }
-
-        # MCMC
-        # Save MCMC (sigma1/sigma2)
-        s1_txt = self._dream_widgets["sigma1"].text().strip()
-        s2_txt = self._dream_widgets["sigma2"].text().strip()
-        sigma_val: Any
-        if s1_txt == "" and s2_txt == "":
-            sigma_val = None
-        elif s1_txt != "" and s2_txt == "":
-            try:
-                sigma_val = float(s1_txt)
-            except ValueError:
-                sigma_val = None
-        else:
-            try:
-                s1 = float(s1_txt) if s1_txt != "" else None
-                s2 = float(s2_txt) if s2_txt != "" else None
-                if s1 is None and s2 is None:
-                    sigma_val = None
-                elif s2 is None:
-                    sigma_val = float(s1)
-                else:
-                    sigma_val = (s1, s2)
-            except Exception:
-                sigma_val = None
+        w = self._dream_widgets
         dream = {
-            "n_samples": _to_int(
-                self._dream_widgets["n_samples"], int(defaults["dream"]["n_samples"])
-            ),
-            "burn_in": _to_int(self._dream_widgets["burn_in"], int(defaults["dream"]["burn_in"])),
-            "thin": _to_int(self._dream_widgets["thin"], int(defaults["dream"]["thin"])),
-            "n_chains": _to_int(
-                self._dream_widgets["n_chains"], int(defaults["dream"]["n_chains"])
-            ),
-            "n_diff_pairs": _to_int(
-                self._dream_widgets["n_diff_pairs"], int(defaults["dream"]["n_diff_pairs"])
-            ),
-            "n_cr": _to_int(self._dream_widgets["n_cr"], int(defaults["dream"]["n_cr"])),
-            "sigma": sigma_val,
+            key: _to_int(w[key], int(d_dr[key]))
+            for key in ("n_samples", "burn_in", "thin", "n_chains", "n_diff_pairs", "n_cr")
         }
 
         # Write back to state

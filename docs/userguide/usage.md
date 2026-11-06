@@ -302,12 +302,14 @@ Parameter time units are always in years. Half lives are internally converted bu
 
 ![An image of the Parameters Tab.](tab03.png)
 
+(simulation-tab)=
 ### 4. The Simulation Tab
 In this **Tab**, simulations can be performed, model parameters can be calibrated automatically, results can be plotted, and reports can be generated.
 - perform a model simulation using the current parameters
 - perform model calibration
     - select a solver
     - change solver parameters (requires at lease a basic understanding of the solvers)
+    - set the measurement uncertainty of the observations (applies to all solvers; see [Measurement Uncertainty](#measurement-uncertainty)); the current setting is shown below the button *Edit Solver Parameters*
     - run automatic calibration
 - plot results of current simulation / calibrated model simulation
 - write a report including the calibrated parameters, error metrics, and other model details to a text file; uses a file dialog to store the report file
@@ -345,7 +347,7 @@ PyTracerLab contains the properties of the supported tracers (e.g. half-lives) b
 - **Delimiter:** comma, semicolon, tab or spaces; detected automatically. Files with semicolon, tab or space delimiters may use a decimal comma (`10,5`).
 - **Dates:** `YYYY`, `YYYY-MM`, `YYYY-MM-DD` (also with `/`), `DD.MM.YYYY`, `MM.YYYY` or a decimal year (e.g. `1985.5`). A time of day after the date is ignored, and a year alone refers to 1 January of that year.
 - **Missing values:** empty cell, `nan`, `NA`, `n/a` or `-`.
-- **Measurement uncertainty (optional):** a column named `<tracer>_sd` (e.g. `3H_sd`) holds the measurement uncertainty of the column `<tracer>` as a standard deviation, in the same unit as the tracer.
+- **Measurement uncertainty (optional):** a column named `<tracer>_sd` (e.g. `3H_sd`) holds the measurement uncertainty of the column `<tracer>` as a standard deviation, in the same unit as the tracer. It is used to weight the observations in the calibration (see [Measurement Uncertainty](#measurement-uncertainty)).
 - **Units:** the same unit has to be used for a tracer in the input file and in the observation file. Units are not checked.
 - **Number of values:** there is no fixed limit on the number of rows or observations.
 
@@ -417,6 +419,49 @@ model = lab.Model(
 ```
 
 The result of `read_series` contains the dates (`times`), the values (`values`), the tracer names from the header line (`tracers`), the measurement uncertainties from the `_sd` columns (`uncertainty`) and the time step (`step`). See the {py:func}`API documentation <PyTracerLab.model.io.read_series>` for details.
+
+(measurement-uncertainty)=
+## Measurement Uncertainty
+The measurement uncertainty of the observations determines how strongly each observation is weighted in the calibration: each residual (simulated minus observed value) is divided by the standard deviation σ of the observation. This matters in particular for tracers whose values span orders of magnitude, such as tritium. With a single σ for all observations, the observations with the largest values (and the largest absolute deviations) dominate the calibration.
+
+The measurement uncertainty can be given in three ways:
+
+- **per observation**, in the `_sd` columns of the observation file (see [File Structure](#preparing-datasets));
+- **absolute**, as one standard deviation per tracer, in the unit of the tracer;
+- **relative**, as a percentage of the observed value (e.g. 5 %).
+
+Values from the observation file are used where they are given; the absolute or relative uncertainty applies to all other observations. If an observation is left without an uncertainty, PyTracerLab reports this instead of ignoring the observation.
+
+The solvers use the uncertainty as follows:
+
+- **Differential evolution and least squares** minimise the squared residuals divided by σ. Without an uncertainty, all observations are weighted equally.
+- **MCMC and DREAM** use a Gaussian likelihood with the given standard deviations, which are treated as known. Without an uncertainty, the standard deviation of each tracer is treated as unknown and integrated out of the likelihood, i.e. it is effectively estimated from the misfit between simulation and observations.
+
+```{note}
+The parameter uncertainty obtained with MCMC or DREAM is conditional on the chosen model structure and on the specified measurement uncertainty. If σ describes only the analytical uncertainty while the model cannot reproduce the observations within this uncertainty, the posterior distribution can be too narrow.
+```
+
+**In the GUI**, the measurement uncertainty is set in the [Simulation Tab](#simulation-tab) under *Edit Solver Parameters* → *Measurement uncertainty (all solvers)* and applies to all solvers. The current setting is shown below the button *Edit Solver Parameters*. If uncertainties are specified, the plot of the results shows the observations with error bars (± 1 σ).
+
+**In Python**, all solver methods accept `sigma` (absolute standard deviation: one value, one value per tracer, or one value per observation) and `sigma_rel` (relative standard deviation as a fraction of the observed value):
+
+```python
+solver = lab.Solver(model)
+
+# uncertainties from the _sd columns of the observation file
+result = solver.dream_sample(n_samples=2000, sigma=obs.uncertainty)
+
+# 5 % of the observed value
+result = solver.dream_sample(n_samples=2000, sigma_rel=0.05)
+
+# from the file where given, 5 % of the observed value otherwise
+result = solver.dream_sample(n_samples=2000, sigma=obs.uncertainty, sigma_rel=0.05)
+
+# one absolute value per tracer (here: two tracers)
+best, sim = solver.differential_evolution(sigma=[1.0, 0.5])
+```
+
+Other uncertainty models can be computed and passed as `sigma`, for example an absolute uncertainty of 0.3 TU combined with 5 % of the observed value: `sigma=np.sqrt(0.3**2 + (0.05 * obs.values) ** 2)`. See the {py:class}`API documentation <PyTracerLab.model.solver.Solver>` for details.
 
 (model-warmup)=
 ## Model Warmup

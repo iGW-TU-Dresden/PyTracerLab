@@ -12,6 +12,97 @@ from scipy.optimize import curve_fit, differential_evolution
 from .model import Model
 from .registry import SOLVER_REGISTRY
 
+# Objective value / residual used for failed simulations (finite, so that the
+# optimizers keep working)
+_BAD_OBJECTIVE = 1e10
+
+
+def _broadcast(value: Any, n: int, k: int, name: str, per_obs: bool) -> np.ndarray:
+    """Broadcast a scalar, per-tracer or per-observation value to ``(n, k)``."""
+    arr = np.asarray(value, dtype=float)
+    if arr.ndim == 0 or arr.size == 1:
+        return np.full((n, k), float(arr.ravel()[0]))
+    if arr.ndim == 1 and arr.size == k:
+        return np.tile(arr, (n, 1))
+    if per_obs and arr.ndim == 1 and k == 1 and arr.size == n:
+        return arr.reshape(n, 1).copy()
+    if per_obs and arr.ndim == 2 and arr.shape in ((n, k), (1, k)):
+        return np.broadcast_to(arr, (n, k)).copy()
+    expected = f"a scalar or one value per tracer ({k},)"
+    if per_obs:
+        expected += f" or one value per observation ({n}, {k})"
+    raise ValueError(f"{name} has shape {arr.shape}; expected {expected}.")
+
+
+def _observation_sigma(
+    y: np.ndarray,
+    sigma: float | Sequence[float] | np.ndarray | None,
+    sigma_rel: float | Sequence[float] | None,
+    label: Callable[[int, int], str] | None = None,
+) -> np.ndarray | None:
+    """Standard deviation of each observation as an array ``(N, K)``.
+
+    Values come from ``sigma`` where it is finite and from
+    ``sigma_rel * |observed value|`` otherwise; entries without an
+    observation are ``nan`` (see :class:`Solver`).
+
+    Parameters
+    ----------
+    y : ndarray
+        Observations, shape ``(N, K)``, ``nan`` where nothing was observed.
+    sigma, sigma_rel
+        As in the solver methods.
+    label : callable, optional
+        ``label(row, column)`` gives the position of an observation in error
+        messages (default: row and tracer number).
+
+    Returns
+    -------
+    ndarray or None
+        ``None`` if neither ``sigma`` nor ``sigma_rel`` is given.
+
+    Raises
+    ------
+    ValueError
+        If ``sigma`` or ``sigma_rel`` has an unsupported shape, or if an
+        observation is left without a positive standard deviation.
+    """
+    if sigma is None and sigma_rel is None:
+        return None
+    y = np.asarray(y, dtype=float)
+    n, k = y.shape
+    if sigma is None:
+        sig = np.full((n, k), np.nan)
+    else:
+        sig = _broadcast(sigma, n, k, "sigma", per_obs=True)
+    if sigma_rel is not None:
+        rel = _broadcast(sigma_rel, n, k, "sigma_rel", per_obs=False)
+        sig = np.where(np.isfinite(sig), sig, rel * np.abs(y))
+
+    observed = ~np.isnan(y)
+    bad = observed & ~(np.isfinite(sig) & (sig > 0.0))
+    if np.any(bad):
+        if label is None:
+
+            def label(r: int, c: int) -> str:
+                return f"row {r}" + (f" (tracer {c + 1})" if k > 1 else "")
+
+        rows, cols = np.nonzero(bad)
+        items = []
+        for r, c in zip(rows[:5], cols[:5]):
+            item = label(int(r), int(c))
+            if np.isfinite(sig[r, c]):
+                item += f" (sigma = {sig[r, c]:g})"
+            items.append(item)
+        more = f" and {rows.size - 5} more" if rows.size > 5 else ""
+        raise ValueError(
+            f"{rows.size} observation(s) have no positive measurement uncertainty: "
+            f"{', '.join(items)}{more}. Give sigma (standard deviation, > 0) for "
+            "these observations, or sigma_rel (relative uncertainty) as a fallback."
+        )
+    sig[~observed] = np.nan
+    return sig
+
 
 @dataclass
 class Solver:
@@ -24,9 +115,38 @@ class Solver:
 
     Notes
     -----
-    - The objective is currently mean squared error against ``target_series``.
-    - Parameters with ``fixed=True`` are excluded from optimization but their
-      current values are honored in the simulation.
+    Parameters with ``fixed=True`` are excluded from optimization but their
+    current values are honored in the simulation.
+
+    **Measurement uncertainty.** All solver methods accept the measurement
+    uncertainty of the observations as ``sigma`` (absolute standard
+    deviation, in the unit of the tracer) and ``sigma_rel`` (relative
+    standard deviation as a fraction of the observed value, e.g. ``0.05``
+    for 5 %). ``sigma`` can be a scalar, one value per tracer, or one value
+    per observation (same shape as the observations, e.g. the
+    ``uncertainty`` of a series read with
+    :func:`~PyTracerLab.model.io.read_series`, with ``nan`` where no value
+    is given). For each observation, the standard deviation
+    :math:`\\sigma_i` is taken from ``sigma`` where it is given and is
+    otherwise computed from ``sigma_rel``; an error is raised if an
+    observation is left without a positive standard deviation. The
+    residuals :math:`r_i` (simulated minus observed) are weighted by
+    :math:`1/\\sigma_i`: differential evolution minimizes the mean of
+    :math:`(r_i/\\sigma_i)^2`, least squares minimizes their sum, and the
+    MCMC samplers use the Gaussian log-likelihood
+
+    .. math::
+
+        \\log L = -\\frac{1}{2} \\sum_i \\left(\\frac{r_i}{\\sigma_i}\\right)^2
+        - \\sum_i \\log \\sigma_i - \\frac{n}{2} \\log (2 \\pi).
+
+    If neither ``sigma`` nor ``sigma_rel`` is given, differential evolution
+    and least squares weight all observations equally, and the MCMC
+    samplers treat the standard deviation of each tracer :math:`k` as
+    unknown and marginalize it (Jeffreys prior), which gives
+    :math:`\\log L = -\\sum_k \\frac{n_k}{2} \\log \\mathrm{SSE}_k` with the
+    sum of squared residuals :math:`\\mathrm{SSE}_k` and the number of
+    observations :math:`n_k` of tracer :math:`k`.
     """
 
     model: Model
@@ -41,6 +161,49 @@ class Solver:
         """Bounds for free parameters in registry order."""
         return self.model.get_bounds(free_only=True)
 
+    def _obs_matrix(self) -> np.ndarray:
+        """Observations without the warm-up period as a 2D array ``(N, K)``.
+
+        Slicing off ``n_warmup`` rows gives the original observations both
+        before and after the warm-up has been prepended to
+        ``model.target_series``.
+        """
+        if self.model.target_series is None:
+            raise ValueError("Calibration requires observations (target_series) on the model.")
+        y = np.asarray(self.model.target_series[self.model.n_warmup :], dtype=float)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+        if not np.any(~np.isnan(y)):
+            raise ValueError("The observations contain no values (all entries are NaN).")
+        return y
+
+    def _obs_label(self, row: int, col: int, n_tracers: int) -> str:
+        """Human-readable position of an observation for error messages."""
+        label = f"row {row}"
+        times = self.model.time_steps
+        if times is not None and len(times) == len(self.model.input_series) - self.model.n_warmup:
+            t = times[row]
+            label = t.strftime("%Y-%m-%d") if hasattr(t, "strftime") else str(t)
+        if n_tracers > 1:
+            label += f" (tracer {col + 1})"
+        return label
+
+    def _sigma_matrix(
+        self,
+        sigma: float | Sequence[float] | np.ndarray | None,
+        sigma_rel: float | Sequence[float] | None,
+    ) -> np.ndarray | None:
+        """Standard deviation of each observation as an array ``(N, K)``.
+
+        See :func:`_observation_sigma`; error messages name the dates of the
+        observations if ``model.time_steps`` is given.
+        """
+        if sigma is None and sigma_rel is None:
+            return None
+        y = self._obs_matrix()
+        k = y.shape[1]
+        return _observation_sigma(y, sigma, sigma_rel, label=lambda r, c: self._obs_label(r, c, k))
+
     def _simulate_given_free(self, free_params: Sequence[float]) -> np.ndarray:
         """Set free params and return simulation."""
         self.model.set_vector(list(free_params), which="value", free_only=True)
@@ -51,50 +214,27 @@ class Solver:
             sim[:] = np.nan
         return sim
 
-    def _obj(self, free_params: Sequence[float], *sigma: float | Sequence[float]) -> float:
-        """Mean squared error (optionally sigma-weighted) over all tracers."""
-        sim = self._simulate_given_free(free_params)
-        if self.model.target_series is None:
-            return float("inf")
-        y = self.model.target_series[self.model.n_warmup :]
-        y2 = np.asarray(y, dtype=float)
-        s2 = np.asarray(sim, dtype=float)
-        if y2.ndim == 1:
-            y2 = y2.reshape(-1, 1)
-        if s2.ndim == 1:
-            s2 = s2.reshape(-1, 1)
-        if y2.shape != s2.shape:
-            return float("inf")
-        mask = ~np.isnan(y2) & ~np.isnan(s2)
-        if not np.any(mask):
-            return float("inf")
-        resid = s2 - y2
+    @staticmethod
+    def _as_2d(sim: np.ndarray) -> np.ndarray:
+        """Simulation as a 2D float array ``(N, K)``."""
+        s = np.asarray(sim, dtype=float)
+        return s.reshape(-1, 1) if s.ndim == 1 else s
 
-        # Get sigma
-        sigma = sigma[0]
-        if sigma is None:
-            # np.mean uses the flattened array, to we don't have issues
-            # when two tracers are used
-            return float(np.mean((resid[mask]) ** 2))
-        if isinstance(sigma, (list, tuple, np.ndarray)):
-            sig_vec = np.asarray(sigma, dtype=float).ravel()
-            if sig_vec.size == 1:
-                sig_vec = np.full(y2.shape[1], float(sig_vec[0]))
-            if sig_vec.size != y2.shape[1]:
-                # np.mean uses the flattened array, to we don't have issues
-                # when two tracers are used
-                return float(np.mean((resid[mask]) ** 2))
-        else:
-            sig_vec = np.full(y2.shape[1], float(sigma))
-        sig = sig_vec.reshape(1, -1)
-        norm = resid / sig
-        # np.mean uses the flattened array, to we don't have issues
-        # when two tracers are used
-        mse = float(np.mean((norm[mask]) ** 2))
-        if np.isnan(mse):
-            # if nan, return a large number
-            return float(1e10)
-        return mse
+    def _obj(self, free_params: Sequence[float], y: np.ndarray, sig: np.ndarray | None) -> float:
+        """Mean of squared (optionally sigma-weighted) residuals over all observations.
+
+        ``y`` and ``sig`` are the arrays from :meth:`_obs_matrix` and
+        :meth:`_sigma_matrix`. Failed simulations give a large finite value.
+        """
+        s2 = self._as_2d(self._simulate_given_free(free_params))
+        if s2.shape != y.shape:
+            return _BAD_OBJECTIVE
+        mask = ~np.isnan(y)
+        resid = s2[mask] - y[mask]
+        if sig is not None:
+            resid = resid / sig[mask]
+        val = float(np.mean(resid**2))
+        return val if np.isfinite(val) else _BAD_OBJECTIVE
 
     def differential_evolution(
         self,
@@ -103,10 +243,15 @@ class Solver:
         mutation: Tuple[float, float] = (0.5, 1.99),
         recombination: float = 0.5,
         tol: float = 1e-3,
-        sigma: Union[float, Sequence[float], None] = None,
+        sigma: Union[float, Sequence[float], np.ndarray, None] = None,
         random_state: int | None = None,
+        sigma_rel: Union[float, Sequence[float], None] = None,
     ) -> Tuple[Dict[str, float], np.ndarray]:
         """Run differential evolution and return the best solution.
+
+        Minimizes the mean of the squared residuals, each divided by the
+        measurement uncertainty of the observation if ``sigma`` or
+        ``sigma_rel`` is given (see :class:`Solver`).
 
         Parameters
         ----------
@@ -120,10 +265,18 @@ class Solver:
             DE recombination constant.
         tol : float, optional
             Convergence tolerance.
-        sigma : float | Sequence[float] | None, optional
-            Error standard deviation(s) for weighted mean squared error.
+        sigma : float | array_like | None, optional
+            Measurement uncertainty (standard deviation): scalar, one value
+            per tracer, or one value per observation (e.g.
+            ``obs.uncertainty``, ``nan`` where not given). If neither
+            ``sigma`` nor ``sigma_rel`` is given, all observations are
+            weighted equally.
         random_state : int | None, optional
             Random seed.
+        sigma_rel : float | array_like | None, optional
+            Relative measurement uncertainty as a fraction of the observed
+            value (e.g. ``0.05``), scalar or one value per tracer. Used for
+            all observations for which ``sigma`` gives no value.
 
         Returns
         -------
@@ -133,6 +286,10 @@ class Solver:
         """
         # Validate bounds exist for all free parameters
         bounds = self._reduced_bounds()
+
+        # Observations and their standard deviations (checked before the run)
+        y = self._obs_matrix()
+        sig = self._sigma_matrix(sigma, sigma_rel)
 
         # Build init vector and repair non-finite initials by midpoint of bounds
         init_free = self.model.get_vector(which="initial", free_only=True)
@@ -160,7 +317,7 @@ class Solver:
             recombination=recombination,
             tol=tol,
             rng=random_state,
-            args=(sigma,),
+            args=(y, sig),
         )
 
         # Write back and simulate once more at the best params
@@ -169,59 +326,22 @@ class Solver:
         solution = {k: float(self.model.params[k]["value"]) for k in self.model.params}
         return solution, sim
 
-    def _simulated_equivalents(self, *free_params: Sequence[float]) -> Sequence[float]:
-        """Least squares wants a vector of simulated observation
-        equivalents without nans."""
-        # We don't care about the first parameter as this is "xdata"
-        params = [float(p) for n, p in enumerate(free_params[1:])]
-        sim = self._simulate_given_free(params)
-
-        if self.model.target_series is None:
-            return float("inf")
-        y = self.model.target_series[self.model.n_warmup :]
-        y2 = np.asarray(y, dtype=float)
-        s2 = np.asarray(sim, dtype=float)
-        if y2.ndim == 1:
-            y2 = y2.reshape(-1, 1)
-        if s2.ndim == 1:
-            s2 = s2.reshape(-1, 1)
-        if y2.shape != s2.shape:
-            return float("inf")
-        # y2 and s2 both have shape (num_obs, num_tracers)
-        mask = ~np.isnan(y2) & ~np.isnan(s2)
-        if not np.any(mask):
-            return float("inf")
-        sim_equiv = s2[mask].flatten()
-
-        return sim_equiv
-
-    def _get_obs(self) -> Sequence[float]:
-        """Least squares wants a vector of simulated observation
-        equivalents without nans."""
-        if self.model.target_series is None:
-            return float("inf")
-        y = self.model.target_series[self.model.n_warmup :]
-        y2 = np.asarray(y, dtype=float)
-        if y2.ndim == 1:
-            y2 = y2.reshape(-1, 1)
-        # y2 and s2 both have shape (num_obs, num_tracers)
-        mask = ~np.isnan(y2)
-        if not np.any(mask):
-            return float("inf")
-        obs_equiv = y2[mask].flatten()
-
-        return obs_equiv
-
     def least_squares(
         self,
         ftol: float = 1e-8,
         xtol: float = 1e-8,
         gtol: float = 1e-8,
         max_nfev: int = 10000,
-        sigma: float | Sequence[float] | None = None,
+        sigma: float | Sequence[float] | np.ndarray | None = None,
+        sigma_rel: float | Sequence[float] | None = None,
     ) -> Tuple[Dict[str, float], np.ndarray]:
-        """Run non-linear least squares and return the best solution as
-        well as the parameter covariance matrix at the optimum.
+        """Run gradient-based non-linear least squares and return the best solution.
+
+        Uses :func:`scipy.optimize.curve_fit` with parameter bounds, i.e.,
+        the trust-region reflective algorithm, starting from the initial
+        parameter values. Minimizes the sum of the squared residuals, each
+        divided by the measurement uncertainty of the observation if
+        ``sigma`` or ``sigma_rel`` is given (see :class:`Solver`).
 
         Parameters
         ----------
@@ -234,15 +354,16 @@ class Solver:
             Tolerance for termination by the norm of the gradient.
         max_nfev : int, optional
             Maximum number of function evaluations.
-        sigma : float | Sequence[float] | None, optional
-            Standard deviation of error. By default (None), all errors are
-            assumed to have equal magnitude (no relative differences). See
-            the documentation of scipy.optimize.curve_fit for details. If a
-            single float, it is used for all tracers. If a sequence of length
-            equal to the number of tracers, a constant sigma is used for each
-            tracer (all observations). If a sequence of shape (num_obs,
-            num_tracers), a different sigma is used for each observation
-            and each tracer type.
+        sigma : float | array_like | None, optional
+            Measurement uncertainty (standard deviation): scalar, one value
+            per tracer, or one value per observation (e.g.
+            ``obs.uncertainty``, ``nan`` where not given). If neither
+            ``sigma`` nor ``sigma_rel`` is given, all observations are
+            weighted equally.
+        sigma_rel : float | array_like | None, optional
+            Relative measurement uncertainty as a fraction of the observed
+            value (e.g. ``0.05``), scalar or one value per tracer. Used for
+            all observations for which ``sigma`` gives no value.
 
         Returns
         -------
@@ -252,6 +373,14 @@ class Solver:
         """
         # Validate bounds exist for all free parameters
         bounds = self._reduced_bounds()
+
+        # Observations and their standard deviations (checked before the run)
+        y = self._obs_matrix()
+        sig = self._sigma_matrix(sigma, sigma_rel)
+        # one mask for observations, simulated equivalents and sigma
+        mask = ~np.isnan(y)
+        ydata = y[mask]
+        sigma_vec = None if sig is None else sig[mask]
 
         # Build init vector and repair non-finite initials by midpoint of bounds
         init_free = self.model.get_vector(which="initial", free_only=True)
@@ -270,47 +399,25 @@ class Solver:
         init_free = self.model.get_vector(which="initial", free_only=True)
         self.model.set_vector(init_free, which="value", free_only=True)
 
-        # Get simulated observation equivalents
-        ydata = self._get_obs()
-        # Prepare dummy x data
-        xdata = np.arange(len(ydata))
-        # We need to re-shape the bounds for curve_fit
-        # It needs to be a tuple of two lists; one list for the lower bounds
-        # and one list for the upper bounds of all parameters
+        def simulated_equivalents(_x: np.ndarray, *free_params: float) -> np.ndarray:
+            """Simulated values at the observations (same order as ``ydata``)."""
+            s2 = self._as_2d(self._simulate_given_free(free_params))
+            if s2.shape != y.shape:
+                return np.full(ydata.size, _BAD_OBJECTIVE)
+            out = s2[mask]
+            return np.where(np.isfinite(out), out, _BAD_OBJECTIVE)
+
+        # curve_fit expects bounds as (lower bounds, upper bounds)
         bounds_cf = ([b[0] for b in bounds], [b[1] for b in bounds])
 
-        # We need to treat sigma in detail, there are several cases to
-        # consider. We restrict ourselves here to the same kind of sigma-
-        # specification for both tracers, if two tracers are used.
-        # 1. sigma is None, no weights
-        # 2. sigma is a float, all weights are equal
-        # 3. sigma is a list, one weight per observation
-        if sigma is None:
-            # No specific sigma, no relative differences in observation
-            # errors (also not between tracer types!)
-            pass
-        elif isinstance(sigma, float):
-            # Same sigma for all observations and all tracer types
-            sigma = np.repeat(sigma, len(ydata))
-        else:
-            # Sigma is a list; either has one element per tracer type or
-            # one element per observation (and tracer type)
-            if len(sigma) == 2:
-                s1 = np.repeat(sigma[0], len(ydata) // 2)
-                s2 = np.repeat(sigma[1], len(ydata) // 2)
-                sigma = np.column_stack([s1, s2]).flatten()
-            elif len(sigma) == len(ydata) // 2:
-                # We now assume shape (num_obs, num_tracers)
-                sigma = np.asarray(sigma).flatten()
-
         popt, pcov = curve_fit(
-            f=self._simulated_equivalents,
-            xdata=xdata,
+            f=simulated_equivalents,
+            xdata=np.arange(ydata.size),  # dummy x data
             ydata=ydata,
             p0=init_free,
             bounds=bounds_cf,
-            sigma=sigma,
-            absolute_sigma=True if sigma is not None else False,
+            sigma=sigma_vec,
+            absolute_sigma=sigma_vec is not None,
             ftol=ftol,
             xtol=xtol,
             gtol=gtol,
@@ -330,78 +437,35 @@ class Solver:
         return 0.0
 
     @staticmethod
-    def _loglik_from_sim(y_full: np.ndarray, sim: np.ndarray, sigma: float | None) -> float:
-        """Gaussian likelihood if sigma given; otherwise σ marginalized (Jeffreys prior)."""
-        mask = ~np.isnan(y_full) & ~np.isnan(sim)
-        n_eff = int(np.sum(mask))
-        if n_eff == 0:
-            return -np.inf
-        resid = sim[mask] - y_full[mask]
-        sse = float(np.dot(resid, resid))
-        if not np.isfinite(sse) or sse < 0.0:
-            return -np.inf
-        if sigma is None:
-            # log p(y|θ) ∝ -(n/2) log(SSE)
-            if sse <= 0.0:
-                sse = 1e-300
-            return -0.5 * n_eff * np.log(sse)
-        sig2 = float(sigma) ** 2
-        return -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
+    def _loglik(y: np.ndarray, sim: np.ndarray, sig: np.ndarray | None) -> float:
+        """Gaussian log-likelihood of the observations ``y`` given ``sim``.
 
-    @staticmethod
-    def _loglik_from_sim_multi(
-        y_full: np.ndarray, sim: np.ndarray, sigma: Union[float, Sequence[float], None]
-    ) -> float:
-        """Gaussian log-likelihood; supports scalar or per-tracer sigma.
-
-        If ``sigma`` is ``None``, uses a scale-marginalized form proportional to
-        ``-(n_eff/2) * log(SSE)`` over all non-NaN entries.
+        ``y`` and ``sig`` are the arrays from :meth:`_obs_matrix` and
+        :meth:`_sigma_matrix`. With ``sig``, the standard deviations are
+        treated as known. Without, the standard deviation of each tracer is
+        marginalized (Jeffreys prior), giving
+        ``sum_k -(n_k / 2) * log(SSE_k)``. Failed simulations (non-finite
+        values at observations) give ``-inf``.
         """
-        y2 = np.asarray(y_full, dtype=float)
-        s2 = np.asarray(sim, dtype=float)
-        if y2.ndim == 1:
-            y2 = y2.reshape(-1, 1)
-        if s2.ndim == 1:
-            s2 = s2.reshape(-1, 1)
-        if y2.shape != s2.shape:
+        s2 = Solver._as_2d(sim)
+        if s2.shape != y.shape:
             return -np.inf
-        mask = ~np.isnan(y2) & ~np.isnan(s2)
-        if not np.any(mask):
+        mask = ~np.isnan(y)
+        resid = s2 - y
+        if not np.all(np.isfinite(resid[mask])):
             return -np.inf
-
-        resid = s2 - y2
-        if sigma is None:
-            r = resid[mask]
-            sse = float(np.dot(r, r))
-            if not np.isfinite(sse) or sse <= 0.0:
-                sse = 1e10
-            n_eff = int(np.sum(mask))
-            return -0.5 * n_eff * np.log(sse)
-
-        if not isinstance(sigma, (list, tuple, np.ndarray)):
-            sig2 = float(sigma) ** 2
-            r = resid[mask]
-            sse = np.sum(r**2)
-            n_eff = int(np.sum(mask))
-            ll = -0.5 * (sse / sig2) - 0.5 * n_eff * np.log(2.0 * np.pi * sig2)
-            return ll
-
-        sig_vec = np.asarray(sigma, dtype=float).ravel()
-        if sig_vec.size == 1:
-            sig_vec = np.full(y2.shape[1], float(sig_vec[0]))
-        if sig_vec.size != y2.shape[1]:
-            return -np.inf
-        ll = 0.0
-        for j in range(y2.shape[1]):
-            m = mask[:, j]
-            if not np.any(m):
-                continue
-            rj = resid[m, j]
-            sse_j = float(np.dot(rj, rj))
-            sig2_j = float(sig_vec[j]) ** 2
-            n_eff_j = int(np.sum(m))
-            ll += -0.5 * (sse_j / sig2_j) - 0.5 * n_eff_j * np.log(2.0 * np.pi * sig2_j)
-        return ll
+        if sig is None:
+            ll = 0.0
+            for j in range(y.shape[1]):
+                rj = resid[mask[:, j], j]
+                if rj.size == 0:
+                    continue
+                sse = max(float(np.dot(rj, rj)), 1e-300)
+                ll -= 0.5 * rj.size * np.log(sse)
+            return float(ll)
+        s = sig[mask]
+        z = resid[mask] / s
+        return float(-0.5 * np.dot(z, z) - np.sum(np.log(s)) - 0.5 * z.size * np.log(2.0 * np.pi))
 
     def mcmc_sample(
         self,
@@ -410,12 +474,13 @@ class Solver:
         thin: int = 1,
         rw_scale: float = 0.05,
         rw_scale_isotropic: bool = True,
-        sigma: Union[float, Sequence[float], None] = None,
+        sigma: Union[float, Sequence[float], np.ndarray, None] = None,
         log_prior: callable | None = None,
         start: Sequence[float] | None = None,
         random_state: int | np.random.Generator | None = None,
         return_sim: bool = False,
         set_model_state: bool = True,
+        sigma_rel: Union[float, Sequence[float], None] = None,
     ):
         """Random-Walk Metropolis–Hastings over free parameters.
 
@@ -438,8 +503,12 @@ class Solver:
             ``model.param_keys(free_only=True)``.
         rw_scale_isotropic : bool, optional
             If True, use an isotropic RW proposal with rw_scale as variance.
-        sigma : float | None, optional
-            Standard deviation of Gaussian likelihood.
+        sigma : float | array_like | None, optional
+            Measurement uncertainty (standard deviation of the Gaussian
+            likelihood): scalar, one value per tracer, or one value per
+            observation (e.g. ``obs.uncertainty``, ``nan`` where not given).
+            If neither ``sigma`` nor ``sigma_rel`` is given, the standard
+            deviation of each tracer is marginalized (see :class:`Solver`).
         log_prior : callable | None, optional
             Log prior, if not uniform.
         start : Sequence[float] | None, optional
@@ -450,6 +519,10 @@ class Solver:
             Return simulated series at each sample.
         set_model_state : bool, optional
             Set model state to the posterior median at the end.
+        sigma_rel : float | array_like | None, optional
+            Relative measurement uncertainty as a fraction of the observed
+            value (e.g. ``0.05``), scalar or one value per tracer. Used for
+            all observations for which ``sigma`` gives no value.
 
         Returns
         -------
@@ -467,7 +540,8 @@ class Solver:
         if self.model.target_series is None:
             raise ValueError("MCMC requires target_series on the model.")
 
-        y_full = self.model.target_series[self.model.n_warmup :]
+        y_obs = self._obs_matrix()
+        sig = self._sigma_matrix(sigma, sigma_rel)
         bounds = np.asarray(self._reduced_bounds(), dtype=float)
         lo, hi = bounds[:, 0], bounds[:, 1]
         if np.any(~np.isfinite(lo)) or np.any(~np.isfinite(hi)):
@@ -505,7 +579,7 @@ class Solver:
         if not np.isfinite(cur_lp):
             raise ValueError("Initial point has zero prior density; choose a valid `start`.")
         cur_sim = self._simulate_given_free(cur)
-        cur_ll = self._loglik_from_sim_multi(y_full, cur_sim, sigma)
+        cur_ll = self._loglik(y_obs, cur_sim, sig)
         cur_logpost = cur_lp + cur_ll
 
         if not np.isfinite(cur_logpost):
@@ -513,7 +587,7 @@ class Solver:
             for _ in range(100):
                 trial = np.clip(cur + rng.normal(0.0, step), lo, hi)
                 sim = self._simulate_given_free(trial)
-                ll = self._loglik_from_sim_multi(y_full, sim, sigma)
+                ll = self._loglik(y_obs, sim, sig)
                 lp = (
                     log_prior(trial)
                     if log_prior is not None
@@ -544,7 +618,7 @@ class Solver:
                 accept = False  # fast reject
             else:
                 prop_sim = self._simulate_given_free(prop)
-                prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
+                prop_ll = self._loglik(y_obs, prop_sim, sig)
 
                 if np.isfinite(prop_ll):
                     prop_lp = (
@@ -613,13 +687,14 @@ class Solver:
         gamma: float | None = None,
         gamma_jitter: float = 0.1,
         jitter: float = 1e-6,
-        sigma: Union[float, Sequence[float], None] = None,
+        sigma: Union[float, Sequence[float], np.ndarray, None] = None,
         init_state_sigma: float = 1e-6,
         log_prior: callable | None = None,
         start: Sequence[float] | np.ndarray | None = None,
         random_state: int | np.random.Generator | None = None,
         return_sim: bool = False,
         set_model_state: bool = True,
+        sigma_rel: Union[float, Sequence[float], None] = None,
     ):
         """Basic DREAM sampler.
 
@@ -647,8 +722,12 @@ class Solver:
             Relative jitter applied to gamma (uniform in +/- gamma_jitter).
         jitter : float, optional
             Small Gaussian jitter scale relative to bounds.
-        sigma : float | Sequence[float] | None, optional
-            Standard deviation(s) of Gaussian likelihood.
+        sigma : float | array_like | None, optional
+            Measurement uncertainty (standard deviation of the Gaussian
+            likelihood): scalar, one value per tracer, or one value per
+            observation (e.g. ``obs.uncertainty``, ``nan`` where not given).
+            If neither ``sigma`` nor ``sigma_rel`` is given, the standard
+            deviation of each tracer is marginalized (see :class:`Solver`).
         init_state_sigma : float, optional
             Standard deviation of the Gaussian noise added to the starting
             point to ensure all chains are initialized at different points.
@@ -666,6 +745,10 @@ class Solver:
             Return simulated series at each sample.
         set_model_state : bool, optional
             Set model state to the posterior median at the end.
+        sigma_rel : float | array_like | None, optional
+            Relative measurement uncertainty as a fraction of the observed
+            value (e.g. ``0.05``), scalar or one value per tracer. Used for
+            all observations for which ``sigma`` gives no value.
 
         Returns
         -------
@@ -699,7 +782,8 @@ class Solver:
         if jitter < 0.0:
             raise ValueError("jitter must be non-negative.")
 
-        y_full = self.model.target_series[self.model.n_warmup :]
+        y_obs = self._obs_matrix()
+        sig = self._sigma_matrix(sigma, sigma_rel)
         bounds = np.asarray(self._reduced_bounds(), dtype=float)
         lo, hi = bounds[:, 0], bounds[:, 1]
         if np.any(~np.isfinite(lo)) or np.any(~np.isfinite(hi)):
@@ -775,7 +859,7 @@ class Solver:
                     theta = rng.uniform(lo, hi, size=d)
                     continue
                 sim = self._simulate_given_free(theta)
-                ll = self._loglik_from_sim_multi(y_full, sim, sigma)
+                ll = self._loglik(y_obs, sim, sig)
                 lpst = lp + ll
                 if np.isfinite(lpst):
                     chains[i] = theta
@@ -850,7 +934,7 @@ class Solver:
                             accept = False
                         else:
                             prop_sim = self._simulate_given_free(prop)
-                            prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
+                            prop_ll = self._loglik(y_obs, prop_sim, sig)
                             prop_logpost = prop_lp + prop_ll
                             log_alpha = prop_logpost - cur_lpst
                             p_acc = min(0.0, log_alpha)
@@ -863,7 +947,7 @@ class Solver:
                                 accept = False
                     else:
                         prop_sim = self._simulate_given_free(prop)
-                        prop_ll = self._loglik_from_sim_multi(y_full, prop_sim, sigma)
+                        prop_ll = self._loglik(y_obs, prop_sim, sig)
                         prop_logpost = prop_ll  # uniform prior inside bounds
                         log_alpha = prop_logpost - cur_lpst
                         p_acc = min(0.0, log_alpha)
@@ -988,8 +1072,9 @@ def _run_de(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, obj
     recombination = float(p.get("recombination", 0.5))
     tol = float(p.get("tol", 1e-3))
 
-    # Optional per-solver sigma(s)
+    # measurement uncertainty; checked by the solver (see Solver)
     sigma = p.get("sigma", None)
+    sigma_rel = p.get("sigma_rel", None)
     sol = Solver(model=model)
     _, sim = sol.differential_evolution(
         maxiter=maxiter,
@@ -998,6 +1083,7 @@ def _run_de(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, obj
         recombination=recombination,
         tol=tol,
         sigma=sigma,
+        sigma_rel=sigma_rel,
     )
     return {
         "solver": "de",
@@ -1015,8 +1101,9 @@ def _run_lsq(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, ob
     gtol = float(p.get("gtol", 1e-8))
     max_nfev = int(p.get("max_nfev", 10000))
 
-    # Optional per-solver sigma(s)
+    # measurement uncertainty; checked by the solver (see Solver)
     sigma = p.get("sigma", None)
+    sigma_rel = p.get("sigma_rel", None)
     sol = Solver(model=model)
     _, sim = sol.least_squares(
         ftol=ftol,
@@ -1024,6 +1111,7 @@ def _run_lsq(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, ob
         gtol=gtol,
         max_nfev=max_nfev,
         sigma=sigma,
+        sigma_rel=sigma_rel,
     )
     return {
         "solver": "lsq",
@@ -1046,28 +1134,17 @@ def _run_mcmc(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, o
     burn_in = int(p.get("burn_in", 2000))
     thin = int(p.get("thin", 1))
     rw_scale = float(p.get("rw_scale", 0.05))
+    # measurement uncertainty; checked by the solver (see Solver)
     sigma = p.get("sigma", None)
-    # Allow scalar or per-tracer sequence; basic sanity: all finite if provided
-    if isinstance(sigma, (list, tuple, np.ndarray)):
-        arr = np.asarray(sigma, dtype=float)
-        if not np.all(np.isfinite(arr)):
-            sigma = None
-        else:
-            sigma = arr.tolist()
-    elif sigma is not None:
-        try:
-            sigma = float(sigma)
-            if not np.isfinite(sigma):
-                sigma = None
-        except Exception:
-            sigma = None
+    sigma_rel = p.get("sigma_rel", None)
     sol = Solver(model=model)
     res = sol.mcmc_sample(
         n_samples=n_samples,
         burn_in=burn_in,
         thin=thin,
         rw_scale=rw_scale,
-        sigma=sigma,  # type: ignore[arg-type]
+        sigma=sigma,
+        sigma_rel=sigma_rel,
         return_sim=True,
         set_model_state=True,
     )
@@ -1161,21 +1238,9 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
     gamma_jitter = float(p.get("gamma_jitter", 0.1))
     jitter = float(p.get("jitter", 1e-6))
 
+    # measurement uncertainty; checked by the solver (see Solver)
     sigma = p.get("sigma", None)
-    # Allow scalar or per-tracer sequence; basic sanity: all finite if provided
-    if isinstance(sigma, (list, tuple, np.ndarray)):
-        arr = np.asarray(sigma, dtype=float)
-        if not np.all(np.isfinite(arr)):
-            sigma = None
-        else:
-            sigma = arr.tolist()
-    elif sigma is not None:
-        try:
-            sigma = float(sigma)
-            if not np.isfinite(sigma):
-                sigma = None
-        except Exception:
-            sigma = None
+    sigma_rel = p.get("sigma_rel", None)
 
     sol = Solver(model=model)
     res = sol.dream_sample(
@@ -1188,7 +1253,8 @@ def _run_dream(model: Model, params: Dict[str, Any] | None = None) -> Dict[str, 
         gamma=gamma,
         gamma_jitter=gamma_jitter,
         jitter=jitter,
-        sigma=sigma,  # type: ignore[arg-type]
+        sigma=sigma,
+        sigma_rel=sigma_rel,
         return_sim=True,
         set_model_state=True,
     )

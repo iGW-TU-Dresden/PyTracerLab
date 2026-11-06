@@ -8,6 +8,7 @@ from ..model import model as mm
 from ..model import solver as ms
 from ..model.registry import UNIT_REGISTRY
 from .database import Tracers
+from .uncertainty import solver_sigma_kwargs
 
 
 class Controller(QObject):
@@ -210,9 +211,11 @@ class Controller(QObject):
             self.build_model()
             if self.ml is None:
                 return
-            # Run selected solver via registry and emit standardized payload
+            # Run selected solver via registry and emit standardized payload;
+            # the measurement uncertainty is shared by all solvers
             key = getattr(self.state, "solver_key", "de")
-            params = getattr(self.state, "solver_params", {}).get(key, {})
+            params = dict(getattr(self.state, "solver_params", {}).get(key, {}))
+            params.update(solver_sigma_kwargs(self.state))
             payload = ms.run_solver(self.ml, key, params)
             self.state.last_simulation = payload
             self.calibrated.emit(payload)

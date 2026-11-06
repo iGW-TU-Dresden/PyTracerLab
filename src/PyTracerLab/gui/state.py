@@ -29,6 +29,9 @@ class AppState:
         Selected solver registry key (``"de"``, ``"lsq"``, or ``"mcmc"``).
     solver_params : dict
         Per-solver configuration dictionary.
+    use_file_uncertainty, uncertainty_mode, sigma_abs, sigma_rel_percent
+        Measurement uncertainty settings shared by all solvers, see
+        :mod:`PyTracerLab.gui.uncertainty`.
     input_series : tuple(ndarray, ndarray) | None
         Timestamps and input values (values always 2D, shape ``(N, K)``).
     target_series : tuple(ndarray, ndarray) | None
@@ -74,21 +77,18 @@ class AppState:
                 "mutation": (0.5, 1.0),
                 "recombination": 0.7,
                 "tol": 0.01,
-                "sigma": None,
             },
             "lsq": {
                 "ftol": 1e-8,
                 "xtol": 1e-8,
                 "gtol": 1e-8,
                 "max_nfev": 10000,
-                "sigma": None,
             },
             "mcmc": {
                 "n_samples": 10000,
                 "burn_in": 2000,
                 "thin": 2,
                 "rw_scale": 0.05,
-                "sigma": None,
             },
             "dream": {
                 "n_samples": 2000,
@@ -97,10 +97,14 @@ class AppState:
                 "n_chains": 3,
                 "n_diff_pairs": 2,
                 "n_cr": 4,
-                "sigma": None,
             },
         }
     )
+    # Measurement uncertainty, shared by all solvers (see gui/uncertainty.py)
+    use_file_uncertainty: bool = True
+    uncertainty_mode: str = "none"  # "none", "absolute" or "relative"
+    sigma_abs: List[Optional[float]] = field(default_factory=lambda: [None, None])
+    sigma_rel_percent: Optional[float] = None
     input_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
     target_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
     # series as read from file (TracerSeries); kept for tracer names, time step

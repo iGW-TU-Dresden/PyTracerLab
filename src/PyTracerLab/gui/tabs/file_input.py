@@ -389,9 +389,12 @@ class FileInputTab(QWidget):
         values = _values_2d(obs)
         self.state.target_series = (obs.times, values)
         n_obs = int(np.sum(~np.isnan(values)))
-        self.lbl_tg.setText(
-            f"Loaded: {path} ({n_obs} observed value(s); tracers: {', '.join(obs.tracers)})"
-        )
+        info = f"{n_obs} observed value(s); tracers: {', '.join(obs.tracers)}"
+        if obs.uncertainty is not None:
+            sd = np.asarray(obs.uncertainty, dtype=float).reshape(values.shape)
+            n_sd = int(np.sum(np.isfinite(sd) & ~np.isnan(values)))
+            info += f"; with uncertainties for {n_sd} value(s)"
+        self.lbl_tg.setText(f"Loaded: {path} ({info})")
 
 
 class ManualObservationDialog(QDialog):

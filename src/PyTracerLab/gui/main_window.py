@@ -46,6 +46,7 @@ class MainWindow(QWidget):
         t1.changed.connect(t3.refresh)
         t1.changed.connect(t5.reset_results)
         t1.changed.connect(t5.refresh)
+        t1.changed.connect(t4.refresh_uncertainty)
         t2.selection_changed.connect(t3.refresh)
         t2.selection_changed.connect(t5.refresh)
         t2.selection_changed.connect(t5.reset_results)

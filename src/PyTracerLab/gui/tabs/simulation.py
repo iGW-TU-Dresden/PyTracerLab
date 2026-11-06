@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
 )
 
 from ...model import solver as ms
+from ..uncertainty import effective_sigma, summary
 from .solver_params import SolverParamsDialog
 
 
@@ -92,6 +93,11 @@ class SimulationTab(QWidget):
         # b_cal.setStyleSheet("background-color: rgb(140, 230, 170)")
         b_cal.clicked.connect(self.calibrate_requested)
 
+        # Current measurement uncertainty settings (all solvers)
+        self.lbl_uncertainty = QLabel()
+        self.lbl_uncertainty.setWordWrap(True)
+        self.refresh_uncertainty()
+
         # Plotting label
         lbl_plot = QLabel("Plotting")
         lbl_plot.setStyleSheet("font-weight: 600;")
@@ -124,6 +130,7 @@ class SimulationTab(QWidget):
         lay.addWidget(lbl_cal)
         lay.addLayout(row)
         lay.addWidget(b_edit)
+        lay.addWidget(self.lbl_uncertainty)
         lay.addWidget(b_cal)
         lay.addStretch(1)
         lay.addWidget(lbl_plot)
@@ -146,6 +153,11 @@ class SimulationTab(QWidget):
     def _edit_solver_params(self):
         dlg = SolverParamsDialog(self.state, self)
         dlg.exec_()
+        self.refresh_uncertainty()
+
+    def refresh_uncertainty(self):
+        """Show the current measurement uncertainty settings."""
+        self.lbl_uncertainty.setText(summary(self.state))
 
     def _choose_report_file(self):
         """Open save dialog and emit signal with chosen filename."""
@@ -202,17 +214,33 @@ class SimulationTab(QWidget):
         if n_tr == 1:
             axes = [axes]
 
-        # Observations per tracer
+        # Observations per tracer (with error bars of +/- one standard
+        # deviation if measurement uncertainties are specified)
         if obs_arr is not None:
+            sig = effective_sigma(self.state)
             for j in range(obs_arr.shape[1]):
-                axes[j].scatter(
-                    times,
-                    obs_arr[:, j],
-                    label="Observations",
-                    marker="x",
-                    zorder=100,
-                    c="red",
-                )
+                if sig is not None and np.any(np.isfinite(sig[:, j])):
+                    axes[j].errorbar(
+                        times,
+                        obs_arr[:, j],
+                        yerr=sig[:, j],
+                        fmt="x",
+                        color="red",
+                        ecolor="red",
+                        elinewidth=0.8,
+                        capsize=2,
+                        label="Observations (± 1 σ)",
+                        zorder=100,
+                    )
+                else:
+                    axes[j].scatter(
+                        times,
+                        obs_arr[:, j],
+                        label="Observations",
+                        marker="x",
+                        zorder=100,
+                        c="red",
+                    )
 
         payload = self.state.last_simulation
         if isinstance(payload, dict):
