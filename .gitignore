@@ -20,3 +20,6 @@ Thumbs.db
 
 # Locally built docs
 docs/_build/
+
+# pub
+pub/
