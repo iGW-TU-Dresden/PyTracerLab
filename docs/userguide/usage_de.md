@@ -246,7 +246,7 @@ und Linux.
 Im Allgemeinen ist die Verwendung der grafischen Benutzeroberfläche (GUI) strikter und weniger vielseitig als die Verwendung des zugrunde liegenden Pakets. Konkret setzt die App eine bestimmte Struktur der Zeitreihendaten voraus, lässt sich nicht gut skalieren, um viele unterschiedliche Datensätze zu verarbeiten, und bietet nur begrenzte Nachbearbeitungsfunktionen. Dennoch ist die GUI eine sehr benutzerfreundliche Option, um Analysen von Grundwasserlaufzeitverteilungen mit Lumped-Parameter-Modellen durchzuführen.
 
 ```{important}
-Die GUI kann nur Eingangs- und Beobachtungsdateien einlesen, die einer bestimmten Struktur folgen: CSV-Dateien mit Kommas als Trennzeichen, eine erste Zeile, die als Kopfzeile übersprungen wird, eine Datumsspalte im Format `YYYY-MM` (monatliche Daten) oder `YYYY` (jährliche Daten), eine oder zwei Tracer-Spalten, Eingangs- und Beobachtungsreihen derselben Länge sowie `nan` für fehlende Beobachtungen. Eine ausführliche Beschreibung der erforderlichen Dateistruktur finden Sie unter [Vorbereitung der Datensätze](#preparing-datasets-de).
+Eingangs- und Beobachtungsdaten werden aus Textdateien (z. B. CSV) mit einer Zeile pro Datum gelesen: Die erste Spalte enthält das Datum, jede weitere Spalte einen Tracer, mit den Spaltennamen in einer Kopfzeile. Tracer-Eingangszeitreihen benötigen regelmäßige monatliche oder jährliche Zeitschritte ohne Lücken; Beobachtungen können nur an ihren Probenahmedaten angegeben werden. Eine ausführliche Beschreibung der Dateistruktur und [Vorlagen](#data-templates-de) finden Sie unter [Vorbereitung der Datensätze](#preparing-datasets-de).
 ```
 
 (example-datasets-de)=
@@ -282,9 +282,10 @@ Um Probleme bei der Verwendung der GUI zu vermeiden, führen Sie bitte alle Schr
 ### 1. Der Eingabe-Tab
 In diesem **Tab** werden Datensätze geladen und die grundlegendsten Einstellungen für die anschließende Modellierung vorgenommen.
 - Auswahl der zeitlichen Auflösung (jährliche oder monatliche Daten in Zeitreihen und Modellsimulationen)
-- Auswahl von einem oder zwei Tracern, die in der Analyse berücksichtigt werden sollen ($^3\mathrm{H}$ oder $^14\mathrm{C}$)
-- Auswahl und Laden der Tracer-Eingangszeitreihendatei über den sich öffnenden Dateidialog; Details zur Vorbereitung von Tracer-Eingangszeitreihendateien finden Sie [hier](#preparing-datasets-de)
-- Auswahl und Laden der Tracer-Beobachtungszeitreihendatei über den sich öffnenden Dateidialog; Details zur Vorbereitung von Tracer-Beobachtungszeitreihendateien finden Sie [hier](#preparing-datasets-de)
+- Auswahl von einem oder zwei Tracern, die in der Analyse berücksichtigt werden sollen (z. B. $^3\mathrm{H}$, $^{14}\mathrm{C}$, $^{85}\mathrm{Kr}$); ein Tracer pro Spalte der Datendateien, in derselben Reihenfolge
+- Auswahl und Laden der Tracer-Eingangszeitreihendatei über den sich öffnenden Dateidialog; ihr Zeitschritt muss zur gewählten zeitlichen Auflösung passen; Details zur Vorbereitung von Tracer-Eingangszeitreihendateien finden Sie [hier](#preparing-datasets-de)
+- Auswahl und Laden der Beobachtungsdatei über den sich öffnenden Dateidialog (nach der Eingangszeitreihe); Beobachtungen können für jeden Zeitschritt der Eingangszeitreihe oder nur an den Probenahmedaten angegeben werden; Details zur Vorbereitung von Beobachtungsdateien finden Sie [hier](#preparing-datasets-de)
+- kann eine Datei nicht eingelesen werden, nennt eine Meldung die Zeile und den Wert, die das Problem verursacht haben
 
 ```{important}
 In den Tracer-Eingangsdaten und den Beobachtungsdaten sollten dieselben Einheiten der Tracer-Konzentration verwendet werden. Einheiten werden intern nicht überprüft. **Wenn die Einheiten nicht übereinstimmen, werden unerwünschte und falsche Ergebnisse erzielt!**
@@ -350,103 +351,99 @@ Alle Plots, die PyTracerLab erzeugt, können in der Plot-Ansicht interaktiv ange
 
 (preparing-datasets-de)=
 ## Vorbereitung der Datensätze
-Datensätze müssen auf eine bestimmte Weise vorbereitet werden, damit die App die Daten einlesen kann. Dateien müssen stets CSVs sein. Die Tracer-Eingangs- und Beobachtungszeitreihendaten müssen dieselbe Länge haben. Zeitstempel, die in der Tracer-Eingangsreihe vorhanden sind, für die aber keine Beobachtung verfügbar ist, müssen als fehlende Werte markiert werden (siehe unten). Es wird angenommen, dass die Zeitreihen keine Lücken aufweisen und vor der Verwendung in PyTracerLab entsprechend aufbereitet werden. Vollständige Beispieldateien mit dieser Struktur können unter [Beispieldateien](#example-datasets-de) heruntergeladen werden.
+PyTracerLab liest Tracer-Eingangszeitreihen und Beobachtungen aus einfachen Textdateien, zum Beispiel aus CSV-Dateien, die aus einem Tabellenkalkulationsprogramm exportiert wurden. Die GUI und das Python-Paket verwenden dieselbe Einlesefunktion (`read_series`); die folgenden Regeln gelten daher für beide.
 
-Unten kann anstelle von „# Date, CTracer“ oder „# Date, CTracer1, CTracer2“ jede andere Beschreibung verwendet werden. **Die erste Zeile in der Datei wird beim Einlesen übersprungen!**
+(data-templates-de)=
+### Vorlagen
+Am einfachsten laden Sie die Vorlagen herunter und ersetzen die Beispielwerte durch Ihre eigenen Daten:
 
-### Monatliche Daten
-#### Ein einzelner Tracer
-**Monatliche Tracer-Eingangsreihen** sollten das folgende Format haben, wenn **ein einzelner Tracer** betrachtet wird:
+- {download}`input_template.csv <../examples/templates/input_template.csv>` – Tracer-Eingangszeitreihe (jährlich, ein Tracer)
+- {download}`observations_template.csv <../examples/templates/observations_template.csv>` – Beobachtungen an den Probenahmedaten, mit Messunsicherheiten
+
+Die [Beispieldateien](#example-datasets-de) sind vollständige Datensätze im selben Format.
+
+```{note}
+PyTracerLab enthält die Eigenschaften der unterstützten Tracer (z. B. Halbwertszeiten), aber keine Tracer-Eingangszeitreihen. Tracer-Eingangszeitreihen sind aus öffentlichen Quellen erhältlich, für Tritium zum Beispiel aus dem Global Network of Isotopes in Precipitation (GNIP) der IAEA und der WMO (<https://nucleus.iaea.org/wiser>). Jede Aufbereitung der Eingangsdaten (z. B. Niederschlagsgewichtung, Umrechnung von Einheiten) muss vor dem Einlesen in PyTracerLab erfolgen.
+```
+
+### Dateistruktur
+- **Eine Zeile pro Datum.** Die erste Spalte enthält das Datum, jede weitere Spalte einen Tracer.
+- **Kopfzeile:** Eine Zeile mit den Spaltennamen direkt über der ersten Datenzeile ist optional, wird aber empfohlen, z. B. `Date, 3H, SF6`. Sie darf mit `#` beginnen. Zeilen oberhalb der Kopfzeile, die mit `#` beginnen, sind Kommentare.
+- **Trennzeichen:** Komma, Semikolon, Tabulator oder Leerzeichen; wird automatisch erkannt. Dateien mit Semikolon, Tabulator oder Leerzeichen als Trennzeichen dürfen ein Dezimalkomma verwenden (`10,5`).
+- **Datum:** `YYYY`, `YYYY-MM`, `YYYY-MM-DD` (auch mit `/`), `DD.MM.YYYY`, `MM.YYYY` oder ein Dezimaljahr (z. B. `1985.5`). Eine Uhrzeit nach dem Datum wird ignoriert; eine reine Jahresangabe bezeichnet den 1. Januar dieses Jahres.
+- **Fehlende Werte:** leere Zelle, `nan`, `NA`, `n/a` oder `-`.
+- **Messunsicherheit (optional):** Eine Spalte mit dem Namen `<Tracer>_sd` (z. B. `3H_sd`) enthält die Messunsicherheit der Spalte `<Tracer>` als Standardabweichung, in derselben Einheit wie der Tracer.
+- **Einheiten:** Für einen Tracer muss in der Eingangs- und in der Beobachtungsdatei dieselbe Einheit verwendet werden. Einheiten werden nicht überprüft.
+- **Anzahl der Werte:** Es gibt keine feste Obergrenze für die Anzahl der Zeilen oder Beobachtungen.
+
+### Tracer-Eingangszeitreihen
+Tracer-Eingangszeitreihen müssen **regelmäßige Zeitschritte ohne Lücken** haben. Die GUI unterstützt monatliche und jährliche Zeitschritte; wählen Sie vor dem Laden der Datei die passende Option unter *Frequency* auf dem [Eingabe-Tab](#input-tab-de). Das Python-Paket akzeptiert jeden regelmäßigen Zeitschritt (z. B. halbjährlich oder täglich). Unregelmäßige Zeitreihen (z. B. einzelne Niederschlagsproben) müssen vorher umgerechnet werden, zum Beispiel auf Monats- oder Jahreswerte.
+
+Eine jährliche Eingangsdatei für zwei Tracer:
 
 ```
-# Date, CTracer
-1996-01, 1.03
-1996-02, 2.12
-1996-03, 0.08
+Date, 3H, SF6
+1950, 5.0, 0.0
+1951, 5.2, 0.0
 ...
-2009-11, 0.05
+2020, 5.5, 10.1
 ```
 
-**Monatliche Tracer-Beobachtungsreihen** sollten das folgende Format haben, wenn **ein einzelner Tracer** betrachtet wird („nan“, falls zu diesem Zeitstempel keine Beobachtung verfügbar ist):
+Dasselbe mit monatlichen Zeitschritten, Semikolons und Dezimalkommas:
 
 ```
-# Date, CTracer
-1996-01, nan
-1996-02, 0.17
-1996-03, nan
+Date; 3H; SF6
+1950-01; 5,0; 0,0
+1950-02; 5,1; 0,0
 ...
-2009-11, nan
+2020-12; 5,5; 10,1
 ```
 
-#### Zwei Tracer
-**Monatliche Tracer-Eingangsreihen** sollten das folgende Format haben, wenn **zwei Tracer** betrachtet werden:
-```
-# Date, CTracer1, CTracer2
-1996-01, 1.03, 0.01
-1996-02, 2.12, 0.06
-1996-03, 0.08, 0.02
-...
-2009-11, 0.05, 1.25
+### Beobachtungen
+Beobachtungen beziehen sich immer auf die Zeitschritte der Tracer-Eingangszeitreihe. Sie können auf zwei Arten angegeben werden:
+
+1. **Nur an den Probenahmedaten (empfohlen).** Jede Probe wird dem Zeitschritt der Eingangszeitreihe zugeordnet, der ihr Datum enthält; eine Probe vom 30.09.2009 wird zum Beispiel dem Zeitschritt 2009 einer jährlichen und dem Zeitschritt 2009-09 einer monatlichen Eingangszeitreihe zugeordnet. Zwei Proben desselben Tracers in einem Zeitschritt sind nicht zulässig – fassen Sie diese bitte zu einem Wert zusammen (z. B. ihrem Mittelwert). Alle Probenahmedaten müssen im Zeitraum der Eingangszeitreihe liegen.
+
+   ```
+   Date, 3H, 3H_sd, SF6, SF6_sd
+   1985-06-12, 52.1, 1.6, ,
+   1994-08-03, 18.3, 0.6, 2.4, 0.2
+   2004-05-12, 8.9, 0.3, 4.1, 0.3
+   ```
+
+2. **Für jeden Zeitschritt der Eingangszeitreihe.** Die Datei enthält dieselben Daten wie die Eingangsdatei, mit einem fehlenden Wert (z. B. `nan`), wo nichts beobachtet wurde. Dies ist das Format der [Beispieldateien](#example-datasets-de).
+
+   ```
+   # Date, 3H, SF6
+   1950, nan, nan
+   1951, nan, nan
+   ...
+   1985, 52.1, nan
+   ...
+   2020, nan, nan
+   ```
+
+Die Beobachtungsdatei muss dieselben Tracer in derselben Reihenfolge enthalten wie die Eingangsdatei; Zellen von Tracern, die in einer Probe nicht gemessen wurden, bleiben leer. Laden Sie in der GUI die Eingangszeitreihe vor den Beobachtungen. Kann eine Datei nicht eingelesen werden, nennt PyTracerLab die Zeile und den Wert, die das Problem verursacht haben.
+
+### Daten in Python laden
+Im Python-Paket werden dieselben Dateien mit `read_series` geladen. Mit `align_to` werden die Beobachtungen wie oben beschrieben den Zeitschritten der Eingangszeitreihe zugeordnet:
+
+```python
+import PyTracerLab as lab
+
+inp = lab.read_series("input_template.csv")
+obs = lab.read_series("observations_template.csv", align_to=inp)
+print(inp.tracers, inp.step)  # ['3H'] 1 year
+
+model = lab.Model(
+    dt=1.0,  # ein Zeitschritt = ein Jahr
+    lambda_=lab.decay_constant("3H"),  # Zerfallskonstante in 1/Jahr
+    input_series=inp.values,
+    target_series=obs.values,
+)
 ```
 
-**Monatliche Tracer-Beobachtungsreihen** sollten das folgende Format haben, wenn **zwei Tracer** betrachtet werden („nan“, falls zu diesem Zeitstempel keine Beobachtung verfügbar ist):
-```
-# Date, CTracer1, CTracer2
-1996-01, nan, nan
-1996-02, 1.14, 0.01
-1996-03, nan, nan
-1996-04, 1.17, nan
-1996-05, nan, 0.05
-...
-2009-11, nan, nan
-```
-
-### Jährliche Daten
-#### Ein einzelner Tracer
-**Jährliche Tracer-Eingangsreihen** sollten das folgende Format haben, wenn **ein einzelner Tracer** betrachtet wird:
-
-```
-# Date, CTracer
-1996, 1.03
-1997, 2.12
-1998, 0.08
-...
-2009, 0.05
-```
-
-**Jährliche Tracer-Beobachtungsreihen** sollten das folgende Format haben, wenn **ein einzelner Tracer** betrachtet wird („nan“, falls zu diesem Zeitstempel keine Beobachtung verfügbar ist):
-
-```
-# Date, CTracer
-1996, nan
-1997, 0.17
-1998, nan
-...
-2009, nan
-```
-
-#### Zwei Tracer
-**Jährliche Tracer-Eingangsreihen** sollten das folgende Format haben, wenn **zwei Tracer** betrachtet werden:
-```
-# Date, CTracer1, CTracer2
-1996, 1.03, 0.01
-1997, 2.12, 0.06
-1998, 0.08, 0.02
-...
-2009, 0.05, 1.25
-```
-
-**Jährliche Tracer-Beobachtungsreihen** sollten das folgende Format haben, wenn **zwei Tracer** betrachtet werden („nan“, falls zu diesem Zeitstempel keine Beobachtung verfügbar ist):
-```
-# Date, CTracer1, CTracer2
-1996, nan, nan
-1997, 1.14, 0.01
-1998, nan, nan
-1998, 1.16, nan
-1998, nan, 0.06
-...
-2009, nan, nan
-```
+Das Ergebnis von `read_series` enthält die Daten (`times`), die Werte (`values`), die Tracer-Namen aus der Kopfzeile (`tracers`), die Messunsicherheiten aus den `_sd`-Spalten (`uncertainty`) und den Zeitschritt (`step`). Details finden Sie in der {py:func}`API-Dokumentation <PyTracerLab.model.io.read_series>`.
 
 (model-warmup-de)=
 ## Modell-Warmlauf

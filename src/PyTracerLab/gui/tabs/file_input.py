@@ -1,5 +1,6 @@
 """Tab for frequency/tracer selection and CSV input loading."""
 
+import os
 from datetime import datetime
 from typing import List, Optional, Tuple
 
@@ -26,7 +27,17 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ...model.io import DataFileError, TracerSeries, read_series
 from ..database import Tracers
+
+_FILE_FILTER = "Data files (*.csv *.txt);;All files (*)"
+# time steps supported by the GUI (labels as returned by read_series)
+_GUI_STEPS = {True: ("1 month", "Monthly"), False: ("1 year", "Yearly")}
+
+
+def _values_2d(series: TracerSeries) -> np.ndarray:
+    """Return the values of ``series`` as a float array of shape ``(N, K)``."""
+    return np.asarray(series.values, dtype=float).reshape(len(series), -1)
 
 
 def _current_tracer_names(state) -> List[str]:
@@ -67,6 +78,7 @@ class FileInputTab(QWidget):
         super().__init__(parent)
         self.state = state
         self._manual_target_active = False
+        self._target_path: Optional[str] = None  # observation file currently loaded
         lay = QVBoxLayout(self)
 
         ### Temporal reolution selection radio buttons
@@ -150,73 +162,6 @@ class FileInputTab(QWidget):
         self._clear_manual_observations()
         self.changed.emit()
 
-    def _read_csv(self, path, monthly=True):
-        """Read a CSV with first column timestamps and remaining one or two tracer columns.
-
-        Parameters
-        ----------
-        path : str
-            File path to read.
-        monthly : bool
-            Interpret timestamp format as ``"%Y-%m"`` if ``True`` else ``"%Y"``.
-
-        Returns
-        -------
-        tuple(ndarray, ndarray)
-            Parsed datetimes and corresponding float matrix of shape (N, K).
-        """
-        import csv
-
-        fmt = "%Y-%m" if monthly else "%Y"
-        times = []
-        rows: list[list[float]] = []
-        with open(path, "r", encoding="utf-8", newline="") as f:
-            # try reading with comma separator
-            try:
-                r = csv.reader(f, delimiter=";")
-                try:
-                    r = csv.reader(f, delimiter=",")
-                except Exception:
-                    pass
-            except Exception:
-                # still continue
-                pass
-            # skip header
-            _ = next(r, None)  # skip header
-            for rec in r:
-                if not rec:
-                    continue
-                try:
-                    t = datetime.strptime(rec[0].strip(), fmt)
-                except Exception:
-                    # skip malformed timestamps
-                    continue
-                times.append(t)
-                vals = []
-                for tok in rec[1:]:
-                    tok = tok.strip()
-                    if tok == "" or tok.lower() == "nan":
-                        vals.append(np.nan)
-                    else:
-                        try:
-                            # optionally replace commas with decimal points
-                            if "," in tok:
-                                tok = tok.replace(",", ".")
-                            vals.append(float(tok))
-                        except Exception:
-                            vals.append(np.nan)
-                rows.append(vals)
-        if len(times) == 0:
-            return np.array([]), np.array([])
-        # Ensure at least one value column
-        max_cols = max((len(r) for r in rows), default=0)
-        if max_cols == 0:
-            vals_arr = np.full((len(times), 1), np.nan)
-        else:
-            # Pad rows to equal length
-            vals_arr = np.array([ri + [np.nan] * (max_cols - len(ri)) for ri in rows], dtype=float)
-        return np.array(times, dtype=object), vals_arr
-
     def _clear_manual_observations(self) -> None:
         """Reset manual observations when context changes."""
         if not self.state.manual_observations and not self._manual_target_active:
@@ -240,6 +185,9 @@ class FileInputTab(QWidget):
 
         self.state.input_series = None
         self.state.target_series = None
+        self.state.input_data = None
+        self.state.target_data = None
+        self._target_path = None
         self.state.manual_observations.clear()
         self._manual_target_active = False
         self.lbl_in.setText("No input series selected")
@@ -270,6 +218,8 @@ class FileInputTab(QWidget):
                 if col < len(vals):
                     obs[idx, col] = float(vals[col])
         self.state.target_series = (times.copy(), obs)
+        self.state.target_data = None  # manual observations replace an observation file
+        self._target_path = None
         self._manual_target_active = True
         return True
 
@@ -300,29 +250,148 @@ class FileInputTab(QWidget):
         dlg.exec_()
 
     def _open_input(self):
-        file, _ = QFileDialog.getOpenFileName(
-            self, "Open Input Series CSV", "", "CSV Files (*.csv)"
-        )
-        if file:
-            self.state.input_series = self._read_csv(file, self.state.is_monthly)
-            self._clear_manual_observations()
-            shape = self.state.input_series[1].shape if self.state.input_series else None
-            cols = shape[1] if (shape is not None and len(shape) == 2) else 1
-            self.lbl_in.setText(f"Loaded: {file} (columns: {cols})")
-            self.changed.emit()
+        path, _ = QFileDialog.getOpenFileName(self, "Open Input Series", "", _FILE_FILTER)
+        if path:
+            self._load_input(path)
 
     def _open_target(self):
-        file, _ = QFileDialog.getOpenFileName(
-            self, "Open Observation Series CSV", "", "CSV Files (*.csv)"
+        if not self._require_input():
+            return
+        path, _ = QFileDialog.getOpenFileName(self, "Open Observation Series", "", _FILE_FILTER)
+        if path:
+            self._load_target(path)
+
+    def _require_input(self) -> bool:
+        """Return ``True`` if an input series is loaded, else show a message."""
+        if self.state.input_data is not None:
+            return True
+        QMessageBox.warning(
+            self,
+            "No Input Series",
+            "Please load an input series before loading observations. Observations are "
+            "assigned to the time steps of the input series.",
         )
-        if file:
-            self.state.target_series = self._read_csv(file, self.state.is_monthly)
-            self.state.manual_observations.clear()
-            self._manual_target_active = False
-            shape = self.state.target_series[1].shape if self.state.target_series else None
-            cols = shape[1] if (shape is not None and len(shape) == 2) else 1
-            self.lbl_tg.setText(f"Loaded: {file} (columns: {cols})")
-            self.changed.emit()
+        return False
+
+    def _selected_tracer_count(self) -> int:
+        """Number of tracers selected in the tracer boxes (0 if none selected yet)."""
+        return sum(cb.currentText() != "None" for cb in (self.cb_t1, self.cb_t2))
+
+    def _load_input(self, path: str) -> bool:
+        """Read the tracer input time series in ``path`` into the shared state.
+
+        Problems are reported in a message box. Observations loaded from a file
+        before are aligned to the new input series again.
+
+        Returns
+        -------
+        bool
+            ``True`` if the file was loaded.
+        """
+        name = os.path.basename(path)
+        try:
+            series = read_series(path)
+        except DataFileError as exc:
+            QMessageBox.warning(self, "Input Series Not Loaded", str(exc))
+            return False
+
+        expected, freq_label = _GUI_STEPS[bool(self.state.is_monthly)]
+        if series.step != expected:
+            if series.step in ("1 month", "1 year"):
+                other = "Monthly" if series.step == "1 month" else "Yearly"
+                hint = f"Please select '{other}' under Frequency and load the file again."
+            else:
+                hint = (
+                    "The GUI supports monthly and yearly time steps only. Please resample the "
+                    "series, or use the Python package (PyTracerLab.read_series), which "
+                    "accepts any regular time step."
+                )
+            QMessageBox.warning(
+                self,
+                "Input Series Not Loaded",
+                f"{name}: the time step of the file is {series.step}, but '{freq_label}' is "
+                f"selected under Frequency. {hint}",
+            )
+            return False
+
+        self.state.input_data = series
+        self.state.input_series = (series.times, _values_2d(series))
+        self._clear_manual_observations()
+        first = _format_timestamp(series.times[0], self.state.is_monthly)
+        last = _format_timestamp(series.times[-1], self.state.is_monthly)
+        self.lbl_in.setText(
+            f"Loaded: {path} ({len(series)} time steps, {first} to {last}; "
+            f"tracers: {', '.join(series.tracers)})"
+        )
+
+        # observations from a file were aligned to the previous input series
+        if self._target_path is not None:
+            try:
+                obs = read_series(self._target_path, align_to=series)
+            except DataFileError as exc:
+                self._set_target(None, None)
+                QMessageBox.warning(
+                    self,
+                    "Observations Removed",
+                    "The loaded observations do not fit the new input series and were "
+                    f"removed:\n\n{exc}",
+                )
+            else:
+                self._set_target(obs, self._target_path)
+
+        n_selected = self._selected_tracer_count()
+        if n_selected and n_selected != series.n_tracers:
+            QMessageBox.information(
+                self,
+                "Check Tracer Selection",
+                f"{name} contains {series.n_tracers} tracer column(s) "
+                f"({', '.join(series.tracers)}), but {n_selected} tracer(s) are selected "
+                "under Tracers. Please select one tracer per column, in the order of the "
+                "columns in the file.",
+            )
+        self.changed.emit()
+        return True
+
+    def _load_target(self, path: str) -> bool:
+        """Read observations from ``path`` and align them to the input series.
+
+        The file may contain observations for every time step of the input
+        series or only at the sampling dates (see
+        :func:`~PyTracerLab.model.io.read_series`). Problems are reported in a
+        message box.
+
+        Returns
+        -------
+        bool
+            ``True`` if the file was loaded.
+        """
+        if not self._require_input():
+            return False
+        try:
+            obs = read_series(path, align_to=self.state.input_data)
+        except DataFileError as exc:
+            QMessageBox.warning(self, "Observations Not Loaded", str(exc))
+            return False
+        self._set_target(obs, path)
+        self.changed.emit()
+        return True
+
+    def _set_target(self, obs: Optional[TracerSeries], path: Optional[str]) -> None:
+        """Store observations read from file (or clear them if ``obs`` is ``None``)."""
+        self.state.manual_observations.clear()
+        self._manual_target_active = False
+        self._target_path = path
+        self.state.target_data = obs
+        if obs is None:
+            self.state.target_series = None
+            self.lbl_tg.setText("No observation series selected")
+            return
+        values = _values_2d(obs)
+        self.state.target_series = (obs.times, values)
+        n_obs = int(np.sum(~np.isnan(values)))
+        self.lbl_tg.setText(
+            f"Loaded: {path} ({n_obs} observed value(s); tracers: {', '.join(obs.tracers)})"
+        )
 
 
 class ManualObservationDialog(QDialog):

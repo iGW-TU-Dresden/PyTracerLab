@@ -30,9 +30,16 @@ class AppState:
     solver_params : dict
         Per-solver configuration dictionary.
     input_series : tuple(ndarray, ndarray) | None
-        Timestamps and input values.
+        Timestamps and input values (values always 2D, shape ``(N, K)``).
     target_series : tuple(ndarray, ndarray) | None
-        Timestamps and observation values (optional).
+        Timestamps and observation values (optional), on the time grid of the
+        input series (values always 2D, shape ``(N, K)``).
+    input_data : TracerSeries | None
+        Input series as read from file by
+        :func:`~PyTracerLab.model.io.read_series` (incl. tracer names and step).
+    target_data : TracerSeries | None
+        Observations as read from file and aligned to the input series
+        (incl. optional uncertainties); ``None`` for manual observations.
     selected_units : list of str
         Unique unit types (legacy support for parameters tab).
     design_units : list of (str, float)
@@ -96,6 +103,10 @@ class AppState:
     )
     input_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
     target_series: Optional[Tuple[ArrayLike, ArrayLike]] = None
+    # series as read from file (TracerSeries); kept for tracer names, time step
+    # and measurement uncertainties
+    input_data: Optional[object] = None
+    target_data: Optional[object] = None
     manual_observations: Dict[datetime, List[float]] = field(default_factory=dict)
     selected_units: List[str] = field(default_factory=list)  # unique registry keys for params tab
     # detailed design: list of (unit_name, fraction) allowing duplicates

@@ -247,3 +247,14 @@ def test_paper_observation_file_aligns():
     obs = read_series(EXAMPLES / "paper" / "tritium_observations.csv", align_to=inp)
     legacy = read_series(EXAMPLES / "TracerLPM_benchmark_observations_yearly.csv")
     np.testing.assert_array_equal(obs.values, legacy.values)
+
+
+def test_templates_load():
+    """The template files in docs/examples/templates load as documented."""
+    templates = EXAMPLES / "templates"
+    inp = read_series(templates / "input_template.csv")
+    assert inp.step == "1 year" and inp.tracers == ["3H"]
+    obs = read_series(templates / "observations_template.csv", align_to=inp)
+    assert obs.tracers == ["3H"]
+    assert np.sum(~np.isnan(obs.values)) == 3
+    np.testing.assert_array_equal(np.isnan(obs.values), np.isnan(obs.uncertainty))

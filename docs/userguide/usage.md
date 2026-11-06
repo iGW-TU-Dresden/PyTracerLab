@@ -219,7 +219,7 @@ which works on macOS and Linux as well.
 In general, using the Graphical User Interface (GUI) is stricter and less versatile than using the package it is built on. Specifically, the app assumes a certain structure of time series data, is not scalable well to handle many different datasets, and offers limited post-processing functionality. Nevertheless, the GUI is a highly user-friendly option to performing analysis of groundwater travel time distributions using lumped parameter models.
 
 ```{important}
-The GUI can only read input and observation data files that follow a specific structure: CSV files with commas as separators, a first line that is skipped as a header, a date column in the format `YYYY-MM` (monthly data) or `YYYY` (yearly data), one or two tracer columns, input and observation series of the same length, and `nan` for missing observations. See [Preparing Datasets](#preparing-datasets) for a detailed description of the required file structure.
+Input and observation data are read from text files (e.g. CSV) with one row per date: the first column holds the date, every further column one tracer, with the column names in a header line. Tracer input time series need regular monthly or yearly time steps without gaps; observations can be listed only at their sampling dates. See [Preparing Datasets](#preparing-datasets) for a detailed description of the file structure and for [templates](#data-templates).
 ```
 
 (example-datasets)=
@@ -255,9 +255,10 @@ To avoid issues when using the GUI, please perform all steps on all tabs in the 
 ### 1. The Input Tab
 In this **Tab**, datasets are loaded and the most basic settings for subsequent modelling are made.
 - select temporal resolution (yearly or monthly data in time series and model simulations)
-- select one or two tracers to be considered in the analysis ($^3\mathrm{H}$ or $^14\mathrm{C}$)
-- select and load tracer input time series file using the file dialog that opens up; see [here](#preparing-datasets) for details on how to prepare tracer input time series files
-- select and load tracer observation time series file using the file dialog that opens up; see [here](#preparing-datasets) for details on how to prepare tracer observation time series files
+- select one or two tracers to be considered in the analysis (e.g. $^3\mathrm{H}$, $^{14}\mathrm{C}$, $^{85}\mathrm{Kr}$); one tracer per column of the data files, in the same order
+- select and load the tracer input time series file using the file dialog that opens up; its time step must match the selected temporal resolution; see [here](#preparing-datasets) for details on how to prepare tracer input time series files
+- select and load the observation file using the file dialog that opens up (after the input series); observations can be listed for every time step of the input series or only at the sampling dates; see [here](#preparing-datasets) for details on how to prepare observation files
+- if a file cannot be read, a message names the line and the value that caused the problem
 
 ```{important}
 The same units of tracer concentration should be used in both the tracer input data and the observation data. Units are not checked internally. **If units are not equal, unwanted and wrong results are obtained!**
@@ -323,103 +324,99 @@ All plots that PyTracerLab generates can be interactively adapted in the plot-vi
 
 (preparing-datasets)=
 ## Preparing Datasets
-Datasets need to be prepared in a specific way in order for the app to be able to read the data. Files always have to be CSVs. The tracer input and observation time series data has to be of the same length. Time stamps which are present in the tracer input series but for which no observation is available have to be marked as missing values (see below). It is assumed that the time series do not have gaps and are processed accordingly before use in PyTracerLab. Complete example files that follow this structure can be downloaded in [Example Files](#example-datasets).
+PyTracerLab reads tracer input time series and observations from plain text files, for example CSV files exported from a spreadsheet program. The GUI and the Python package use the same reader (the function `read_series`), so the rules below apply to both.
 
-Below, instead of "# Date, CTracer" or "# Date, CTracer1, CTracer2", any other description can be used. **The first line in the file is skipped when reading!**
+(data-templates)=
+### Templates
+The easiest way to start is to download the templates and replace the example values with your own data:
 
-### Montly Data
-#### A Single Tracer
-**Monthly tracer input series** should have the following format if **a single tracer** is considered:
+- {download}`input_template.csv <../examples/templates/input_template.csv>` – tracer input time series (yearly, one tracer)
+- {download}`observations_template.csv <../examples/templates/observations_template.csv>` – observations at the sampling dates, with measurement uncertainties
+
+The [Example Files](#example-datasets) are complete datasets in the same format.
+
+```{note}
+PyTracerLab contains the properties of the supported tracers (e.g. half-lives) but no tracer input records. Tracer input time series can be obtained from public sources, for example the Global Network of Isotopes in Precipitation (GNIP) of the IAEA and WMO for tritium (<https://nucleus.iaea.org/wiser>). Any processing of the input data (e.g. precipitation weighting, unit conversion) has to be done before the data are loaded into PyTracerLab.
+```
+
+### File Structure
+- **One row per date.** The first column holds the date, every further column one tracer.
+- **Header line:** a line with the column names directly above the first data row is optional but recommended, e.g. `Date, 3H, SF6`. It may start with `#`. Lines starting with `#` above the header line are comments.
+- **Delimiter:** comma, semicolon, tab or spaces; detected automatically. Files with semicolon, tab or space delimiters may use a decimal comma (`10,5`).
+- **Dates:** `YYYY`, `YYYY-MM`, `YYYY-MM-DD` (also with `/`), `DD.MM.YYYY`, `MM.YYYY` or a decimal year (e.g. `1985.5`). A time of day after the date is ignored, and a year alone refers to 1 January of that year.
+- **Missing values:** empty cell, `nan`, `NA`, `n/a` or `-`.
+- **Measurement uncertainty (optional):** a column named `<tracer>_sd` (e.g. `3H_sd`) holds the measurement uncertainty of the column `<tracer>` as a standard deviation, in the same unit as the tracer.
+- **Units:** the same unit has to be used for a tracer in the input file and in the observation file. Units are not checked.
+- **Number of values:** there is no fixed limit on the number of rows or observations.
+
+### Tracer Input Time Series
+Tracer input time series must have **regular time steps without gaps**. The GUI supports monthly and yearly time steps; select the matching option under *Frequency* on the [Input Tab](#input-tab) before loading the file. The Python package accepts any regular time step (e.g. half-yearly or daily). Irregular series (e.g. individual precipitation samples) have to be resampled first, for example to monthly or yearly values.
+
+A yearly input file for two tracers:
 
 ```
-# Date, CTracer
-1996-01, 1.03
-1996-02, 2.12
-1996-03, 0.08
+Date, 3H, SF6
+1950, 5.0, 0.0
+1951, 5.2, 0.0
 ...
-2009-11, 0.05
+2020, 5.5, 10.1
 ```
 
-**Monthly tracer observation series** should have the following format if **a single tracer** is considered ("nan" if no observation is available at that time stamp):
+The same with monthly time steps, semicolons and decimal commas:
 
 ```
-# Date, CTracer
-1996-01, nan
-1996-02, 0.17
-1996-03, nan
+Date; 3H; SF6
+1950-01; 5,0; 0,0
+1950-02; 5,1; 0,0
 ...
-2009-11, nan
+2020-12; 5,5; 10,1
 ```
 
-#### Two Tracers
-**Monthly tracer input series** should have the following format if **two tracers** are considered:
-```
-# Date, CTracer1, CTracer2
-1996-01, 1.03, 0.01
-1996-02, 2.12, 0.06
-1996-03, 0.08, 0.02
-...
-2009-11, 0.05, 1.25
+### Observations
+Observations are always related to the time steps of the tracer input time series. They can be given in two ways:
+
+1. **Only at the sampling dates (recommended).** Each sample is assigned to the time step of the input series that contains its date; for example, a sample taken on 2009-09-30 is assigned to the time step 2009 of a yearly input series and to 2009-09 of a monthly one. Two samples of the same tracer in one time step are not allowed – please combine them into one value (e.g. their mean). All sampling dates must lie within the period of the input series.
+
+   ```
+   Date, 3H, 3H_sd, SF6, SF6_sd
+   1985-06-12, 52.1, 1.6, ,
+   1994-08-03, 18.3, 0.6, 2.4, 0.2
+   2004-05-12, 8.9, 0.3, 4.1, 0.3
+   ```
+
+2. **For every time step of the input series.** The file has the same dates as the input file, with a missing value (e.g. `nan`) where nothing was observed. This is the format of the [Example Files](#example-datasets).
+
+   ```
+   # Date, 3H, SF6
+   1950, nan, nan
+   1951, nan, nan
+   ...
+   1985, 52.1, nan
+   ...
+   2020, nan, nan
+   ```
+
+The observation file must contain the same tracers in the same order as the input file; cells of tracers that were not measured in a sample are left empty. In the GUI, load the input series before the observations. If a file cannot be read, PyTracerLab names the line and the value that caused the problem.
+
+### Loading Data in Python
+In the Python package, the same files are loaded with `read_series`. With `align_to`, the observations are assigned to the time steps of the input series as described above:
+
+```python
+import PyTracerLab as lab
+
+inp = lab.read_series("input_template.csv")
+obs = lab.read_series("observations_template.csv", align_to=inp)
+print(inp.tracers, inp.step)  # ['3H'] 1 year
+
+model = lab.Model(
+    dt=1.0,  # one time step = one year
+    lambda_=lab.decay_constant("3H"),  # decay constant in 1/year
+    input_series=inp.values,
+    target_series=obs.values,
+)
 ```
 
-**Monthly tracer observation series** should have the following format if **two tracers** are considered ("nan" if no observation is available at that time stamp):
-```
-# Date, CTracer1, CTracer2
-1996-01, nan, nan
-1996-02, 1.14, 0.01
-1996-03, nan, nan
-1996-04, 1.17, nan
-1996-05, nan, 0.05
-...
-2009-11, nan, nan
-```
-
-### Yearly Data
-#### A Single Tracer
-**Yearly tracer input series** should have the following format if **a single tracer** is considered:
-
-```
-# Date, CTracer
-1996, 1.03
-1997, 2.12
-1998, 0.08
-...
-2009, 0.05
-```
-
-**Yearly tracer observation series** should have the following format if **a single tracer** is considered ("nan" if no observation is available at that time stamp):
-
-```
-# Date, CTracer
-1996, nan
-1997, 0.17
-1998, nan
-...
-2009, nan
-```
-
-#### Two Tracers
-**Yearly tracer input series** should have the following format if **two tracers** are considered:
-```
-# Date, CTracer1, CTracer2
-1996, 1.03, 0.01
-1997, 2.12, 0.06
-1998, 0.08, 0.02
-...
-2009, 0.05, 1.25
-```
-
-**Yearly tracer observation series** should have the following format if **two tracers** are considered ("nan" if no observation is available at that time stamp):
-```
-# Date, CTracer1, CTracer2
-1996, nan, nan
-1997, 1.14, 0.01
-1998, nan, nan
-1998, 1.16, nan
-1998, nan, 0.06
-...
-2009, nan, nan
-```
+The result of `read_series` contains the dates (`times`), the values (`values`), the tracer names from the header line (`tracers`), the measurement uncertainties from the `_sd` columns (`uncertainty`) and the time step (`step`). See the {py:func}`API documentation <PyTracerLab.model.io.read_series>` for details.
 
 (model-warmup)=
 ## Model Warmup
