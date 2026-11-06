@@ -59,3 +59,43 @@ def test_solver_respects_fixed():
     solver = Solver(m)
     sol, _ = solver.differential_evolution(maxiter=5, popsize=5)
     assert sol["epm.mtt"] == pytest.approx(fixed_before)
+
+
+def test_solver_rejects_observations_not_on_input_grid():
+    """Sparse observations used to give a silently infinite objective (O.15)."""
+    m = Model(dt=1.0, lambda_=0.01, input_series=np.ones(100), target_series=np.ones(5))
+    m.add_unit(PMUnit(mtt=10.0), fraction=1.0, bounds=[(1, 30)])
+    with pytest.raises(ValueError, match="align_to"):
+        Solver(m)
+
+
+def test_solver_rejects_tracer_column_mismatch():
+    m = Model(
+        dt=1.0,
+        lambda_=[0.01, 0.02],
+        input_series=np.ones((100, 2)),
+        target_series=np.ones((100, 1)),
+    )
+    m.add_unit(PMUnit(mtt=10.0), fraction=1.0, bounds=[(1, 30)])
+    with pytest.raises(ValueError, match="tracer columns"):
+        Solver(m)
+
+
+def test_warmup_cap_warns():
+    m = Model(
+        dt=1.0,
+        lambda_=0.693 / 5700.0,  # 14C, yearly steps: 2 half-lives > 5000 steps
+        input_series=np.ones(50),
+        steady_state_input=1.0,
+    )
+    m.add_unit(PMUnit(mtt=10.0), fraction=1.0)
+    with pytest.warns(UserWarning, match="limited to 5000"):
+        m.simulate()
+    assert m.n_warmup == 5000
+
+
+def test_no_warmup_no_warning(recwarn):
+    m = Model(dt=1.0, lambda_=0.693 / 5700.0, input_series=np.ones(50))
+    m.add_unit(PMUnit(mtt=10.0), fraction=1.0)
+    m.simulate()
+    assert not [w for w in recwarn if "warm-up" in str(w.message)]

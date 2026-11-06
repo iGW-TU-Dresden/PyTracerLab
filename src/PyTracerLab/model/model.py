@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -12,6 +13,9 @@ from .units import Unit
 
 # Each registry record stores numeric state + metadata used by the solver.
 ParamRecord = Dict[str, object]
+
+# Upper limit for the number of warm-up time steps.
+_MAX_WARMUP_STEPS = 5000
 
 
 @dataclass
@@ -300,16 +304,20 @@ class Model:
         else:
             self._n_warmup = int(self.n_warmup_steps)
 
-        # Ensure that warmup is not too long
-        if self._n_warmup > 5000:
-            # limit warmup to 5000
-            self._n_warmup = 5000
-
         if self.steady_state_input is None or self._n_warmup <= 0:
             # no warmup requested → ensure we don't slice anything off
             self._n_warmup = 0
             self._is_warm = True
             return
+
+        # Ensure that warmup is not too long
+        if self._n_warmup > _MAX_WARMUP_STEPS:
+            warnings.warn(
+                f"The warm-up period was limited to {_MAX_WARMUP_STEPS} time steps "
+                f"(requested: {self._n_warmup}).",
+                stacklevel=3,
+            )
+            self._n_warmup = _MAX_WARMUP_STEPS
         # prepend steady-state warmup to input; support 1D or 2D inputs
         if self.input_series.ndim == 1:
             val = self._steady_state_vector(1)[0]
@@ -327,6 +335,33 @@ class Model:
                 warm_nan = np.full((self._n_warmup, n_tr_tg), np.nan)
             self.target_series = np.concatenate((warm_nan, self.target_series))
         self._is_warm = True
+
+    def _validate_series(self) -> None:
+        """Check that ``target_series`` is given on the time grid of ``input_series``.
+
+        Raises
+        ------
+        ValueError
+            If the number of time steps (or, for 2D arrays, of tracers) of
+            ``target_series`` and ``input_series`` differ.
+        """
+        if self.input_series is None or self.target_series is None:
+            return
+        shape_in = np.shape(self.input_series)
+        shape_obs = np.shape(self.target_series)
+        if shape_in[0] != shape_obs[0]:
+            raise ValueError(
+                f"target_series has {shape_obs[0]} time steps but input_series has "
+                f"{shape_in[0]}. Observations must be given on the time grid of the "
+                "input series, with NaN where nothing was observed. "
+                "PyTracerLab.read_series(path, align_to=input_series) does this for "
+                "observation files that list only the sampling dates."
+            )
+        if len(shape_in) == 2 and len(shape_obs) == 2 and shape_in[1] != shape_obs[1]:
+            raise ValueError(
+                f"target_series has {shape_obs[1]} tracer columns but input_series has "
+                f"{shape_in[1]}."
+            )
 
     def _check(self) -> None:
         """Ensure warmup is applied and mixture fractions are properly normalized.

@@ -7,9 +7,11 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   PyTracerLab.model.io
    PyTracerLab.model.model
    PyTracerLab.model.registry
    PyTracerLab.model.solver
+   PyTracerLab.model.tracers
    PyTracerLab.model.units
 
 Module contents

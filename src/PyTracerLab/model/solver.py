@@ -31,6 +31,11 @@ class Solver:
 
     model: Model
 
+    def __post_init__(self) -> None:
+        # Fail early with a clear message instead of a silently infinite
+        # objective if observations are not aligned with the input series.
+        self.model._validate_series()
+
     # ------------------------- internals ---------------------------------
     def _reduced_bounds(self) -> List[Tuple[float, float]]:
         """Bounds for free parameters in registry order."""
