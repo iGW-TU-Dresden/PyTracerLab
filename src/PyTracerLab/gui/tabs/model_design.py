@@ -82,6 +82,8 @@ class ModelDesignTab(QWidget):
         validator.setNotation(QDoubleValidator.StandardNotation)
         validator.setDecimals(6)
         self.float_validator = validator
+        frac_validator = QDoubleValidator(0.0, 1.0, 6, self)
+        frac_validator.setNotation(QDoubleValidator.StandardNotation)
 
         # Width probe
         probe = QLineEdit()
@@ -102,7 +104,7 @@ class ModelDesignTab(QWidget):
             fx = QLineEdit(self)
             fx.setText("0.00")
             fx.setAlignment(Qt.AlignRight)
-            fx.setValidator(validator)
+            fx.setValidator(frac_validator)
             fx.setMaximumWidth(frac_width)
             fx.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             fx.setEnabled(False)
@@ -117,6 +119,17 @@ class ModelDesignTab(QWidget):
 
             self.rows.append({"combo": combo, "frac": fx})
             row += 1
+
+        # Binary mixtures: the second fraction is the remainder (D18)
+        self.binary_note = QLabel(
+            "Two units: the fraction of the second unit is 1 minus the fraction of the "
+            "first. The fraction of the first unit can be calibrated (Parameters tab)."
+        )
+        self.binary_note.setWordWrap(True)
+        self.binary_note.setStyleSheet("color: #666;")
+        self.binary_note.setVisible(False)
+        grid.addWidget(self.binary_note, row, 0, 1, 2)
+        row += 1
 
         # spacer between sections
         grid.addItem(QSpacerItem(0, 10, SP.Minimum, SP.Minimum), row, 0)
@@ -265,18 +278,38 @@ class ModelDesignTab(QWidget):
         self.ss_container_layout.addStretch(1)
         self._set_ss_inputs_enabled(self.ss_checkbox.isChecked())
 
+    @staticmethod
+    def _fraction(edit: QLineEdit) -> float:
+        try:
+            return float(edit.text()) if edit.text() else 0.0
+        except ValueError:
+            return 0.0
+
+    def _sync_binary_fraction(self):
+        """With exactly two units, show the second fraction as 1 - first (read-only)."""
+        selected = [r for r in self.rows if r["combo"].currentData() is not None]
+        binary = len(selected) == 2
+        for r in selected:
+            r["frac"].setEnabled(True)
+            r["frac"].setToolTip("")
+        if binary:
+            second = selected[1]["frac"]
+            second.blockSignals(True)
+            second.setText(f"{1.0 - self._fraction(selected[0]['frac']):.4f}")
+            second.blockSignals(False)
+            second.setEnabled(False)
+            second.setToolTip("1 minus the fraction of the first unit")
+        self.binary_note.setVisible(binary)
+
     def _update(self):
+        self._sync_binary_fraction()
         # Gather selected units (up to 4) and their fractions
         design_units = []  # list of (unit_name, fraction)
         for r in self.rows:
             name = r["combo"].currentData()
             if name is None:
                 continue
-            try:
-                frac = float(r["frac"].text()) if r["frac"].text() else 0.0
-            except ValueError:
-                frac = 0.0
-            design_units.append((name, frac))
+            design_units.append((name, self._fraction(r["frac"])))
 
         # Persist basic list
         self.state.design_units = design_units

@@ -277,7 +277,8 @@ In this **Tab**, the different model parts are selected that are included in the
         - Exponential Model (**EM**)
         - Exponential Piston-Flow Model (**EPM**)
         - Dispersion Model (**DM**)
-    - each unit is associated with a corresponding fraction of the total system response or output; the fractions of all active units need to sum to units, otherwise an error is raised, and the model will not run
+    - each unit is associated with a corresponding fraction of the total system response or output; the fractions are between 0 and 1 and must sum to one, otherwise an error is raised, and the model will not run
+    - with exactly two units (binary mixture), only the fraction of the first unit is entered; the fraction of the second unit is calculated as 1 minus this value. The fraction of the first unit can be calibrated (see [Mixing Fractions](#mixing-fractions))
 - specify if there is a steady state tracer input that should be considered for the time prior to the start of the datasets
 - specify the warmup time span
     - this prepends the steady state tracer input for the time of the number of tracer half lives specified here
@@ -295,6 +296,8 @@ In this **Tab**, settings are made regarding model parameters, how they are boun
 - specify the lower bound, current value, upper bound, and calibration status for all model parameters; different model parameters are organized in rows
     - the value that is specified for a parameter will be used as its value for simple simulation and as the initial value for calibration
     - parameters that are set to *fixed* remain at their specified value during calibration
+- with two units, an additional row *mixing fraction* holds the fraction of the first unit: its value is set in the Model Tab, its bounds and calibration status here; it is *fixed* by default (see [Mixing Fractions](#mixing-fractions))
+    - a note is shown if the mixing fraction and the mean travel times of both units are free, because these parameters are often strongly correlated
 
 ```{important}
 Parameter time units are always in years. Half lives are internally converted but other parameters having time units are interpreted in months.
@@ -462,6 +465,29 @@ best, sim = solver.differential_evolution(sigma=[1.0, 0.5])
 ```
 
 Other uncertainty models can be computed and passed as `sigma`, for example an absolute uncertainty of 0.3 TU combined with 5 % of the observed value: `sigma=np.sqrt(0.3**2 + (0.05 * obs.values) ** 2)`. See the {py:class}`API documentation <PyTracerLab.model.solver.Solver>` for details.
+
+(mixing-fractions)=
+## Mixing Fractions
+In a binary mixture (two units in parallel), the fraction of the first unit, $f$, can be calibrated together with the other parameters; the second unit contributes $1 - f$. Like every other parameter, the fraction has bounds (between 0 and 1) and is *fixed* by default, so that it is only calibrated if this is explicitly requested. With three or four units, the fractions are fixed model properties; different fractions can then be compared in scenarios.
+
+Whether the mixing fraction and the mean travel times of both units can be determined together depends on the available information:
+
+- the number of independent observations must not be smaller than the number of free parameters. For a single sample, this means at least as many tracers as free parameters; PyTracerLab warns if there are more free parameters than observations;
+- the tracers must carry complementary information. Tracers with contrasting input histories (e.g. tritium and SF₆) constrain a binary mixture much better than tracers with similar histories (e.g. tritium and tritiogenic helium); a long time series of observations also contains more information than a single sample;
+- if the information is limited, fix the mean travel time of one unit (e.g. an "old", tracer-free component) and calibrate the fraction and the mean travel time of the other unit (cf. Jurgens et al., 2012).
+
+With MCMC or DREAM, an ill-determined mixture shows up as a strong correlation between the fraction and the mean travel times in the posterior samples; differential evolution and least squares then return only one of many equally good solutions.
+
+**In Python**, the mixing fraction is the parameter `"<prefix of the first unit>.fraction"`:
+
+```python
+m.add_unit(lab.EPMUnit(mtt=10.0, eta=1.5), fraction=0.6, prefix="young",
+           bounds=[(1.0, 100.0), (1.0, 3.0)])
+m.add_unit(lab.PMUnit(mtt=500.0), fraction=0.4, prefix="old", bounds=[(100.0, 1000.0)])
+m.set_fixed("old.mtt")                      # fix the mean travel time of one unit
+m.set_fixed("young.fraction", False)        # calibrate the mixing fraction
+m.set_bounds("young.fraction", (0.2, 0.8))  # optional, default (0, 1)
+```
 
 (model-warmup)=
 ## Model Warmup

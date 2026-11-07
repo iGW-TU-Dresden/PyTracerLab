@@ -17,6 +17,13 @@ ParamRecord = Dict[str, object]
 # Upper limit for the number of warm-up time steps.
 _MAX_WARMUP_STEPS = 5000
 
+# Local name of the mixing-fraction parameter in the registry.
+FRACTION = "fraction"
+
+
+class PyTracerLabWarning(UserWarning):
+    """Warning about the model or calibration setup (e.g. a capped warm-up)."""
+
 
 @dataclass
 class Model:
@@ -61,6 +68,25 @@ class Model:
       parameters into the model's registry.
     - Bounds are **optimization bounds** only and can be provided at add time
       or later via :meth:`set_bounds`.
+    - **Mixing fraction.** For a binary mixture (exactly two units), the
+      fraction of the first unit is a registry parameter
+      ``"<prefix>.fraction"`` (bounds ``(0, 1)``); the second unit
+      contributes ``1 - fraction``. It is fixed by default and can be
+      calibrated like any other parameter::
+
+          m.add_unit(lab.EPMUnit(mtt=10.0, eta=1.5), fraction=0.6, prefix="young",
+                     bounds=[(1.0, 100.0), (1.0, 3.0)])
+          m.add_unit(lab.PMUnit(mtt=500.0), fraction=0.4, prefix="old",
+                     bounds=[(100.0, 1000.0)])
+          m.set_fixed("old.mtt")                 # often necessary, see below
+          m.set_fixed("young.fraction", False)   # calibrate the mixing fraction
+          m.set_bounds("young.fraction", (0.2, 0.8))
+
+      Whether the fraction and the mean travel times of both units can be
+      determined together depends on the number of independent observations
+      and on the tracers (e.g. tracers with contrasting input histories). If
+      the information is limited, fix one mean travel time. With three or
+      more units, the fractions are fixed model properties.
 
     """
 
@@ -76,6 +102,8 @@ class Model:
 
     units: List[Unit] = field(default_factory=list)
     unit_fractions: List[float] = field(default_factory=list)
+    # parameter prefix of each unit (same order as ``units``)
+    unit_prefixes: List[str] = field(default_factory=list, init=False, repr=False)
 
     # Parameter registry: key -> record
     params: Dict[str, ParamRecord] = field(default_factory=dict, init=False)
@@ -105,13 +133,19 @@ class Model:
     ) -> None:
         """Add a unit, register its parameters, and set its mixture fraction.
 
+        Adding the second unit also registers the mixing fraction of the
+        first unit as parameter ``"<prefix>.fraction"`` (fixed by default,
+        bounds ``(0, 1)``); adding a third unit removes it again, because
+        mixing fractions can only be calibrated for binary mixtures (see
+        :class:`Model`).
+
         Parameters
         ----------
         unit : :class:`~PyTracerLab.model.units.Unit`
             The unit instance to add.
         fraction : float
-            Mixture fraction of this unit in the overall response. Fractions
-            should sum to ~1 across all units.
+            Mixture fraction of this unit in the overall response, between 0
+            and 1. Fractions must sum to ~1 across all units.
         prefix : str, optional
             Namespace prefix for the unit's parameters (e.g., ``"epm"``). If
             omitted, ``"u{index}"`` is used in insertion order.
@@ -124,16 +158,38 @@ class Model:
         ------
         ValueError
             If ``bounds`` is provided and its length does not match the number
-            of unit parameters.
+            of unit parameters, if ``fraction`` is not between 0 and 1, if the
+            prefix is already used, or if a third unit is added while the
+            mixing fraction of a binary mixture is free.
         """
         idx = len(self.units)
-        self.units.append(unit)
-        self.unit_fractions.append(float(fraction))
-
         prefix = prefix or f"u{idx}"
+        frac = float(fraction)
         local_params = list(unit.param_values().items())
+
+        # validate everything before the model is changed
         if bounds is not None and len(bounds) != len(local_params):
             raise ValueError("Length of bounds list must match number of unit parameters")
+        if not 0.0 <= frac <= 1.0:
+            raise ValueError(
+                f"The fraction of unit '{prefix}' must be between 0 and 1 (got {frac})."
+            )
+        if prefix in self.unit_prefixes:
+            raise ValueError(f"The prefix '{prefix}' is already used by another unit.")
+        if any(name == FRACTION for name, _ in local_params):
+            raise ValueError(f"Unit parameters must not be named '{FRACTION}' (reserved).")
+        frac_key = self.fraction_key()
+        if frac_key is not None and not self.params[frac_key]["fixed"]:
+            raise ValueError(
+                f"The mixing fraction can only be calibrated for two units, but '{frac_key}' "
+                f"is free. Fix it with set_fixed('{frac_key}') before adding a third unit."
+            )
+
+        if frac_key is not None:
+            del self.params[frac_key]  # three or more units: fractions are fixed
+        self.units.append(unit)
+        self.unit_fractions.append(frac)
+        self.unit_prefixes.append(prefix)
 
         for i, (local_name, val) in enumerate(local_params):
             key = f"{prefix}.{local_name}"
@@ -146,6 +202,54 @@ class Model:
                 "unit_index": idx,
                 "local_name": local_name,
             }
+
+        if idx == 1:
+            # binary mixture: fraction of the first unit as (fixed) parameter
+            f0 = float(self.unit_fractions[0])
+            self.params[f"{self.unit_prefixes[0]}.{FRACTION}"] = {
+                "value": f0,
+                "initial": f0,
+                "bounds": (0.0, 1.0),
+                "fixed": True,
+                "unit_index": 0,
+                "local_name": FRACTION,
+            }
+
+    def fraction_key(self) -> Optional[str]:
+        """Key of the mixing-fraction parameter, or ``None``.
+
+        The parameter exists only for binary mixtures (exactly two units);
+        it holds the fraction of the first unit.
+        """
+        for key, rec in self.params.items():
+            if rec["local_name"] == FRACTION:
+                return key
+        return None
+
+    def _record(self, key: str) -> ParamRecord:
+        """Registry record of ``key`` with a helpful error for fraction keys."""
+        try:
+            return self.params[key]
+        except KeyError:
+            if key.endswith("." + FRACTION):
+                raise KeyError(
+                    f"No parameter '{key}': the mixing fraction is a parameter only for "
+                    "exactly two units, named after the prefix of the first unit "
+                    f"(available: {self.fraction_key()})."
+                ) from None
+            raise
+
+    def _write_through(self, key: str, value: float) -> None:
+        """Push a parameter value to its unit (or to the mixing fractions)."""
+        rec = self.params[key]
+        idx = int(rec["unit_index"])  # type: ignore[arg-type]
+        local = str(rec["local_name"])
+        if local == FRACTION:
+            # binary mixture: the second unit contributes the remainder
+            self.unit_fractions[0] = value
+            self.unit_fractions[1] = 1.0 - value
+        else:
+            self.units[idx].set_param_values({local: value})
 
     def param_keys(self, free_only: bool = False) -> List[str]:
         """Return parameter keys in a stable order.
@@ -206,23 +310,22 @@ class Model:
             self.params[k][which] = v
             if which == "value":
                 # push through to owning unit immediately
-                idx = int(self.params[k]["unit_index"])  # type: ignore
-                local = str(self.params[k]["local_name"])  # type: ignore
-                self.units[idx].set_param_values({local: v})
+                self._write_through(k, v)
 
     def set_param(self, key: str, value: float) -> None:
         """Set a single parameter's **current** value and update the unit.
 
         This is a convenience wrapper around :meth:`set_vector` for one value.
+        Setting the mixing fraction also sets the fraction of the second unit
+        to ``1 - value``.
         """
-        self.params[key]["value"] = float(value)
-        idx = int(self.params[key]["unit_index"])  # type: ignore
-        local = str(self.params[key]["local_name"])  # type: ignore
-        self.units[idx].set_param_values({local: float(value)})
+        rec = self._record(key)
+        rec["value"] = float(value)
+        self._write_through(key, float(value))
 
     def set_initial(self, key: str, value: float) -> None:
         """Set a single parameter's **initial** value used for optimization seeding."""
-        self.params[key]["initial"] = float(value)
+        self._record(key)["initial"] = float(value)
 
     def set_bounds(self, key: str, bounds: Tuple[float, float]) -> None:
         """Set optimizer bounds for a single parameter.
@@ -232,14 +335,21 @@ class Model:
         key : str
             Fully-qualified parameter key (e.g., ``"epm.mtt"``).
         bounds : (float, float)
-            Lower and upper search bounds for the optimizer.
+            Lower and upper search bounds for the optimizer. Bounds of the
+            mixing fraction must lie within ``[0, 1]``.
         """
-        lo, hi = bounds
-        self.params[key]["bounds"] = (float(lo), float(hi))
+        rec = self._record(key)
+        lo, hi = float(bounds[0]), float(bounds[1])
+        if rec["local_name"] == FRACTION and not 0.0 <= lo <= hi <= 1.0:
+            raise ValueError(
+                f"Bounds of the mixing fraction '{key}' must satisfy 0 <= lower <= upper <= 1 "
+                f"(got ({lo}, {hi}))."
+            )
+        rec["bounds"] = (lo, hi)
 
     def set_fixed(self, key: str, fixed: bool = True) -> None:
-        """Mark a parameter as fixed (not optimized)."""
-        self.params[key]["fixed"] = bool(fixed)
+        """Mark a parameter as fixed (not optimized) or, with ``fixed=False``, as free."""
+        self._record(key)["fixed"] = bool(fixed)
 
     def get_bounds(self, free_only: bool = False) -> List[Tuple[float, float]]:
         """Return bounds for parameters in registry order.
@@ -295,11 +405,21 @@ class Model:
 
         Uses ``n_warmup_half_lives`` and the decay constant to determine the
         warmup length. If ``steady_state_input`` is not provided or length is
-        non-positive, no warmup is applied.
+        non-positive, no warmup is applied. Stable tracers (decay constant 0)
+        are ignored when the length is derived from half-lives; if all tracers
+        are stable, ``n_warmup_steps`` must be given.
         """
-        if self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
-            t12 = 0.693 / np.asarray(self.lambda_)
-            t12 = np.asarray(t12, dtype=float)
+        if self.steady_state_input is None:
+            self._n_warmup = 0
+        elif self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
+            lam = np.atleast_1d(np.asarray(self.lambda_, dtype=float))
+            lam = lam[lam > 0.0]
+            if lam.size == 0:
+                raise ValueError(
+                    "The warm-up length cannot be derived from half-lives because all "
+                    "tracers are stable (decay constant 0); give n_warmup_steps instead."
+                )
+            t12 = 0.693 / lam
             self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
         else:
             self._n_warmup = int(self.n_warmup_steps)
@@ -315,6 +435,7 @@ class Model:
             warnings.warn(
                 f"The warm-up period was limited to {_MAX_WARMUP_STEPS} time steps "
                 f"(requested: {self._n_warmup}).",
+                PyTracerLabWarning,
                 stacklevel=3,
             )
             self._n_warmup = _MAX_WARMUP_STEPS
@@ -369,10 +490,17 @@ class Model:
         Raises
         ------
         ValueError
-            If the sum of unit fractions deviates too much from 1.0.
+            If a unit fraction is not between 0 and 1 or the sum of unit
+            fractions deviates too much from 1.0.
         """
         if not self._is_warm:
             self._warmup()
+        if any(not -1e-12 <= f <= 1.0 + 1e-12 for f in self.unit_fractions):
+            raise ValueError(
+                "Unit fractions must be between 0 and 1 (got "
+                + ", ".join(f"{f:.6g}" for f in self.unit_fractions)
+                + ")."
+            )
         s = sum(self.unit_fractions) if self.unit_fractions else 0.0
         if not (0.99 <= s <= 1.01):
             raise ValueError("Sum of unit fractions must be ~1.0.")
@@ -654,10 +782,25 @@ class Model:
         lines.append("-- --\nATTENTION: Travel Time Parameters are Always Given in [Years]!\n-- --")
 
         # pretty print per group with correct fraction association
+        frac_key = self.fraction_key()
         for prefix, uidx in prefix_order:
             frac = self.unit_fractions[uidx] if 0 <= uidx < len(self.unit_fractions) else None
             frac_str = f"fraction={frac:.3f}" if frac is not None else ""
+            if frac_key is not None and uidx == 1:
+                # binary mixture: the second unit contributes the remainder
+                frac_str += f" (= 1 - {frac_key})"
             lines.append(f"[{prefix}] {frac_str}")
+            if (
+                frac_key is not None
+                and uidx == 1
+                and self.param_uncert is not None
+                and frac_key in self.param_uncert
+            ):
+                lo_f, med_f, hi_f = self.param_uncert[frac_key]
+                lines.append(
+                    f"  {'fraction':15s} 1%-Quantile={1.0 - hi_f:.6g}, "
+                    f"50%-Quantile (Median)={1.0 - med_f:.6g}, 99%-Quantile={1.0 - lo_f:.6g}"
+                )
             keys = sorted(grouped[prefix], key=lambda k: self.params[k]["local_name"])  # type: ignore[index]
             for k in keys:
                 rec = self.params[k]

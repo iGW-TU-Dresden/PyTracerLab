@@ -1,5 +1,7 @@
 """Qt controller that builds the model and runs simulations/solvers."""
 
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -184,6 +186,15 @@ class Controller(QObject):
                     if rec is not None and rec.get("fixed", False):
                         self.ml.set_fixed(f"{prefix}.{key}", True)
 
+            # Binary mixture: bounds and fixed flag of the mixing fraction
+            # (its value is the fraction of the first unit, set above)
+            frac_key = self.ml.fraction_key()
+            if frac_key is not None:
+                rec = self.state.params.get(instances[0]["prefix"], {}).get(mm.FRACTION)
+                if rec is not None:
+                    self.ml.set_bounds(frac_key, (rec["lb"], rec["ub"]))
+                    self.ml.set_fixed(frac_key, rec.get("fixed", True))
+
         except Exception as e:
             self.error.emit(str(e))
             self.ml = None
@@ -216,10 +227,23 @@ class Controller(QObject):
             key = getattr(self.state, "solver_key", "de")
             params = dict(getattr(self.state, "solver_params", {}).get(key, {}))
             params.update(solver_sigma_kwargs(self.state))
-            payload = ms.run_solver(self.ml, key, params)
+            # show notes on the setup (e.g. more free parameters than
+            # observations) together with the status message
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", mm.PyTracerLabWarning)
+                payload = ms.run_solver(self.ml, key, params)
+            notes = []
+            for w in caught:
+                if issubclass(w.category, mm.PyTracerLabWarning):
+                    notes.append(str(w.message))
+                else:  # other warnings go to the console as before
+                    warnings.showwarning(w.message, w.category, w.filename, w.lineno)
             self.state.last_simulation = payload
             self.calibrated.emit(payload)
-            self.status.emit("Calibration finished.")
+            msg = "Calibration finished."
+            if notes:
+                msg += "\n\nNote:\n" + "\n".join(dict.fromkeys(notes))
+            self.status.emit(msg)
         except Exception as e:
             self.error.emit(str(e))
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
@@ -9,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit, differential_evolution
 
-from .model import Model
+from .model import Model, PyTracerLabWarning
 from .registry import SOLVER_REGISTRY
 
 # Objective value / residual used for failed simulations (finite, so that the
@@ -116,7 +117,11 @@ class Solver:
     Notes
     -----
     Parameters with ``fixed=True`` are excluded from optimization but their
-    current values are honored in the simulation.
+    current values are honored in the simulation. The mixing fraction of a
+    binary mixture is an ordinary bounded parameter (see
+    :class:`~PyTracerLab.model.model.Model`), so all solvers can calibrate
+    it. A warning is issued if there are more free parameters than
+    observations.
 
     **Measurement uncertainty.** All solver methods accept the measurement
     uncertainty of the observations as ``sigma`` (absolute standard
@@ -176,6 +181,25 @@ class Solver:
         if not np.any(~np.isnan(y)):
             raise ValueError("The observations contain no values (all entries are NaN).")
         return y
+
+    def _warn_if_underdetermined(self, y: np.ndarray) -> None:
+        """Warn if there are more free parameters than observations.
+
+        The parameters then cannot be determined uniquely from the
+        observations alone (e.g. both mean travel times and the mixing
+        fraction of a binary mixture from two single-sample tracers).
+        """
+        n_obs = int(np.count_nonzero(~np.isnan(y)))
+        n_free = len(self.model.param_keys(free_only=True))
+        if n_free > n_obs:
+            warnings.warn(
+                f"There are more free parameters ({n_free}) than observations ({n_obs}), "
+                "so the parameters cannot be determined uniquely. Consider fixing "
+                "parameters (e.g. the mean travel time of one unit of a binary mixture) "
+                "or adding observations.",
+                PyTracerLabWarning,
+                stacklevel=3,
+            )
 
     def _obs_label(self, row: int, col: int, n_tracers: int) -> str:
         """Human-readable position of an observation for error messages."""
@@ -289,6 +313,7 @@ class Solver:
 
         # Observations and their standard deviations (checked before the run)
         y = self._obs_matrix()
+        self._warn_if_underdetermined(y)
         sig = self._sigma_matrix(sigma, sigma_rel)
 
         # Build init vector and repair non-finite initials by midpoint of bounds
@@ -376,6 +401,7 @@ class Solver:
 
         # Observations and their standard deviations (checked before the run)
         y = self._obs_matrix()
+        self._warn_if_underdetermined(y)
         sig = self._sigma_matrix(sigma, sigma_rel)
         # one mask for observations, simulated equivalents and sigma
         mask = ~np.isnan(y)
@@ -541,6 +567,7 @@ class Solver:
             raise ValueError("MCMC requires target_series on the model.")
 
         y_obs = self._obs_matrix()
+        self._warn_if_underdetermined(y_obs)
         sig = self._sigma_matrix(sigma, sigma_rel)
         bounds = np.asarray(self._reduced_bounds(), dtype=float)
         lo, hi = bounds[:, 0], bounds[:, 1]
@@ -783,6 +810,7 @@ class Solver:
             raise ValueError("jitter must be non-negative.")
 
         y_obs = self._obs_matrix()
+        self._warn_if_underdetermined(y_obs)
         sig = self._sigma_matrix(sigma, sigma_rel)
         bounds = np.asarray(self._reduced_bounds(), dtype=float)
         lo, hi = bounds[:, 0], bounds[:, 1]

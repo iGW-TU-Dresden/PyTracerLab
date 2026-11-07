@@ -304,7 +304,8 @@ In diesem **Tab** werden die verschiedenen Modellteile ausgewählt, die in die S
         - Exponential Model (**EM**)
         - Exponential Piston-Flow Model (**EPM**)
         - Dispersion Model (**DM**)
-    - jede Einheit ist mit einem entsprechenden Anteil der gesamten Systemantwort bzw. -ausgabe verknüpft; die Anteile aller aktiven Einheiten müssen sich zu eins summieren, andernfalls wird ein Fehler ausgelöst und das Modell läuft nicht
+    - jede Einheit ist mit einem entsprechenden Anteil der gesamten Systemantwort bzw. -ausgabe verknüpft; die Anteile liegen zwischen 0 und 1 und müssen sich zu eins summieren, andernfalls wird ein Fehler ausgelöst und das Modell läuft nicht
+    - bei genau zwei Einheiten (binäre Mischung) wird nur der Anteil der ersten Einheit eingegeben; der Anteil der zweiten Einheit wird als 1 minus diesem Wert berechnet. Der Anteil der ersten Einheit kann kalibriert werden (siehe [Mischungsanteile](#mixing-fractions-de))
 - Angabe, ob ein stationärer Tracer-Eingang berücksichtigt werden soll, der für die Zeit vor dem Beginn der Datensätze gilt
 - Angabe der Warmlauf-Zeitspanne
     - dies stellt den stationären Tracer-Eingang für die Dauer der hier angegebenen Anzahl von Tracer-Halbwertszeiten voran
@@ -322,6 +323,8 @@ In diesem **Tab** werden Einstellungen zu den Modellparametern vorgenommen, dazu
 - Angabe der unteren Grenze, des aktuellen Werts, der oberen Grenze und des Kalibrierungsstatus für alle Modellparameter; die verschiedenen Modellparameter sind in Zeilen organisiert
     - der für einen Parameter angegebene Wert wird als sein Wert für die einfache Simulation und als Startwert für die Kalibrierung verwendet
     - Parameter, die auf *fixed* gesetzt sind, bleiben während der Kalibrierung auf ihrem angegebenen Wert
+- bei zwei Einheiten enthält eine zusätzliche Zeile *mixing fraction* den Anteil der ersten Einheit: Sein Wert wird im Modell-Tab festgelegt, seine Grenzen und sein Kalibrierungsstatus hier; standardmäßig ist er *fixed* (siehe [Mischungsanteile](#mixing-fractions-de))
+    - ein Hinweis erscheint, wenn der Mischungsanteil und die mittleren Laufzeiten beider Einheiten frei sind, da diese Parameter oft stark korreliert sind
 
 ```{important}
 Zeiteinheiten von Parametern sind stets in Jahren. Halbwertszeiten werden intern umgerechnet, aber andere Parameter mit Zeiteinheiten werden in Monaten interpretiert.
@@ -489,6 +492,29 @@ best, sim = solver.differential_evolution(sigma=[1.0, 0.5])
 ```
 
 Andere Unsicherheitsmodelle können berechnet und als `sigma` übergeben werden, z. B. eine absolute Unsicherheit von 0,3 TU kombiniert mit 5 % des beobachteten Werts: `sigma=np.sqrt(0.3**2 + (0.05 * obs.values) ** 2)`. Details finden Sie in der {py:class}`API-Dokumentation <PyTracerLab.model.solver.Solver>`.
+
+(mixing-fractions-de)=
+## Mischungsanteile
+In einer binären Mischung (zwei parallele Einheiten) kann der Anteil der ersten Einheit, $f$, zusammen mit den übrigen Parametern kalibriert werden; die zweite Einheit trägt $1 - f$ bei. Wie jeder andere Parameter hat der Anteil Grenzen (zwischen 0 und 1) und ist standardmäßig *fixed*, sodass er nur kalibriert wird, wenn dies ausdrücklich gewählt wird. Bei drei oder vier Einheiten sind die Anteile feste Modelleigenschaften; verschiedene Anteile können dann in Szenarien verglichen werden.
+
+Ob der Mischungsanteil und die mittleren Laufzeiten beider Einheiten gemeinsam bestimmt werden können, hängt von der verfügbaren Information ab:
+
+- Die Anzahl unabhängiger Beobachtungen darf nicht kleiner sein als die Anzahl freier Parameter. Für eine einzelne Probe bedeutet das mindestens so viele Tracer wie freie Parameter; PyTracerLab gibt eine Warnung aus, wenn es mehr freie Parameter als Beobachtungen gibt.
+- Die Tracer müssen sich ergänzende Information enthalten. Tracer mit gegensätzlichem Eintragsverlauf (z. B. Tritium und SF₆) bestimmen eine binäre Mischung deutlich besser als Tracer mit ähnlichem Verlauf (z. B. Tritium und tritiogenes Helium); eine lange Zeitreihe von Beobachtungen enthält zudem mehr Information als eine einzelne Probe.
+- Ist die Information begrenzt, sollte die mittlere Laufzeit einer Einheit festgelegt werden (z. B. einer „alten“, tracerfreien Komponente), und der Anteil sowie die mittlere Laufzeit der anderen Einheit werden kalibriert (vgl. Jurgens et al., 2012).
+
+Mit MCMC oder DREAM zeigt sich eine schlecht bestimmte Mischung als starke Korrelation zwischen dem Anteil und den mittleren Laufzeiten in den Posterior-Stichproben; Differential Evolution und Least Squares liefern dann nur eine von vielen gleich guten Lösungen.
+
+**In Python** ist der Mischungsanteil der Parameter `"<Präfix der ersten Einheit>.fraction"`:
+
+```python
+m.add_unit(lab.EPMUnit(mtt=10.0, eta=1.5), fraction=0.6, prefix="young",
+           bounds=[(1.0, 100.0), (1.0, 3.0)])
+m.add_unit(lab.PMUnit(mtt=500.0), fraction=0.4, prefix="old", bounds=[(100.0, 1000.0)])
+m.set_fixed("old.mtt")                      # mittlere Laufzeit einer Einheit festlegen
+m.set_fixed("young.fraction", False)        # Mischungsanteil kalibrieren
+m.set_bounds("young.fraction", (0.2, 0.8))  # optional, Standard (0, 1)
+```
 
 (model-warmup-de)=
 ## Modell-Warmlauf
