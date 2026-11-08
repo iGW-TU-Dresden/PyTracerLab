@@ -158,8 +158,10 @@ class Solver:
 
     def __post_init__(self) -> None:
         # Fail early with a clear message instead of a silently infinite
-        # objective if observations are not aligned with the input series.
+        # objective if observations are not aligned with the input series
+        # or a unit does not fit into the simulation period (age bins).
         self.model._validate_series()
+        self.model._check_units()
 
     # ------------------------- internals ---------------------------------
     def _reduced_bounds(self) -> List[Tuple[float, float]]:

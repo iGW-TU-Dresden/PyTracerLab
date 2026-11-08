@@ -99,3 +99,19 @@ def test_no_warmup_no_warning(recwarn):
     m.add_unit(PMUnit(mtt=10.0), fraction=1.0)
     m.simulate()
     assert not [w for w in recwarn if "warm-up" in str(w.message)]
+
+
+def test_report_without_observations(tmp_path):
+    """O.28: forward run without observations (used to raise UnboundLocalError)."""
+    m = make_simple_model(target_series=False)
+    text = m.write_report(str(tmp_path / "r.txt"), frequency="1 year")
+    assert "No observations given." in text and "MSE: n/a" in text
+    assert "epm.mtt" in text
+
+
+def test_report_with_single_tracer_name(tmp_path):
+    """O.28: a single tracer name as string (used to be split into characters)."""
+    m = make_simple_model()
+    text = m.write_report(str(tmp_path / "r.txt"), frequency="1 year", tracer="Tritium")
+    assert "Tracer: Tritium" in text and "Tracer Tritium" in text
+    assert "Tracer r" not in text

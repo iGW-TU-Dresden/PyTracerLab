@@ -473,7 +473,7 @@ Other uncertainty models can be computed and passed as `sigma`, for example an a
 
 (model-units)=
 ## Model Units
-Each unit describes one travel time distribution (TTD) $g(\tau)$ with unit area. The parameter `mtt` ($\bar\tau$) is always the mean of the unit's TTD; in the GUI it is given in years.
+Each unit describes one travel time distribution (TTD) $g(\tau)$ with unit area. The parameter `mtt` ($\bar\tau$) is always the mean of the unit's TTD; in the GUI it is given in years. For the age-bin model, the mean travel time is not a parameter but follows from the bin weights.
 
 | Unit | Python class | Parameters | Travel time distribution | Source |
 |---|---|---|---|---|
@@ -484,6 +484,7 @@ Each unit describes one travel time distribution (TTD) $g(\tau)$ with unit area.
 | GM | `GMUnit` | `mtt`, `alpha` (shape factor $\alpha$) | $g(\tau) = \dfrac{\tau^{\alpha-1}\,e^{-\alpha\tau/\bar\tau}}{(\bar\tau/\alpha)^{\alpha}\,\Gamma(\alpha)}$; $\alpha = 1$: EM; $\alpha < 1$: many very short and many very long travel times; large $\alpha$: narrow peak around $\bar\tau$ | Amin and Campana (1996); Kirchner et al. (2000) |
 | LM | `LMUnit` | `mtt` | uniform between 0 and $2\bar\tau$ | Maloszewski and Zuber (1982) |
 | PEM | `PEMUnit` | `mtt`, `above`, `screen`, `below` | EM restricted to the travel times sampled by a partially screened well (see below) | Jurgens et al. (2012, 2016) |
+| Age bins | `AgeBinUnit` (Python only) | `u1` … `u(K-1)` (coordinates of the bin weights; the bin edges are fixed) | histogram: travel times uniformly distributed within each of $K$ bins with fixed edges, calibrated weight per bin; no prescribed shape (see below) | Visser et al. (2013); McCallum et al. (2014) |
 
 **Partial Exponential Model (PEM).** The aquifer is described as in the EM (unconfined, constant thickness, uniform recharge, age increasing with depth), but the well is screened only over part of the saturated thickness. The geometry is given by three thicknesses in any common length unit (only their ratios matter):
 
@@ -501,9 +502,28 @@ m.add_unit(pem, fraction=1.0, prefix="pem",
 print(pem.mtt_aquifer)  # mean travel time of the whole aquifer
 ```
 
-**Time discretisation.** For the EPM, GM, LM and PEM, each time step receives the exact integral of the TTD (including decay) over the time step, as in TracerLPM. This keeps the results accurate also with yearly time steps, and the simulated values change smoothly with the parameters. The EM and DM evaluate the TTD at the time steps (trapezoidal rule); the PM assigns all water to the time step closest to `mtt`.
+**Age-bin model (shape-free TTD).** Instead of prescribing a shape, the TTD is a histogram: you choose $K$ bins with fixed edges $0 \le a_0 < a_1 < \dots < a_K$, and the fraction of water in each bin (bin weights $w_k \ge 0$ with $\sum_k w_k = 1$) is calibrated; within a bin, travel times are uniformly distributed (Visser et al., 2013; McCallum et al., 2014). The mean travel time, $\sum_k w_k\,(a_{k-1} + a_k)/2$, follows from the weights. Because the weights must sum to one, the unit is parameterised by $K-1$ coordinates `u1`, …, `u(K-1)` between 0 and 1, which are converted to the weights by stick-breaking. Every combination of coordinates gives a valid histogram, so all solvers can be used, and the default uniform prior of MCMC and DREAM gives every histogram the same prior probability. With two bins, `u1` is the weight of the first bin.
 
-References: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231.
+- The last edge must lie within the simulation period (input series plus warm-up). Old, tracer-free water can be represented by a wide last bin (e.g. 60–1000 years) together with a sufficiently long warm-up, or by a second unit (e.g. a PM) with a [mixing fraction](#mixing-fractions).
+- Tracer data usually constrain only some properties of the TTD, such as the mean travel time and the fraction of young water, but not its full shape (McCallum et al., 2014). Use few bins (e.g. 3–6) and MCMC or DREAM to see which weights the data determine; PyTracerLab warns if there are more free parameters than observations. No smoothness constraint (regularisation) is applied.
+- The age-bin model is available in Python only.
+
+```python
+bins = lab.AgeBinUnit(edges=[0, 10, 20, 40, 60, 1000])  # years; equal initial weights
+m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
+              input_series=inp.values, target_series=obs.values,
+              steady_state_input=5.0, n_warmup_steps=1000)  # warm-up covers the last bin
+m.add_unit(bins, fraction=1.0, prefix="bins")  # bounds (0, 1) of the coordinates are set
+res = lab.Solver(m).dream_sample(n_samples=2000, sigma_rel=0.1)
+w = bins.weights_from_samples(res, "bins")  # bin weights of each sample, shape (n, K)
+mtt = w @ bins.centres                      # mean travel time of each sample
+young = w[:, :2].sum(axis=1)                # fraction of water younger than 20 years
+print(bins.weights, bins.cumulative, bins.mtt)  # current state of the unit
+```
+
+**Time discretisation.** For the EPM, GM, LM, PEM and the age-bin model, each time step receives the exact integral of the TTD (including decay) over the time step, as in TracerLPM. This keeps the results accurate also with yearly time steps, and the simulated values change smoothly with the parameters. The EM and DM evaluate the TTD at the time steps (trapezoidal rule); the PM assigns all water to the time step closest to `mtt`.
+
+References: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231 · McCallum, J.L., Engdahl, N.B., Ginn, T.R., Cook, P.G., 2014. Nonparametric estimation of groundwater residence time distributions: What can environmental tracer data tell us about groundwater residence time? Water Resour. Res. 50, 2022–2038 · Visser, A., Broers, H.P., Purtschert, R., Sültenfuß, J., de Jonge, M., 2013. Groundwater age distributions at a public drinking water supply well field derived from multiple age tracers (⁸⁵Kr, ³H/³He, and ³⁹Ar). Water Resour. Res. 49, 7778–7796.
 
 (mixing-fractions)=
 ## Mixing Fractions

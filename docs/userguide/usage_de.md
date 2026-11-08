@@ -500,7 +500,7 @@ Andere Unsicherheitsmodelle können berechnet und als `sigma` übergeben werden,
 
 (model-units-de)=
 ## Modelleinheiten
-Jede Einheit beschreibt eine Fließzeitverteilung $g(\tau)$ mit der Fläche eins. Der Parameter `mtt` ($\bar\tau$) ist immer der Mittelwert der Fließzeitverteilung der Einheit; in der GUI wird er in Jahren angegeben.
+Jede Einheit beschreibt eine Fließzeitverteilung $g(\tau)$ mit der Fläche eins. Der Parameter `mtt` ($\bar\tau$) ist immer der Mittelwert der Fließzeitverteilung der Einheit; in der GUI wird er in Jahren angegeben. Beim Fließzeitklassen-Modell ist die mittlere Fließzeit kein Parameter, sondern ergibt sich aus den Gewichten der Klassen.
 
 | Einheit | Python-Klasse | Parameter | Fließzeitverteilung | Quelle |
 |---|---|---|---|---|
@@ -511,6 +511,7 @@ Jede Einheit beschreibt eine Fließzeitverteilung $g(\tau)$ mit der Fläche eins
 | GM | `GMUnit` | `mtt`, `alpha` (Formfaktor $\alpha$) | $g(\tau) = \dfrac{\tau^{\alpha-1}\,e^{-\alpha\tau/\bar\tau}}{(\bar\tau/\alpha)^{\alpha}\,\Gamma(\alpha)}$; $\alpha = 1$: EM; $\alpha < 1$: viele sehr kurze und viele sehr lange Fließzeiten; großes $\alpha$: schmales Maximum um $\bar\tau$ | Amin und Campana (1996); Kirchner et al. (2000) |
 | LM | `LMUnit` | `mtt` | gleichverteilt zwischen 0 und $2\bar\tau$ | Maloszewski und Zuber (1982) |
 | PEM | `PEMUnit` | `mtt`, `above`, `screen`, `below` | EM, beschränkt auf die Fließzeiten, die ein teilverfilterter Brunnen erfasst (siehe unten) | Jurgens et al. (2012, 2016) |
+| Fließzeitklassen (Age bins) | `AgeBinUnit` (nur Python) | `u1` … `u(K-1)` (Koordinaten der Klassengewichte; die Klassengrenzen sind fest) | Histogramm: Fließzeiten innerhalb jeder der $K$ Klassen mit festen Grenzen gleichverteilt, kalibriertes Gewicht je Klasse; keine vorgegebene Form (siehe unten) | Visser et al. (2013); McCallum et al. (2014) |
 
 **Partial Exponential Model (PEM).** Der Grundwasserleiter wird wie beim EM beschrieben (ungespannt, konstante Mächtigkeit, gleichmäßige Grundwasserneubildung, mit der Tiefe zunehmendes Alter), der Brunnen ist jedoch nur über einen Teil der wassererfüllten Mächtigkeit verfiltert. Die Geometrie wird durch drei Mächtigkeiten in einer beliebigen gemeinsamen Längeneinheit angegeben (nur ihre Verhältnisse sind von Bedeutung):
 
@@ -528,9 +529,28 @@ m.add_unit(pem, fraction=1.0, prefix="pem",
 print(pem.mtt_aquifer)  # mittlere Fließzeit des gesamten Grundwasserleiters
 ```
 
-**Zeitliche Diskretisierung.** Beim EPM, GM, LM und PEM erhält jeder Zeitschritt das exakte Integral der Fließzeitverteilung (einschließlich Zerfall) über den Zeitschritt, wie in TracerLPM. Dadurch bleiben die Ergebnisse auch mit jährlichen Zeitschritten genau, und die simulierten Werte ändern sich stetig mit den Parametern. EM und DM werten die Fließzeitverteilung an den Zeitschritten aus (Trapezregel); das PM ordnet das gesamte Wasser dem Zeitschritt zu, der `mtt` am nächsten liegt.
+**Fließzeitklassen-Modell (formfreie Fließzeitverteilung).** Statt eine Form vorzugeben, wird die Fließzeitverteilung als Histogramm beschrieben: Sie wählen $K$ Klassen mit festen Grenzen $0 \le a_0 < a_1 < \dots < a_K$, und der Anteil des Wassers in jeder Klasse (Klassengewichte $w_k \ge 0$ mit $\sum_k w_k = 1$) wird kalibriert; innerhalb einer Klasse sind die Fließzeiten gleichverteilt (Visser et al., 2013; McCallum et al., 2014). Die mittlere Fließzeit, $\sum_k w_k\,(a_{k-1} + a_k)/2$, ergibt sich aus den Gewichten. Da sich die Gewichte zu eins summieren müssen, wird die Einheit durch $K-1$ Koordinaten `u1`, …, `u(K-1)` zwischen 0 und 1 beschrieben, die durch „Stick-Breaking“ in die Gewichte umgerechnet werden. Jede Kombination von Koordinaten ergibt ein gültiges Histogramm, sodass alle Solver verwendet werden können, und die voreingestellte gleichförmige Prior-Verteilung von MCMC und DREAM gibt jedem Histogramm dieselbe Prior-Wahrscheinlichkeit. Bei zwei Klassen ist `u1` das Gewicht der ersten Klasse.
 
-Literatur: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231.
+- Die letzte Klassengrenze muss innerhalb des Simulationszeitraums liegen (Eingangszeitreihe plus Warmlaufzeit). Altes, tracerfreies Wasser kann durch eine breite letzte Klasse (z. B. 60–1000 Jahre) zusammen mit einer ausreichend langen Warmlaufzeit dargestellt werden oder durch eine zweite Einheit (z. B. ein PM) mit einem [Mischungsanteil](#mixing-fractions-de).
+- Tracerdaten bestimmen meist nur einige Eigenschaften der Fließzeitverteilung, etwa die mittlere Fließzeit und den Anteil jungen Wassers, nicht aber ihre vollständige Form (McCallum et al., 2014). Verwenden Sie wenige Klassen (z. B. 3–6) und MCMC oder DREAM, um zu sehen, welche Gewichte durch die Daten bestimmt sind; PyTracerLab warnt, wenn es mehr freie Parameter als Beobachtungen gibt. Es wird keine Glättungsbedingung (Regularisierung) verwendet.
+- Das Fließzeitklassen-Modell ist nur in Python verfügbar.
+
+```python
+bins = lab.AgeBinUnit(edges=[0, 10, 20, 40, 60, 1000])  # Jahre; gleiche Anfangsgewichte
+m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
+              input_series=inp.values, target_series=obs.values,
+              steady_state_input=5.0, n_warmup_steps=1000)  # Warmlaufzeit deckt die letzte Klasse ab
+m.add_unit(bins, fraction=1.0, prefix="bins")  # Grenzen (0, 1) der Koordinaten werden gesetzt
+res = lab.Solver(m).dream_sample(n_samples=2000, sigma_rel=0.1)
+w = bins.weights_from_samples(res, "bins")  # Klassengewichte jeder Stichprobe, Form (n, K)
+mtt = w @ bins.centres                      # mittlere Fließzeit jeder Stichprobe
+young = w[:, :2].sum(axis=1)                # Anteil des Wassers jünger als 20 Jahre
+print(bins.weights, bins.cumulative, bins.mtt)  # aktueller Zustand der Einheit
+```
+
+**Zeitliche Diskretisierung.** Beim EPM, GM, LM, PEM und Fließzeitklassen-Modell erhält jeder Zeitschritt das exakte Integral der Fließzeitverteilung (einschließlich Zerfall) über den Zeitschritt, wie in TracerLPM. Dadurch bleiben die Ergebnisse auch mit jährlichen Zeitschritten genau, und die simulierten Werte ändern sich stetig mit den Parametern. EM und DM werten die Fließzeitverteilung an den Zeitschritten aus (Trapezregel); das PM ordnet das gesamte Wasser dem Zeitschritt zu, der `mtt` am nächsten liegt.
+
+Literatur: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231 · McCallum, J.L., Engdahl, N.B., Ginn, T.R., Cook, P.G., 2014. Nonparametric estimation of groundwater residence time distributions: What can environmental tracer data tell us about groundwater residence time? Water Resour. Res. 50, 2022–2038 · Visser, A., Broers, H.P., Purtschert, R., Sültenfuß, J., de Jonge, M., 2013. Groundwater age distributions at a public drinking water supply well field derived from multiple age tracers (⁸⁵Kr, ³H/³He, and ³⁹Ar). Water Resour. Res. 49, 7778–7796.
 
 (mixing-fractions-de)=
 ## Mischungsanteile

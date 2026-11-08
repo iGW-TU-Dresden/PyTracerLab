@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 import numpy as np
 from scipy import integrate, special
@@ -47,6 +47,36 @@ class Unit(ABC):
             are ignored.
         """
         raise NotImplementedError
+
+    def intrinsic_bounds(self) -> Dict[str, Tuple[float, float]]:
+        """Ranges that follow from the definition of the unit's parameters.
+
+        The :class:`~PyTracerLab.model.model.Model` registers them as
+        optimizer bounds if a unit is added without bounds, and rejects
+        bounds outside these ranges. Most units have none (empty mapping);
+        :class:`AgeBinUnit` uses it for its coordinates in ``[0, 1]``.
+        """
+        return {}
+
+    def check_window(self, t_max: float) -> None:
+        """Check that the travel time distribution fits into ``[0, t_max]``.
+
+        ``t_max`` is the longest travel time the model resolves (input
+        series plus warm-up). Units with unbounded travel time distributions
+        are normalised within this window and need no check; units with a
+        fixed, finite support (:class:`AgeBinUnit`) raise a ``ValueError``.
+        """
+
+    def report_lines(self, time_divisor: float = 1.0) -> List[str]:
+        """Extra lines for :meth:`~PyTracerLab.model.model.Model.write_report`.
+
+        Parameters
+        ----------
+        time_divisor : float, optional
+            Time quantities are divided by this value (e.g. ``12`` to report
+            years for a model in months).
+        """
+        return []
 
     def get_block(
         self, h: np.ndarray, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
@@ -103,9 +133,9 @@ class Unit(ABC):
 # ---------------------------------------------------------------------------
 # Units with exact time-step integration
 #
-# The EPM and the GM, LM and PEM units do not sample g(τ) on the grid. Each time step k receives
-# the exact integral of g(τ)·exp(-λτ) over ((k-1)·dt, k·dt], computed from a
-# closed-form "decayed cumulative distribution"
+# The EPM and the GM, LM, PEM and age-bin units do not sample g(τ) on the grid.
+# Each time step k receives the exact integral of g(τ)·exp(-λτ) over
+# ((k-1)·dt, k·dt], computed from a closed-form "decayed cumulative distribution"
 #
 #     G_λ(τ) = ∫_0^τ g(s) exp(-λ s) ds.
 #
@@ -1082,4 +1112,325 @@ class PEMUnit(Unit):
             If ``mtt`` or ``screen`` is not positive, or ``above`` or
             ``below`` is negative.
         """
+        return _block_from_cdf(self._cdf, tau, lambda_, prod)
+
+
+class AgeBinUnit(Unit):
+    """Age-bin model: a discrete, shape-free travel time distribution.
+
+    The travel time distribution is a histogram with ``K`` bins between fixed
+    edges ``a_0 < a_1 < ... < a_K`` and a uniform distribution within each
+    bin (age histogram or discrete age distribution model; Visser et al.,
+    2013, Eq. 3; McCallum et al., 2014)::
+
+        g(τ) = w_k / (a_k - a_(k-1))   for a_(k-1) < τ <= a_k,
+
+    with bin weights ``w_k >= 0`` that sum to 1. No shape is prescribed; the
+    weights are calibrated. The mean travel time ``Σ w_k (a_(k-1) + a_k) / 2``
+    is derived from the weights (:attr:`mtt`).
+
+    **Parameters.** The weights are not registered directly, because they
+    must sum to 1. Instead, the unit has ``K - 1`` coordinates
+    ``u1, ..., u(K-1)`` in ``[0, 1]`` that are mapped one-to-one to the
+    weights (stick-breaking)::
+
+        b_i = 1 - (1 - u_i)^(1 / (K - i)),
+        w_1 = b_1,
+        w_k = b_k (1 - b_1) ... (1 - b_(k-1)),
+        w_K = (1 - b_1) ... (1 - b_(K-1)).
+
+    Every point of the unit box is a valid histogram, so all solvers work
+    with the plain bounds ``(0, 1)``, which are registered automatically.
+    A uniform distribution of the coordinates in the box corresponds to the
+    uniform (flat Dirichlet) distribution of the weights: with the default
+    uniform prior of :meth:`~PyTracerLab.model.solver.Solver.mcmc_sample` and
+    :meth:`~PyTracerLab.model.solver.Solver.dream_sample`, every histogram is
+    equally probable a priori. With two bins, ``u1`` is the weight of the
+    first bin. Use :attr:`weights`, :attr:`cumulative` and :attr:`mtt` for
+    the current state and :meth:`weights_from_samples` for posterior samples.
+
+    Parameters
+    ----------
+    edges : sequence of float
+        Bin edges ``a_0, ..., a_K`` (``K >= 1``), strictly increasing,
+        ``a_0 >= 0``, in the time unit of the model (same as ``mtt`` of the
+        other units). The last edge must lie within the simulation period
+        (input series plus warm-up); for old, tracer-free water use a wide
+        last bin and a sufficiently long warm-up, or add a second unit.
+    weights : sequence of float, optional
+        Initial bin weights (``K`` values ``>= 0`` that sum to 1). Default:
+        equal weights.
+
+    Notes
+    -----
+    The response of each time step is the exact integral of the histogram
+    with decay (sum of uniform blocks, as in the linear model).
+
+    Tracer data usually constrain only a few properties of the travel time
+    distribution, such as the mean and the young fraction (McCallum et al.,
+    2014). Use few bins (e.g. 3 to 6) and a sampler
+    (:meth:`~PyTracerLab.model.solver.Solver.dream_sample`) to see which
+    weights the data determine. No smoothness regularisation is applied.
+
+    Examples
+    --------
+    ::
+
+        bins = lab.AgeBinUnit(edges=[0, 10, 20, 40, 60, 1000])
+        m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
+                      input_series=inp.values, target_series=obs.values,
+                      steady_state_input=5.0, n_warmup_steps=1000)
+        m.add_unit(bins, fraction=1.0, prefix="bins")   # bounds (0, 1) set
+        res = lab.Solver(m).dream_sample(n_samples=2000, sigma=obs.uncertainty)
+        w = bins.weights_from_samples(res, "bins")      # (n, K) weights
+        mtt = w @ bins.centres                          # mean travel times
+    """
+
+    PREFIX = "bins"
+    # The number of parameters depends on the number of bins, so there is no
+    # static parameter list (the GUI does not offer this unit).
+    PARAMS: List[Dict[str, Any]] = []
+
+    def __init__(self, edges: Sequence[float], weights: Sequence[float] | None = None) -> None:
+        a = np.array(edges, dtype=float)
+        if a.ndim != 1 or a.size < 2:
+            raise ValueError("Age bins: give at least two bin edges (one bin).")
+        if not np.all(np.isfinite(a)):
+            raise ValueError("Age bins: all bin edges must be finite.")
+        if a[0] < 0.0:
+            raise ValueError(f"Age bins: the first edge must be >= 0 (got {a[0]:g}).")
+        if np.any(np.diff(a) <= 0.0):
+            raise ValueError("Age bins: the bin edges must be strictly increasing.")
+        a.setflags(write=False)
+        self._edges = a
+        k = a.size - 1
+        self._u = self._coords(np.full(k, 1.0 / k) if weights is None else weights)
+
+    def __repr__(self) -> str:
+        edges = ", ".join(f"{v:g}" for v in self._edges)
+        return f"AgeBinUnit(edges=[{edges}], weights={np.round(self.weights, 6).tolist()})"
+
+    # ------------------------------------------------------------- geometry
+    @property
+    def edges(self) -> np.ndarray:
+        """Bin edges ``a_0, ..., a_K`` (read-only array)."""
+        return self._edges
+
+    @property
+    def n_bins(self) -> int:
+        """Number of bins ``K``."""
+        return int(self._edges.size - 1)
+
+    @property
+    def centres(self) -> np.ndarray:
+        """Bin centres; ``weights @ centres`` is the mean travel time."""
+        return 0.5 * (self._edges[:-1] + self._edges[1:])
+
+    # ---------------------------------------------------- weights <-> coords
+    def _coords(self, weights: Sequence[float]) -> np.ndarray:
+        """Coordinates ``u`` (array of length ``K - 1``) of valid bin weights."""
+        k = self.n_bins
+        w = np.asarray(weights, dtype=float)
+        if w.shape != (k,):
+            raise ValueError(f"Age bins: give {k} weights, one per bin (got shape {w.shape}).")
+        if not np.all(np.isfinite(w)) or np.any(w < 0.0):
+            raise ValueError("Age bins: the weights must be finite and >= 0.")
+        total = float(w.sum())
+        if abs(total - 1.0) > 1e-6:
+            raise ValueError(f"Age bins: the weights must sum to 1 (got {total:.6g}).")
+        w = w / total
+        rest = np.cumsum(w[::-1])[::-1]  # weight of bin i and of all older bins
+        with np.errstate(divide="ignore", invalid="ignore"):
+            b = np.where(rest[:-1] > 0.0, w[:-1] / rest[:-1], 0.0)
+        m = k - np.arange(1, k)  # K - i for i = 1 .. K-1
+        return np.clip(1.0 - (1.0 - np.clip(b, 0.0, 1.0)) ** m, 0.0, 1.0)
+
+    def coords_from_weights(self, weights: Sequence[float]) -> Dict[str, float]:
+        """Coordinates (local parameter values) for given bin weights.
+
+        Use it to set initial values of a unit that is already part of a
+        model, e.g.::
+
+            for name, v in bins.coords_from_weights([0.4, 0.3, 0.2, 0.1]).items():
+                m.set_initial(f"bins.{name}", v)
+        """
+        return {f"u{i + 1}": float(v) for i, v in enumerate(self._coords(weights))}
+
+    def weights_from(self, coords: Sequence[float] | np.ndarray) -> np.ndarray:
+        """Bin weights for coordinates ``u`` (vectorised).
+
+        Parameters
+        ----------
+        coords : array_like, shape ``(..., K - 1)``
+            Coordinates in ``[0, 1]``.
+
+        Returns
+        -------
+        ndarray, shape ``(..., K)``
+            Bin weights (``>= 0``, sum 1 along the last axis).
+        """
+        k = self.n_bins
+        u = np.asarray(coords, dtype=float)
+        if u.ndim == 0 or u.shape[-1] != k - 1:
+            raise ValueError(f"Age bins: expected {k - 1} coordinates (got shape {u.shape}).")
+        bad = ~np.isfinite(u) | (u < 0.0) | (u > 1.0)
+        if np.any(bad):
+            pos = tuple(np.argwhere(bad)[0])
+            raise ValueError(
+                f"Age bins: coordinate 'u{pos[-1] + 1}' must be between 0 and 1 (got {u[pos]:g})."
+            )
+        if k == 1:
+            return np.ones(u.shape[:-1] + (1,))
+        m = k - np.arange(1, k)
+        keep = (1.0 - u) ** (1.0 / m)  # 1 - b_i
+        rest = np.cumprod(keep, axis=-1)
+        w = np.empty(u.shape[:-1] + (k,))
+        w[..., 0] = 1.0 - keep[..., 0]
+        w[..., 1:-1] = (1.0 - keep[..., 1:]) * rest[..., :-1]
+        w[..., -1] = rest[..., -1]
+        return w
+
+    def weights_from_samples(self, result: Mapping[str, Any], prefix: str) -> np.ndarray:
+        """Bin weights of each sample of an MCMC or DREAM result.
+
+        Parameters
+        ----------
+        result : dict
+            Return value of ``Solver.mcmc_sample`` or ``Solver.dream_sample``
+            (uses ``"param_names"`` and ``"samples"``).
+        prefix : str
+            Prefix under which the unit was added to the model.
+
+        Returns
+        -------
+        ndarray, shape ``(n_samples, K)``
+            Weights; coordinates that were fixed keep their current value.
+            ``np.cumsum(w, axis=1)`` gives the fractions younger than each
+            upper edge, ``w @ unit.centres`` the mean travel times.
+        """
+        names = list(result["param_names"])
+        samples = np.asarray(result["samples"], dtype=float).reshape(-1, len(names))
+        coords = np.tile(self._u, (samples.shape[0], 1))
+        found = False
+        for i in range(self.n_bins - 1):
+            key = f"{prefix}.u{i + 1}"
+            if key in names:
+                coords[:, i] = samples[:, names.index(key)]
+                found = True
+        if not found and self.n_bins > 1:
+            raise KeyError(f"The result contains no coordinates of the age bins '{prefix}'.")
+        return self.weights_from(coords)
+
+    # ------------------------------------------------------- current state
+    @property
+    def weights(self) -> np.ndarray:
+        """Current bin weights (length ``K``)."""
+        return self.weights_from(self._u)
+
+    @property
+    def cumulative(self) -> np.ndarray:
+        """Fraction of water younger than each edge (length ``K + 1``, from 0 to 1)."""
+        c = np.concatenate(([0.0], np.cumsum(self.weights)))
+        c[-1] = 1.0
+        return c
+
+    @property
+    def mtt(self) -> float:
+        """Mean travel time of the histogram (derived from the weights)."""
+        return float(self.weights @ self.centres)
+
+    # ------------------------------------------------------ Unit interface
+    def param_values(self) -> Dict[str, float]:
+        """Get the coordinates ``u1, ..., u(K-1)``.
+
+        Returns
+        -------
+        Dict[str, float]
+            Mapping from local parameter name to value.
+        """
+        return {f"u{i + 1}": float(v) for i, v in enumerate(self._u)}
+
+    def set_param_values(self, values: Dict[str, float]) -> None:
+        """Set one or more coordinates.
+
+        Parameters
+        ----------
+        values : Dict[str, float]
+            Mapping from local parameter name (``"u1"``, ...) to new value.
+            Keys not present are ignored. Values are checked when the
+            response is computed.
+        """
+        for i in range(self.n_bins - 1):
+            key = f"u{i + 1}"
+            if key in values:
+                self._u[i] = float(values[key])
+
+    def intrinsic_bounds(self) -> Dict[str, Tuple[float, float]]:
+        """All coordinates lie in ``[0, 1]``."""
+        return {f"u{i + 1}": (0.0, 1.0) for i in range(self.n_bins - 1)}
+
+    def check_window(self, t_max: float) -> None:
+        """Raise a ``ValueError`` if the last edge lies beyond ``t_max``."""
+        last = float(self._edges[-1])
+        if last > float(t_max) * (1.0 + 1e-12) + 1e-12:
+            raise ValueError(
+                f"Age bins: the last bin edge ({last:g}) lies beyond the simulation period "
+                f"({float(t_max):g}, input series plus warm-up). Lower the last edge or "
+                "extend the warm-up (steady_state_input with n_warmup_steps)."
+            )
+
+    def report_lines(self, time_divisor: float = 1.0) -> List[str]:
+        """Edges, weights, cumulative fractions and mean travel time."""
+        try:
+            w, c, mtt = self.weights, self.cumulative, self.mtt
+        except ValueError as e:  # invalid coordinates
+            return [f"  ({e})"]
+        edges = ", ".join(f"{v / time_divisor:.6g}" for v in self._edges)
+        return [
+            f"  {'bin edges':15s} {edges}",
+            f"  {'bin weights':15s} " + ", ".join(f"{v:.4f}" for v in w),
+            f"  {'younger than':15s} " + ", ".join(f"{v:.4f}" for v in c) + " (at each edge)",
+            f"  {'mean travel time':15s} {mtt / time_divisor:.6g} (derived)",
+        ]
+
+    def _cdf(self, t, lam: float) -> np.ndarray:
+        """Decayed cumulative distribution ``G_lam(t)`` of the histogram."""
+        x = np.asarray(t, dtype=float)
+        out = np.zeros(x.shape)
+        for wk, a, b in zip(self.weights, self._edges[:-1], self._edges[1:]):
+            if wk > 0.0:
+                out += wk * _uniform_cdf(x, float(a), float(b), lam)
+        return out
+
+    def get_impulse_response(
+        self, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+    ) -> np.ndarray:
+        """Age-bin response of each time step (exact integral) with decay.
+
+        Parameters
+        ----------
+        tau : ndarray
+            Non-negative time axis (same spacing as simulation time grid).
+        dt : float
+            Time step size of the discretization.
+        lambda_ : float
+            Decay constant (1 / time units of ``tau``).
+        prod : bool, optional
+            If True, calculate production response (used to simulate 3He
+            production from 3H decay).
+
+        Returns
+        -------
+        ndarray
+            Response of each time step on the grid ``tau``.
+
+        Raises
+        ------
+        ValueError
+            If a coordinate is outside ``[0, 1]`` or the last edge lies
+            beyond ``tau[-1]``.
+        """
+        tau = np.asarray(tau, dtype=float)
+        if tau.size:
+            self.check_window(tau[-1])
         return _block_from_cdf(self._cdf, tau, lambda_, prod)

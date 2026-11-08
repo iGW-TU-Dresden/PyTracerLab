@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import warnings
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -23,6 +24,28 @@ FRACTION = "fraction"
 
 class PyTracerLabWarning(UserWarning):
     """Warning about the model or calibration setup (e.g. a capped warm-up)."""
+
+
+def _check_within(
+    key: str, bounds: Optional[Tuple[float, float]], allowed: Optional[Tuple[float, float]]
+) -> None:
+    """Raise a ValueError if ``bounds`` lie outside the intrinsic range ``allowed``."""
+    if bounds is None or allowed is None:
+        return
+    lo, hi = float(bounds[0]), float(bounds[1])
+    if not allowed[0] <= lo <= hi <= allowed[1]:
+        raise ValueError(
+            f"Bounds of '{key}' must satisfy {allowed[0]:g} <= lower <= upper <= {allowed[1]:g} "
+            f"(got ({lo:g}, {hi:g}))."
+        )
+
+
+def _natural_key(name: str) -> list:
+    """Sort key that orders embedded numbers numerically ("u2" before "u10").
+
+    Names without digits sort exactly as with plain string comparison.
+    """
+    return [int(part) if i % 2 else part for i, part in enumerate(re.split(r"(\d+)", name))]
 
 
 @dataclass
@@ -142,7 +165,10 @@ class Model:
         Unit parameters are registered as free, except those the unit marks
         as fixed by default (``"fixed": True`` in its ``PARAMS``, e.g. the
         screen geometry of :class:`~PyTracerLab.model.units.PEMUnit`); free
-        them with :meth:`set_fixed`.
+        them with :meth:`set_fixed`. Parameters with a range fixed by their
+        definition (``unit.intrinsic_bounds()``, e.g. the coordinates of
+        :class:`~PyTracerLab.model.units.AgeBinUnit` in ``[0, 1]``) get this
+        range as bounds if ``bounds`` is omitted.
 
         Parameters
         ----------
@@ -157,24 +183,30 @@ class Model:
         bounds : list of (float, float), optional
             Optimizer bounds for the unit's parameters in the same order as
             returned by ``unit.param_values()``. If omitted, bounds are left
-            as ``None`` and can be supplied later via :meth:`set_bounds`.
+            as ``None`` (except for intrinsic ranges, see above) and can be
+            supplied later via :meth:`set_bounds`.
 
         Raises
         ------
         ValueError
             If ``bounds`` is provided and its length does not match the number
-            of unit parameters, if ``fraction`` is not between 0 and 1, if the
-            prefix is already used, or if a third unit is added while the
-            mixing fraction of a binary mixture is free.
+            of unit parameters or a bound lies outside an intrinsic range, if
+            ``fraction`` is not between 0 and 1, if the prefix is already
+            used, or if a third unit is added while the mixing fraction of a
+            binary mixture is free.
         """
         idx = len(self.units)
         prefix = prefix or f"u{idx}"
         frac = float(fraction)
         local_params = list(unit.param_values().items())
+        intrinsic = unit.intrinsic_bounds()
 
         # validate everything before the model is changed
         if bounds is not None and len(bounds) != len(local_params):
             raise ValueError("Length of bounds list must match number of unit parameters")
+        if bounds is not None:
+            for (local_name, _), b in zip(local_params, bounds):
+                _check_within(f"{prefix}.{local_name}", b, intrinsic.get(local_name))
         if not 0.0 <= frac <= 1.0:
             raise ValueError(
                 f"The fraction of unit '{prefix}' must be between 0 and 1 (got {frac})."
@@ -200,7 +232,7 @@ class Model:
         spec = {p.get("key"): p for p in getattr(type(unit), "PARAMS", [])}
         for i, (local_name, val) in enumerate(local_params):
             key = f"{prefix}.{local_name}"
-            b = bounds[i] if bounds is not None else None
+            b = bounds[i] if bounds is not None else intrinsic.get(local_name)
             self.params[key] = {
                 "value": float(val),
                 "initial": float(val),
@@ -272,7 +304,8 @@ class Model:
             Fully-qualified parameter keys (e.g., ``"epm.mtt"``).
         """
         items = sorted(
-            self.params.items(), key=lambda kv: (kv[1]["unit_index"], kv[1]["local_name"])  # type: ignore
+            self.params.items(),
+            key=lambda kv: (kv[1]["unit_index"], _natural_key(str(kv[1]["local_name"]))),
         )
         return [k for k, rec in items if not (free_only and rec.get("fixed"))]
 
@@ -343,7 +376,9 @@ class Model:
             Fully-qualified parameter key (e.g., ``"epm.mtt"``).
         bounds : (float, float)
             Lower and upper search bounds for the optimizer. Bounds of the
-            mixing fraction must lie within ``[0, 1]``.
+            mixing fraction must lie within ``[0, 1]``, bounds of parameters
+            with an intrinsic range (``unit.intrinsic_bounds()``) within
+            that range.
         """
         rec = self._record(key)
         lo, hi = float(bounds[0]), float(bounds[1])
@@ -352,6 +387,9 @@ class Model:
                 f"Bounds of the mixing fraction '{key}' must satisfy 0 <= lower <= upper <= 1 "
                 f"(got ({lo}, {hi}))."
             )
+        if rec["local_name"] != FRACTION:
+            unit = self.units[int(rec["unit_index"])]  # type: ignore[arg-type]
+            _check_within(key, (lo, hi), unit.intrinsic_bounds().get(str(rec["local_name"])))
         rec["bounds"] = (lo, hi)
 
     def set_fixed(self, key: str, fixed: bool = True) -> None:
@@ -407,6 +445,46 @@ class Model:
             return np.full(n_tracers, float(arr.reshape(-1)[0]))
         raise ValueError("steady_state_input must be scalar or length equal to number of tracers")
 
+    def _requested_warmup_steps(self) -> int:
+        """Number of warm-up steps requested by the settings (before the cap)."""
+        if self.steady_state_input is None:
+            return 0
+        if self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
+            lam = np.atleast_1d(np.asarray(self.lambda_, dtype=float))
+            lam = lam[lam > 0.0]
+            if lam.size == 0:
+                raise ValueError(
+                    "The warm-up length cannot be derived from half-lives because all "
+                    "tracers are stable (decay constant 0); give n_warmup_steps instead."
+                )
+            t12 = 0.693 / lam
+            return int(np.max(t12)) * self.n_warmup_half_lives
+        return int(self.n_warmup_steps)
+
+    def _check_units(self) -> None:
+        """Check that units with a finite travel time range fit into the simulation period.
+
+        The period is the input series plus the warm-up (also before the
+        warm-up has been applied). Called when a
+        :class:`~PyTracerLab.model.solver.Solver` is created, so that the
+        error is reported instead of failing every simulation of a run.
+
+        Raises
+        ------
+        ValueError
+            If, e.g., the last edge of an
+            :class:`~PyTracerLab.model.units.AgeBinUnit` lies beyond the
+            simulation period.
+        """
+        checked = [u for u in self.units if type(u).check_window is not Unit.check_window]
+        if not checked or self.input_series is None:
+            return
+        n = len(self.input_series)
+        if not self._is_warm:
+            n += min(max(self._requested_warmup_steps(), 0), _MAX_WARMUP_STEPS)
+        for unit in checked:
+            unit.check_window((n - 1) * float(self.dt))
+
     def _warmup(self) -> None:
         """Prepend a steady-state warmup to input/target and set bookkeeping.
 
@@ -416,20 +494,7 @@ class Model:
         are ignored when the length is derived from half-lives; if all tracers
         are stable, ``n_warmup_steps`` must be given.
         """
-        if self.steady_state_input is None:
-            self._n_warmup = 0
-        elif self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
-            lam = np.atleast_1d(np.asarray(self.lambda_, dtype=float))
-            lam = lam[lam > 0.0]
-            if lam.size == 0:
-                raise ValueError(
-                    "The warm-up length cannot be derived from half-lives because all "
-                    "tracers are stable (decay constant 0); give n_warmup_steps instead."
-                )
-            t12 = 0.693 / lam
-            self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
-        else:
-            self._n_warmup = int(self.n_warmup_steps)
+        self._n_warmup = self._requested_warmup_steps()
 
         if self.steady_state_input is None or self._n_warmup <= 0:
             # no warmup requested → ensure we don't slice anything off
@@ -734,17 +799,20 @@ class Model:
         # We make a separate table for each tracer. This is mainly because
         # for multiple tracers, the number of observations may be different
 
-        # Make list of tracer names if not given
-        if tracer is None:
+        if self.target_series is None:  # O.28: forward run without observations
+            tracer_ = []
+            lines.append("No observations given.")
+            lines.append("")
+        elif tracer is None:  # make list of tracer names if not given
             tracer_ = [str(i) for i in range(1, y2.shape[1] + 1)]
         else:
-            tracer_ = tracer
+            tracer_ = [tracer] if isinstance(tracer, str) else tracer
 
         # Make list of time steps if not given
-        if self.time_steps is None:
-            timesteps = [i for i in range(y2.shape[0])]
-        else:
+        if self.time_steps is not None:
             timesteps = self.time_steps
+        else:
+            timesteps = list(range(y2.shape[0])) if tracer_ else []
 
         for i, tracer in enumerate(list(tracer_)):
             # append column headers
@@ -808,7 +876,9 @@ class Model:
                     f"  {'fraction':15s} 1%-Quantile={1.0 - hi_f:.6g}, "
                     f"50%-Quantile (Median)={1.0 - med_f:.6g}, 99%-Quantile={1.0 - lo_f:.6g}"
                 )
-            keys = sorted(grouped[prefix], key=lambda k: self.params[k]["local_name"])  # type: ignore[index]
+            keys = sorted(
+                grouped[prefix], key=lambda k: _natural_key(str(self.params[k]["local_name"]))
+            )
             for k in keys:
                 rec = self.params[k]
                 val = float(rec["value"])
@@ -857,6 +927,9 @@ class Model:
                         row += f"50%-Quantile (Median)={median:.6g}, 99%-Quantile={upper:.6g}"
                         lines.append(row)
                         lines.append("")
+            # derived quantities of the unit (e.g. weights of age bins)
+            if 0 <= uidx < len(self.units):
+                lines.extend(self.units[uidx].report_lines(12.0 if convert_mtt_to_years else 1.0))
             lines.append("")
 
         report_text = "\n".join(lines)

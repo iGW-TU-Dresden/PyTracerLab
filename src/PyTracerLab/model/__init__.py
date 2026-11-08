@@ -19,6 +19,7 @@ _EXPORTS = {
     "GMUnit": "PyTracerLab.model.units",
     "LMUnit": "PyTracerLab.model.units",
     "PEMUnit": "PyTracerLab.model.units",
+    "AgeBinUnit": "PyTracerLab.model.units",
     "read_series": "PyTracerLab.model.io",
     "TracerSeries": "PyTracerLab.model.io",
     "DataFileError": "PyTracerLab.model.io",
