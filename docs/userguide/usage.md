@@ -277,6 +277,10 @@ In this **Tab**, the different model parts are selected that are included in the
         - Exponential Model (**EM**)
         - Exponential Piston-Flow Model (**EPM**)
         - Dispersion Model (**DM**)
+        - Gamma Model (**GM**)
+        - Linear Model (**LM**)
+        - Partial Exponential Model (**PEM**)
+    - the travel time distributions and parameters of all units are described in [Model Units](#model-units)
     - each unit is associated with a corresponding fraction of the total system response or output; the fractions are between 0 and 1 and must sum to one, otherwise an error is raised, and the model will not run
     - with exactly two units (binary mixture), only the fraction of the first unit is entered; the fraction of the second unit is calculated as 1 minus this value. The fraction of the first unit can be calibrated (see [Mixing Fractions](#mixing-fractions))
 - specify if there is a steady state tracer input that should be considered for the time prior to the start of the datasets
@@ -296,6 +300,7 @@ In this **Tab**, settings are made regarding model parameters, how they are boun
 - specify the lower bound, current value, upper bound, and calibration status for all model parameters; different model parameters are organized in rows
     - the value that is specified for a parameter will be used as its value for simple simulation and as the initial value for calibration
     - parameters that are set to *fixed* remain at their specified value during calibration
+    - the screen geometry of the PEM (thicknesses above, of and below the screen) is *fixed* by default, because it is normally known from the well construction (see [Model Units](#model-units))
 - with two units, an additional row *mixing fraction* holds the fraction of the first unit: its value is set in the Model Tab, its bounds and calibration status here; it is *fixed* by default (see [Mixing Fractions](#mixing-fractions))
     - a note is shown if the mixing fraction and the mean travel times of both units are free, because these parameters are often strongly correlated
 
@@ -465,6 +470,40 @@ best, sim = solver.differential_evolution(sigma=[1.0, 0.5])
 ```
 
 Other uncertainty models can be computed and passed as `sigma`, for example an absolute uncertainty of 0.3 TU combined with 5 % of the observed value: `sigma=np.sqrt(0.3**2 + (0.05 * obs.values) ** 2)`. See the {py:class}`API documentation <PyTracerLab.model.solver.Solver>` for details.
+
+(model-units)=
+## Model Units
+Each unit describes one travel time distribution (TTD) $g(\tau)$ with unit area. The parameter `mtt` ($\bar\tau$) is always the mean of the unit's TTD; in the GUI it is given in years.
+
+| Unit | Python class | Parameters | Travel time distribution | Source |
+|---|---|---|---|---|
+| PM | `PMUnit` | `mtt` | all water has the travel time $\bar\tau$ | Maloszewski and Zuber (1982) |
+| EM | `EMUnit` | `mtt` | $g(\tau) = e^{-\tau/\bar\tau}/\bar\tau$ | Maloszewski and Zuber (1982) |
+| EPM | `EPMUnit`; GUI: `ExEPMUnit` | `mtt`, `eta`; GUI: `exp_part`, `piston_part` with $\eta$ = piston part / exponential part + 1 | exponential TTD with rate $\eta/\bar\tau$, shifted by the piston-flow time $\bar\tau\,(1 - 1/\eta)$; $\eta = 1$: EM | Maloszewski and Zuber (1982) |
+| DM | `DMUnit` | `mtt`, `DP` (dispersion parameter) | solution of the one-dimensional advection–dispersion equation | Maloszewski and Zuber (1982) |
+| GM | `GMUnit` | `mtt`, `alpha` (shape factor $\alpha$) | $g(\tau) = \dfrac{\tau^{\alpha-1}\,e^{-\alpha\tau/\bar\tau}}{(\bar\tau/\alpha)^{\alpha}\,\Gamma(\alpha)}$; $\alpha = 1$: EM; $\alpha < 1$: many very short and many very long travel times; large $\alpha$: narrow peak around $\bar\tau$ | Amin and Campana (1996); Kirchner et al. (2000) |
+| LM | `LMUnit` | `mtt` | uniform between 0 and $2\bar\tau$ | Maloszewski and Zuber (1982) |
+| PEM | `PEMUnit` | `mtt`, `above`, `screen`, `below` | EM restricted to the travel times sampled by a partially screened well (see below) | Jurgens et al. (2012, 2016) |
+
+**Partial Exponential Model (PEM).** The aquifer is described as in the EM (unconfined, constant thickness, uniform recharge, age increasing with depth), but the well is screened only over part of the saturated thickness. The geometry is given by three thicknesses in any common length unit (only their ratios matter):
+
+- `above`: unsampled thickness above the screen, i.e. depth of the top of the screen below the water table,
+- `screen`: length of the screen (sampled thickness),
+- `below`: unsampled thickness below the screen, i.e. distance from the bottom of the screen to the base of the aquifer.
+
+Like in TracerLPM, `mtt` is the mean travel time of the **sampled** water; the mean travel time of the whole aquifer follows from it (Python: `PEMUnit.mtt_aquifer`). With `above = below = 0`, the PEM is the EM. With `below = 0` (screen reaching the base of the aquifer), it is the PEM of TracerLPM with "PEM ratio" = `above / screen`, which gives the same TTD as the EPM with $\eta = 1 + \ln(1 + \mathrm{above}/\mathrm{screen})$ (Jurgens et al., 2012). The geometry parameters are *fixed* by default, both in the GUI and in Python.
+
+```python
+pem = lab.PEMUnit(mtt=20.0, above=12.0, screen=30.0, below=8.0)  # thicknesses in m
+m.add_unit(pem, fraction=1.0, prefix="pem",
+           bounds=[(1.0, 200.0), (0.0, 100.0), (0.1, 100.0), (0.0, 100.0)])
+# only pem.mtt is calibrated; free a thickness with m.set_fixed("pem.below", False)
+print(pem.mtt_aquifer)  # mean travel time of the whole aquifer
+```
+
+**Time discretisation.** For the EPM, GM, LM and PEM, each time step receives the exact integral of the TTD (including decay) over the time step, as in TracerLPM. This keeps the results accurate also with yearly time steps, and the simulated values change smoothly with the parameters. The EM and DM evaluate the TTD at the time steps (trapezoidal rule); the PM assigns all water to the time step closest to `mtt`.
+
+References: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231.
 
 (mixing-fractions)=
 ## Mixing Fractions

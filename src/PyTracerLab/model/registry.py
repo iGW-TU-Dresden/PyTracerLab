@@ -2,7 +2,7 @@
 
 from typing import Dict
 
-from .units import DMUnit, EMUnit, ExEPMUnit, PMUnit
+from .units import DMUnit, EMUnit, ExEPMUnit, GMUnit, LMUnit, PEMUnit, PMUnit
 
 # # for the GUI we use the ExEPMUnit instead of the EPMUnit to be more in
 # line with how practitioners want to define the model parameters (i.e.,
@@ -12,6 +12,9 @@ UNIT_REGISTRY = {
     "PM": PMUnit,
     "DM": DMUnit,
     "EPM": ExEPMUnit,
+    "GM": GMUnit,
+    "LM": LMUnit,
+    "PEM": PEMUnit,
 }
 
 # Use placeholders for solver run functions

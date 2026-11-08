@@ -183,8 +183,9 @@ class Controller(QObject):
                 for p in spec:
                     key = p["key"]
                     rec = self.state.params.get(prefix, {}).get(key)
-                    if rec is not None and rec.get("fixed", False):
-                        self.ml.set_fixed(f"{prefix}.{key}", True)
+                    default_fixed = bool(p.get("fixed", False))
+                    fixed = rec.get("fixed", default_fixed) if rec is not None else default_fixed
+                    self.ml.set_fixed(f"{prefix}.{key}", bool(fixed))
 
             # Binary mixture: bounds and fixed flag of the mixing fraction
             # (its value is the fraction of the first unit, set above)

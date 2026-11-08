@@ -133,6 +133,10 @@ class ParametersTab(QWidget):
                     pname += " [volume]"
                 elif key == "DP":
                     pname += " [-]"
+                elif key == "alpha":
+                    pname += " [-]"
+                elif key in ("above", "screen", "below"):
+                    pname += " [length]"
 
                 row_label = QLabel(f"{unit_name} ({ordinal}) - {pname}")
                 row_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)

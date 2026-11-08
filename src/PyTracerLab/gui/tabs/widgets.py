@@ -34,7 +34,8 @@ class ParameterEditor(QWidget):
         self.prefix = prefix
         self.key = meta["key"]
         lb, ub = meta["bounds"]
-        init = initial or {"val": meta["default"], "lb": lb, "ub": ub, "fixed": False}
+        fixed = bool(meta.get("fixed", False))
+        init = initial or {"val": meta["default"], "lb": lb, "ub": ub, "fixed": fixed}
         if self.key == "exp_part":
             init["fixed"] = True
         if self.key == "piston_part":

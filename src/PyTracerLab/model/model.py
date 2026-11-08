@@ -139,6 +139,11 @@ class Model:
         mixing fractions can only be calibrated for binary mixtures (see
         :class:`Model`).
 
+        Unit parameters are registered as free, except those the unit marks
+        as fixed by default (``"fixed": True`` in its ``PARAMS``, e.g. the
+        screen geometry of :class:`~PyTracerLab.model.units.PEMUnit`); free
+        them with :meth:`set_fixed`.
+
         Parameters
         ----------
         unit : :class:`~PyTracerLab.model.units.Unit`
@@ -191,6 +196,8 @@ class Model:
         self.unit_fractions.append(frac)
         self.unit_prefixes.append(prefix)
 
+        # parameters a unit marks as fixed by default (e.g. the PEM geometry)
+        spec = {p.get("key"): p for p in getattr(type(unit), "PARAMS", [])}
         for i, (local_name, val) in enumerate(local_params):
             key = f"{prefix}.{local_name}"
             b = bounds[i] if bounds is not None else None
@@ -198,7 +205,7 @@ class Model:
                 "value": float(val),
                 "initial": float(val),
                 "bounds": b,
-                "fixed": False,
+                "fixed": bool(spec.get(local_name, {}).get("fixed", False)),
                 "unit_index": idx,
                 "local_name": local_name,
             }

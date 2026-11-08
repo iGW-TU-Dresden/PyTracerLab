@@ -243,7 +243,7 @@ Die `.exe`-Datei läuft nur unter Windows. Folgen Sie
 und Linux.
 
 ## Verwendung der grafischen Benutzeroberfläche
-Im Allgemeinen ist die Verwendung der grafischen Benutzeroberfläche (GUI) strikter und weniger vielseitig als die Verwendung des zugrunde liegenden Pakets. Konkret setzt die App eine bestimmte Struktur der Zeitreihendaten voraus, lässt sich nicht gut skalieren, um viele unterschiedliche Datensätze zu verarbeiten, und bietet nur begrenzte Nachbearbeitungsfunktionen. Dennoch ist die GUI eine sehr benutzerfreundliche Option, um Analysen von Grundwasserlaufzeitverteilungen mit Lumped-Parameter-Modellen durchzuführen.
+Im Allgemeinen ist die Verwendung der grafischen Benutzeroberfläche (GUI) strikter und weniger vielseitig als die Verwendung des zugrunde liegenden Pakets. Konkret setzt die App eine bestimmte Struktur der Zeitreihendaten voraus, lässt sich nicht gut skalieren, um viele unterschiedliche Datensätze zu verarbeiten, und bietet nur begrenzte Nachbearbeitungsfunktionen. Dennoch ist die GUI eine sehr benutzerfreundliche Option, um Analysen von Grundwasserfließzeitverteilungen mit Lumped-Parameter-Modellen durchzuführen.
 
 ```{important}
 Eingangs- und Beobachtungsdaten werden aus Textdateien (z. B. CSV) mit einer Zeile pro Datum gelesen: Die erste Spalte enthält das Datum, jede weitere Spalte einen Tracer, mit den Spaltennamen in einer Kopfzeile. Tracer-Eingangszeitreihen benötigen regelmäßige monatliche oder jährliche Zeitschritte ohne Lücken; Beobachtungen können nur an ihren Probenahmedaten angegeben werden. Eine ausführliche Beschreibung der Dateistruktur und [Vorlagen](#data-templates-de) finden Sie unter [Vorbereitung der Datensätze](#preparing-datasets-de).
@@ -304,6 +304,10 @@ In diesem **Tab** werden die verschiedenen Modellteile ausgewählt, die in die S
         - Exponential Model (**EM**)
         - Exponential Piston-Flow Model (**EPM**)
         - Dispersion Model (**DM**)
+        - Gamma Model (**GM**)
+        - Linear Model (**LM**)
+        - Partial Exponential Model (**PEM**)
+    - die Fließzeitverteilungen und Parameter aller Einheiten sind unter [Modelleinheiten](#model-units-de) beschrieben
     - jede Einheit ist mit einem entsprechenden Anteil der gesamten Systemantwort bzw. -ausgabe verknüpft; die Anteile liegen zwischen 0 und 1 und müssen sich zu eins summieren, andernfalls wird ein Fehler ausgelöst und das Modell läuft nicht
     - bei genau zwei Einheiten (binäre Mischung) wird nur der Anteil der ersten Einheit eingegeben; der Anteil der zweiten Einheit wird als 1 minus diesem Wert berechnet. Der Anteil der ersten Einheit kann kalibriert werden (siehe [Mischungsanteile](#mixing-fractions-de))
 - Angabe, ob ein stationärer Tracer-Eingang berücksichtigt werden soll, der für die Zeit vor dem Beginn der Datensätze gilt
@@ -323,8 +327,9 @@ In diesem **Tab** werden Einstellungen zu den Modellparametern vorgenommen, dazu
 - Angabe der unteren Grenze, des aktuellen Werts, der oberen Grenze und des Kalibrierungsstatus für alle Modellparameter; die verschiedenen Modellparameter sind in Zeilen organisiert
     - der für einen Parameter angegebene Wert wird als sein Wert für die einfache Simulation und als Startwert für die Kalibrierung verwendet
     - Parameter, die auf *fixed* gesetzt sind, bleiben während der Kalibrierung auf ihrem angegebenen Wert
+    - die Filtergeometrie des PEM (Mächtigkeiten oberhalb des Filters, des Filters und unterhalb des Filters) ist standardmäßig *fixed*, da sie in der Regel aus dem Brunnenausbau bekannt ist (siehe [Modelleinheiten](#model-units-de))
 - bei zwei Einheiten enthält eine zusätzliche Zeile *mixing fraction* den Anteil der ersten Einheit: Sein Wert wird im Modell-Tab festgelegt, seine Grenzen und sein Kalibrierungsstatus hier; standardmäßig ist er *fixed* (siehe [Mischungsanteile](#mixing-fractions-de))
-    - ein Hinweis erscheint, wenn der Mischungsanteil und die mittleren Laufzeiten beider Einheiten frei sind, da diese Parameter oft stark korreliert sind
+    - ein Hinweis erscheint, wenn der Mischungsanteil und die mittleren Fließzeiten beider Einheiten frei sind, da diese Parameter oft stark korreliert sind
 
 ```{important}
 Zeiteinheiten von Parametern sind stets in Jahren. Halbwertszeiten werden intern umgerechnet, aber andere Parameter mit Zeiteinheiten werden in Monaten interpretiert.
@@ -493,17 +498,51 @@ best, sim = solver.differential_evolution(sigma=[1.0, 0.5])
 
 Andere Unsicherheitsmodelle können berechnet und als `sigma` übergeben werden, z. B. eine absolute Unsicherheit von 0,3 TU kombiniert mit 5 % des beobachteten Werts: `sigma=np.sqrt(0.3**2 + (0.05 * obs.values) ** 2)`. Details finden Sie in der {py:class}`API-Dokumentation <PyTracerLab.model.solver.Solver>`.
 
+(model-units-de)=
+## Modelleinheiten
+Jede Einheit beschreibt eine Fließzeitverteilung $g(\tau)$ mit der Fläche eins. Der Parameter `mtt` ($\bar\tau$) ist immer der Mittelwert der Fließzeitverteilung der Einheit; in der GUI wird er in Jahren angegeben.
+
+| Einheit | Python-Klasse | Parameter | Fließzeitverteilung | Quelle |
+|---|---|---|---|---|
+| PM | `PMUnit` | `mtt` | das gesamte Wasser hat die Fließzeit $\bar\tau$ | Maloszewski und Zuber (1982) |
+| EM | `EMUnit` | `mtt` | $g(\tau) = e^{-\tau/\bar\tau}/\bar\tau$ | Maloszewski und Zuber (1982) |
+| EPM | `EPMUnit`; GUI: `ExEPMUnit` | `mtt`, `eta`; GUI: `exp_part`, `piston_part` mit $\eta$ = Piston-Anteil / Exponential-Anteil + 1 | exponentielle Verteilung mit der Rate $\eta/\bar\tau$, verschoben um die Piston-Flow-Fließzeit $\bar\tau\,(1 - 1/\eta)$; $\eta = 1$: EM | Maloszewski und Zuber (1982) |
+| DM | `DMUnit` | `mtt`, `DP` (Dispersionsparameter) | Lösung der eindimensionalen Advektions-Dispersions-Gleichung | Maloszewski und Zuber (1982) |
+| GM | `GMUnit` | `mtt`, `alpha` (Formfaktor $\alpha$) | $g(\tau) = \dfrac{\tau^{\alpha-1}\,e^{-\alpha\tau/\bar\tau}}{(\bar\tau/\alpha)^{\alpha}\,\Gamma(\alpha)}$; $\alpha = 1$: EM; $\alpha < 1$: viele sehr kurze und viele sehr lange Fließzeiten; großes $\alpha$: schmales Maximum um $\bar\tau$ | Amin und Campana (1996); Kirchner et al. (2000) |
+| LM | `LMUnit` | `mtt` | gleichverteilt zwischen 0 und $2\bar\tau$ | Maloszewski und Zuber (1982) |
+| PEM | `PEMUnit` | `mtt`, `above`, `screen`, `below` | EM, beschränkt auf die Fließzeiten, die ein teilverfilterter Brunnen erfasst (siehe unten) | Jurgens et al. (2012, 2016) |
+
+**Partial Exponential Model (PEM).** Der Grundwasserleiter wird wie beim EM beschrieben (ungespannt, konstante Mächtigkeit, gleichmäßige Grundwasserneubildung, mit der Tiefe zunehmendes Alter), der Brunnen ist jedoch nur über einen Teil der wassererfüllten Mächtigkeit verfiltert. Die Geometrie wird durch drei Mächtigkeiten in einer beliebigen gemeinsamen Längeneinheit angegeben (nur ihre Verhältnisse sind von Bedeutung):
+
+- `above`: nicht erfasste Mächtigkeit oberhalb des Filters, d. h. Tiefe der Filteroberkante unter dem Grundwasserspiegel,
+- `screen`: Filterlänge (erfasste Mächtigkeit),
+- `below`: nicht erfasste Mächtigkeit unterhalb des Filters, d. h. Abstand von der Filterunterkante bis zur Basis des Grundwasserleiters.
+
+Wie in TracerLPM ist `mtt` die mittlere Fließzeit des **erfassten** Wassers; die mittlere Fließzeit des gesamten Grundwasserleiters ergibt sich daraus (Python: `PEMUnit.mtt_aquifer`). Mit `above = below = 0` ist das PEM das EM. Mit `below = 0` (Filter reicht bis zur Basis des Grundwasserleiters) ist es das PEM von TracerLPM mit „PEM ratio“ = `above / screen`, das dieselbe Fließzeitverteilung ergibt wie das EPM mit $\eta = 1 + \ln(1 + \mathrm{above}/\mathrm{screen})$ (Jurgens et al., 2012). Die Geometrieparameter sind standardmäßig *fixed*, sowohl in der GUI als auch in Python.
+
+```python
+pem = lab.PEMUnit(mtt=20.0, above=12.0, screen=30.0, below=8.0)  # Mächtigkeiten in m
+m.add_unit(pem, fraction=1.0, prefix="pem",
+           bounds=[(1.0, 200.0), (0.0, 100.0), (0.1, 100.0), (0.0, 100.0)])
+# nur pem.mtt wird kalibriert; eine Mächtigkeit freigeben mit m.set_fixed("pem.below", False)
+print(pem.mtt_aquifer)  # mittlere Fließzeit des gesamten Grundwasserleiters
+```
+
+**Zeitliche Diskretisierung.** Beim EPM, GM, LM und PEM erhält jeder Zeitschritt das exakte Integral der Fließzeitverteilung (einschließlich Zerfall) über den Zeitschritt, wie in TracerLPM. Dadurch bleiben die Ergebnisse auch mit jährlichen Zeitschritten genau, und die simulierten Werte ändern sich stetig mit den Parametern. EM und DM werten die Fließzeitverteilung an den Zeitschritten aus (Trapezregel); das PM ordnet das gesamte Wasser dem Zeitschritt zu, der `mtt` am nächsten liegt.
+
+Literatur: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231.
+
 (mixing-fractions-de)=
 ## Mischungsanteile
 In einer binären Mischung (zwei parallele Einheiten) kann der Anteil der ersten Einheit, $f$, zusammen mit den übrigen Parametern kalibriert werden; die zweite Einheit trägt $1 - f$ bei. Wie jeder andere Parameter hat der Anteil Grenzen (zwischen 0 und 1) und ist standardmäßig *fixed*, sodass er nur kalibriert wird, wenn dies ausdrücklich gewählt wird. Bei drei oder vier Einheiten sind die Anteile feste Modelleigenschaften; verschiedene Anteile können dann in Szenarien verglichen werden.
 
-Ob der Mischungsanteil und die mittleren Laufzeiten beider Einheiten gemeinsam bestimmt werden können, hängt von der verfügbaren Information ab:
+Ob der Mischungsanteil und die mittleren Fließzeiten beider Einheiten gemeinsam bestimmt werden können, hängt von der verfügbaren Information ab:
 
 - Die Anzahl unabhängiger Beobachtungen darf nicht kleiner sein als die Anzahl freier Parameter. Für eine einzelne Probe bedeutet das mindestens so viele Tracer wie freie Parameter; PyTracerLab gibt eine Warnung aus, wenn es mehr freie Parameter als Beobachtungen gibt.
 - Die Tracer müssen sich ergänzende Information enthalten. Tracer mit gegensätzlichem Eintragsverlauf (z. B. Tritium und SF₆) bestimmen eine binäre Mischung deutlich besser als Tracer mit ähnlichem Verlauf (z. B. Tritium und tritiogenes Helium); eine lange Zeitreihe von Beobachtungen enthält zudem mehr Information als eine einzelne Probe.
-- Ist die Information begrenzt, sollte die mittlere Laufzeit einer Einheit festgelegt werden (z. B. einer „alten“, tracerfreien Komponente), und der Anteil sowie die mittlere Laufzeit der anderen Einheit werden kalibriert (vgl. Jurgens et al., 2012).
+- Ist die Information begrenzt, sollte die mittlere Fließzeit einer Einheit festgelegt werden (z. B. einer „alten“, tracerfreien Komponente), und der Anteil sowie die mittlere Fließzeit der anderen Einheit werden kalibriert (vgl. Jurgens et al., 2012).
 
-Mit MCMC oder DREAM zeigt sich eine schlecht bestimmte Mischung als starke Korrelation zwischen dem Anteil und den mittleren Laufzeiten in den Posterior-Stichproben; Differential Evolution und Least Squares liefern dann nur eine von vielen gleich guten Lösungen.
+Mit MCMC oder DREAM zeigt sich eine schlecht bestimmte Mischung als starke Korrelation zwischen dem Anteil und den mittleren Fließzeiten in den Posterior-Stichproben; Differential Evolution und Least Squares liefern dann nur eine von vielen gleich guten Lösungen.
 
 **In Python** ist der Mischungsanteil der Parameter `"<Präfix der ersten Einheit>.fraction"`:
 
@@ -511,7 +550,7 @@ Mit MCMC oder DREAM zeigt sich eine schlecht bestimmte Mischung als starke Korre
 m.add_unit(lab.EPMUnit(mtt=10.0, eta=1.5), fraction=0.6, prefix="young",
            bounds=[(1.0, 100.0), (1.0, 3.0)])
 m.add_unit(lab.PMUnit(mtt=500.0), fraction=0.4, prefix="old", bounds=[(100.0, 1000.0)])
-m.set_fixed("old.mtt")                      # mittlere Laufzeit einer Einheit festlegen
+m.set_fixed("old.mtt")                      # mittlere Fließzeit einer Einheit festlegen
 m.set_fixed("young.fraction", False)        # Mischungsanteil kalibrieren
 m.set_bounds("young.fraction", (0.2, 0.8))  # optional, Standard (0, 1)
 ```
