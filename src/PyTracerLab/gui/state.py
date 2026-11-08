@@ -52,10 +52,9 @@ class AppState:
     params : dict
         Nested parameter values/bounds/fixed flags per instance prefix.
     steady_state_input : float | list of float
-        Value(s) for optional steady-state warmup input. Provide a scalar for
+        Value(s) of the optional steady-state input, i.e. the tracer input
+        before the start of the input series. Provide a scalar for
         single-tracer runs or one value per tracer for multi-tracer runs.
-    n_warmup_half_lives : int
-        Warmup length in half-lives of the tracer.
     last_simulation : object | None
         Last simulation result or solver payload for plotting.
     last_times : ndarray | None
@@ -120,7 +119,6 @@ class AppState:
     params: Dict[str, Dict[str, Dict[str, float]]] = field(default_factory=dict)
     # params[prefix][key] = {"val":..., "lb":..., "ub":..., "fixed":0/1}
     steady_state_input: Union[float, List[float]] = 0.0
-    n_warmup_half_lives: int = 10
     tt_results: Optional[ArrayLike] = None
     tt_mtt_values: Optional[np.ndarray] = None
     tt_obs_indices: Optional[np.ndarray] = None

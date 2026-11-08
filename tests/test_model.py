@@ -81,26 +81,6 @@ def test_solver_rejects_tracer_column_mismatch():
         Solver(m)
 
 
-def test_warmup_cap_warns():
-    m = Model(
-        dt=1.0,
-        lambda_=0.693 / 5700.0,  # 14C, yearly steps: 2 half-lives > 5000 steps
-        input_series=np.ones(50),
-        steady_state_input=1.0,
-    )
-    m.add_unit(PMUnit(mtt=10.0), fraction=1.0)
-    with pytest.warns(UserWarning, match="limited to 5000"):
-        m.simulate()
-    assert m.n_warmup == 5000
-
-
-def test_no_warmup_no_warning(recwarn):
-    m = Model(dt=1.0, lambda_=0.693 / 5700.0, input_series=np.ones(50))
-    m.add_unit(PMUnit(mtt=10.0), fraction=1.0)
-    m.simulate()
-    assert not [w for w in recwarn if "warm-up" in str(w.message)]
-
-
 def test_report_without_observations(tmp_path):
     """O.28: forward run without observations (used to raise UnboundLocalError)."""
     m = make_simple_model(target_series=False)

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
-from scipy import integrate, special
+from scipy import integrate, special, stats
 
 
 class Unit(ABC):
@@ -58,14 +58,19 @@ class Unit(ABC):
         """
         return {}
 
-    def check_window(self, t_max: float) -> None:
-        """Check that the travel time distribution fits into ``[0, t_max]``.
+    def total_response(self, lambda_: float, prod: bool = False) -> Optional[float]:
+        """Response summed over **all** travel times, ``0`` to infinity.
 
-        ``t_max`` is the longest travel time the model resolves (input
-        series plus warm-up). Units with unbounded travel time distributions
-        are normalised within this window and need no check; units with a
-        fixed, finite support (:class:`AgeBinUnit`) raise a ``ValueError``.
+        The integral of ``g(τ) exp(-λτ)`` (with ``prod``: of
+        ``g(τ) (1 - exp(-λτ))``) over all travel times. The model uses it
+        for the steady-state input before the start of the input series:
+        at time step ``i``, water older than the series contributes
+        ``steady_state_input * (total - sum(h[: i + 1]))``.
+
+        Units that do not implement it return ``None``; for them, the
+        response within the simulation period is taken as complete.
         """
+        return None
 
     def report_lines(self, time_divisor: float = 1.0) -> List[str]:
         """Extra lines for :meth:`~PyTracerLab.model.model.Model.write_report`.
@@ -79,14 +84,26 @@ class Unit(ABC):
         return []
 
     def get_block(
-        self, h: np.ndarray, tau: np.ndarray, dt: float, lambda_: float, prod: bool = False
+        self,
+        h: np.ndarray,
+        tau: np.ndarray,
+        dt: float,
+        lambda_: float,
+        prod: bool = False,
+        window_mass: float = 1.0,
     ) -> np.ndarray:
-        """Get 1-dt block response."""
+        """Get 1-dt block response.
+
+        ``h`` (the TTD sampled on ``tau``) is scaled so that its trapezoidal
+        area equals ``window_mass``, the share of all travel times that lie
+        within ``tau`` (the rest is accounted for by the steady-state input,
+        see :meth:`total_response`).
+        """
         # area = float(h.sum() * dt)
         area = integrate.trapezoid(h, dx=dt)
         if not np.isfinite(area) or area <= 0:
             raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
-        h /= area
+        h *= window_mass / area
 
         # decay / production
         if prod:
@@ -165,20 +182,34 @@ def _block_from_cdf(cdf, tau: np.ndarray, lambda_: float, prod: bool) -> np.ndar
     Returns
     -------
     ndarray
-        ``h[0] = 0`` and ``h[k]`` = integral over ``(tau[k-1], tau[k]]``,
-        normalised so that the TTD (without decay) has unit area within the
-        time window, as for all other units.
+        ``h[0] = 0`` and ``h[k]`` = integral over ``(tau[k-1], tau[k]]``.
+        The TTD has unit area over all travel times (``G_0(inf) = 1``); the
+        travel times beyond ``tau[-1]`` are accounted for by the steady-state
+        input (:func:`_total_from_cdf`).
     """
     tau = np.asarray(tau, dtype=float)
     if tau.size == 0:
         return np.zeros(0)
-    area = float(np.asarray(cdf(tau[-1:], 0.0))[0])
-    if not np.isfinite(area) or area <= 0:
-        raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+    area = _cdf_area(cdf)
     cum = np.asarray(cdf(tau, lambda_), dtype=float)
     if prod:
         cum = np.asarray(cdf(tau, 0.0), dtype=float) - cum
     return np.diff(cum, prepend=0.0) / area
+
+
+def _cdf_area(cdf) -> float:
+    """Total area ``G_0(inf)`` of a TTD (1 up to rounding); error if invalid."""
+    area = float(np.asarray(cdf(np.array([np.inf]), 0.0))[0])
+    if not np.isfinite(area) or area <= 0:
+        raise ValueError(f"Impulse response has non-positive/invalid area: {area}")
+    return area
+
+
+def _total_from_cdf(cdf, lambda_: float, prod: bool) -> float:
+    """Response over all travel times (see :meth:`Unit.total_response`)."""
+    area = _cdf_area(cdf)
+    decayed = float(np.asarray(cdf(np.array([np.inf]), lambda_))[0])
+    return (area - decayed) / area if prod else decayed / area
 
 
 def _uniform_cdf(t, a: float, b: float, lam: float) -> np.ndarray:
@@ -204,12 +235,22 @@ def _shifted_exp_cdf(t, t0: float, k: float, lam: float) -> np.ndarray:
     return k * np.exp(-lam * t0) / (k + lam) * -np.expm1(-(k + lam) * x)
 
 
-def _epm_block(mtt: float, eta: float, tau: np.ndarray, lambda_: float, prod: bool) -> np.ndarray:
-    """Exact block response of the EPM (``eta = 1``: exponential model)."""
+def _epm_cdf(mtt: float, eta: float):
+    """Decayed cumulative distribution of the EPM (``eta = 1``: exponential model)."""
     if not (np.isfinite(eta) and eta >= 1.0):
         raise ValueError(f"EPM: eta must be >= 1 (got {eta}).")
     t0, k = mtt * (1.0 - 1.0 / eta), eta / mtt
-    return _block_from_cdf(lambda t, lam: _shifted_exp_cdf(t, t0, k, lam), tau, lambda_, prod)
+    return lambda t, lam: _shifted_exp_cdf(t, t0, k, lam)
+
+
+def _epm_block(mtt: float, eta: float, tau: np.ndarray, lambda_: float, prod: bool) -> np.ndarray:
+    """Exact block response of the EPM (``eta = 1``: exponential model)."""
+    return _block_from_cdf(_epm_cdf(mtt, eta), tau, lambda_, prod)
+
+
+def _total_mass(decayed: float, prod: bool) -> float:
+    """Total response of a TTD with unit area from its decayed mass ``M_λ``."""
+    return 1.0 - decayed if prod else decayed
 
 
 def _check_positive(unit: str, **values: float) -> None:
@@ -310,6 +351,11 @@ class EPMUnit(Unit):
         """
         _check_positive("EPM", mtt=self.mtt)
         return _epm_block(float(self.mtt), float(self.eta), tau, lambda_, prod)
+
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`)."""
+        _check_positive("EPM", mtt=self.mtt)
+        return _total_from_cdf(_epm_cdf(float(self.mtt), float(self.eta)), lambda_, prod)
 
 
 @dataclass
@@ -412,11 +458,18 @@ class ExEPMUnit(Unit):
             If ``mtt`` or ``exp_part`` is not positive or ``piston_part`` is
             negative.
         """
+        return _epm_block(float(self.mtt), self._eta(), tau, lambda_, prod)
+
+    def _eta(self) -> float:
+        """``eta`` = piston part / exponential part + 1 (with parameter checks)."""
         _check_positive("EPM", mtt=self.mtt, exp_part=self.exp_part)
         if not (np.isfinite(self.piston_part) and self.piston_part >= 0.0):
             raise ValueError(f"EPM: parameter 'piston_part' must be >= 0 (got {self.piston_part}).")
-        eta = float(self.piston_part) / float(self.exp_part) + 1.0
-        return _epm_block(float(self.mtt), eta, tau, lambda_, prod)
+        return float(self.piston_part) / float(self.exp_part) + 1.0
+
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`)."""
+        return _total_from_cdf(_epm_cdf(float(self.mtt), self._eta()), lambda_, prod)
 
 
 @dataclass
@@ -522,10 +575,32 @@ class DMUnit(Unit):
 
         h[buffer:] = 1 / a * np.exp(b)
 
-        # get response for constant-input block of length dt
-        h = self.get_block(h, tau, dt, lambda_, prod)
+        # get response for constant-input block of length dt; the travel
+        # times beyond tau[-1] are covered by the steady-state input
+        h = self.get_block(h, tau, dt, lambda_, prod, window_mass=self._cdf(tau[-1]))
 
         return h
+
+    def _cdf(self, t: float) -> float:
+        """Share of travel times up to ``t``.
+
+        The DM is an inverse Gaussian distribution with mean ``mtt`` and
+        shape parameter ``mtt / (2 DP)``.
+        """
+        dp, mtt = float(self.DP), float(self.mtt)
+        return float(stats.invgauss.cdf(t, mu=2.0 * dp, scale=mtt / (2.0 * dp)))
+
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`).
+
+        ``M_λ = exp(-2 λ mtt / (1 + sqrt(1 + 4 DP λ mtt)))``, the Laplace
+        transform of the inverse Gaussian distribution.
+        """
+        if self.DP <= 0.0 or self.mtt <= 0.0:
+            return 0.0  # zero response, as get_impulse_response
+        x = 4.0 * float(self.DP) * lambda_ * float(self.mtt)
+        decayed = float(np.exp(-2.0 * lambda_ * float(self.mtt) / (1.0 + np.sqrt(1.0 + x))))
+        return _total_mass(decayed, prod)
 
 
 @dataclass
@@ -614,10 +689,21 @@ class EMUnit(Unit):
         h = np.zeros_like(tau)
         h = (1 / self.mtt) * np.exp(-tau / self.mtt)
 
-        # get response for constant-input block of length dt
-        h = self.get_block(h, tau, dt, lambda_, prod)
+        # get response for constant-input block of length dt; the travel
+        # times beyond tau[-1] are covered by the steady-state input
+        window_mass = -np.expm1(-tau[-1] / self.mtt)
+        h = self.get_block(h, tau, dt, lambda_, prod, window_mass=window_mass)
 
         return h
+
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`).
+
+        ``M_λ = 1 / (1 + λ mtt)``.
+        """
+        if self.mtt <= 0.0:
+            return 0.0  # zero response, as get_impulse_response
+        return _total_mass(1.0 / (1.0 + lambda_ * float(self.mtt)), prod)
 
 
 @dataclass
@@ -718,6 +804,14 @@ class PMUnit(Unit):
             else:
                 h[idx] *= np.exp(-lambda_ * self.mtt)
         return h
+
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`).
+
+        ``M_λ = exp(-λ mtt)``; if ``mtt`` lies beyond the simulation period,
+        the whole contribution comes from the steady-state input.
+        """
+        return _total_mass(float(np.exp(-lambda_ * float(self.mtt))), prod)
 
 
 @dataclass
@@ -827,6 +921,11 @@ class GMUnit(Unit):
         _check_positive("GM", mtt=self.mtt, alpha=self.alpha)
         return _block_from_cdf(self._cdf, tau, lambda_, prod)
 
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`)."""
+        _check_positive("GM", mtt=self.mtt, alpha=self.alpha)
+        return _total_from_cdf(self._cdf, lambda_, prod)
+
 
 @dataclass
 class LMUnit(Unit):
@@ -925,6 +1024,11 @@ class LMUnit(Unit):
         """
         _check_positive("LM", mtt=self.mtt)
         return _block_from_cdf(self._cdf, tau, lambda_, prod)
+
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`)."""
+        _check_positive("LM", mtt=self.mtt)
+        return _total_from_cdf(self._cdf, lambda_, prod)
 
 
 @dataclass
@@ -1114,6 +1218,10 @@ class PEMUnit(Unit):
         """
         return _block_from_cdf(self._cdf, tau, lambda_, prod)
 
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`)."""
+        return _total_from_cdf(self._cdf, lambda_, prod)
+
 
 class AgeBinUnit(Unit):
     """Age-bin model: a discrete, shape-free travel time distribution.
@@ -1154,9 +1262,9 @@ class AgeBinUnit(Unit):
     edges : sequence of float
         Bin edges ``a_0, ..., a_K`` (``K >= 1``), strictly increasing,
         ``a_0 >= 0``, in the time unit of the model (same as ``mtt`` of the
-        other units). The last edge must lie within the simulation period
-        (input series plus warm-up); for old, tracer-free water use a wide
-        last bin and a sufficiently long warm-up, or add a second unit.
+        other units). Bins may reach beyond the start of the input series
+        (e.g. a wide last bin for old water); like for all units, water
+        older than the series has the steady-state input concentration.
     weights : sequence of float, optional
         Initial bin weights (``K`` values ``>= 0`` that sum to 1). Default:
         equal weights.
@@ -1179,7 +1287,7 @@ class AgeBinUnit(Unit):
         bins = lab.AgeBinUnit(edges=[0, 10, 20, 40, 60, 1000])
         m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
                       input_series=inp.values, target_series=obs.values,
-                      steady_state_input=5.0, n_warmup_steps=1000)
+                      steady_state_input=5.0)
         m.add_unit(bins, fraction=1.0, prefix="bins")   # bounds (0, 1) set
         res = lab.Solver(m).dream_sample(n_samples=2000, sigma=obs.uncertainty)
         w = bins.weights_from_samples(res, "bins")      # (n, K) weights
@@ -1369,15 +1477,9 @@ class AgeBinUnit(Unit):
         """All coordinates lie in ``[0, 1]``."""
         return {f"u{i + 1}": (0.0, 1.0) for i in range(self.n_bins - 1)}
 
-    def check_window(self, t_max: float) -> None:
-        """Raise a ``ValueError`` if the last edge lies beyond ``t_max``."""
-        last = float(self._edges[-1])
-        if last > float(t_max) * (1.0 + 1e-12) + 1e-12:
-            raise ValueError(
-                f"Age bins: the last bin edge ({last:g}) lies beyond the simulation period "
-                f"({float(t_max):g}, input series plus warm-up). Lower the last edge or "
-                "extend the warm-up (steady_state_input with n_warmup_steps)."
-            )
+    def total_response(self, lambda_: float, prod: bool = False) -> float:
+        """Response over all travel times (see :meth:`Unit.total_response`)."""
+        return _total_from_cdf(self._cdf, lambda_, prod)
 
     def report_lines(self, time_divisor: float = 1.0) -> List[str]:
         """Edges, weights, cumulative fractions and mean travel time."""
@@ -1427,10 +1529,6 @@ class AgeBinUnit(Unit):
         Raises
         ------
         ValueError
-            If a coordinate is outside ``[0, 1]`` or the last edge lies
-            beyond ``tau[-1]``.
+            If a coordinate is outside ``[0, 1]``.
         """
-        tau = np.asarray(tau, dtype=float)
-        if tau.size:
-            self.check_window(tau[-1])
         return _block_from_cdf(self._cdf, tau, lambda_, prod)

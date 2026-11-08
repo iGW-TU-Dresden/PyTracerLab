@@ -25,8 +25,7 @@ In this example there is a true known reference model, which is not available in
 1. Select the EPM (Exponential Piston Flow Model) from the list.
 2. Enter the fraction of the overall model output that is represented by this model unit. Here the EPM is the only model unit, so we have to use a value of `1.0` here. If we had multiple model units in parallel, their respective fractions can be different, but they have to sum to `1.0` (e.g., `0.7` and `0.3` for two units in parallel).
 3. Enable steady-state tracer input.
-4. Enter steady-state tracer input concentrations (`1.0` for tritium, `0.0` for Krypton-85).
-5. Set the model warmup period (default is `10` half-lives of the tracer with the higher half life).
+4. Enter steady-state tracer input concentrations (`1.0` for tritium, `0.0` for Krypton-85). They are used for all water that is older than the input series (see the [user guide](usage.md)).
 
 ```{tip}
 Using multiple model units in parallel enables the representation of more complex aquifer scenarios. For example, consider the case where the sampled well penetrates two aquifers separated by a confining unit. The well water then is a mixture of different waters with different groundwater flow and travel time characteristics. Using, e.g., two units in parallel enables a more detailed representation of such cases.

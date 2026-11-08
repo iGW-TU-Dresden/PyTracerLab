@@ -310,11 +310,9 @@ In diesem **Tab** werden die verschiedenen Modellteile ausgewählt, die in die S
     - die Fließzeitverteilungen und Parameter aller Einheiten sind unter [Modelleinheiten](#model-units-de) beschrieben
     - jede Einheit ist mit einem entsprechenden Anteil der gesamten Systemantwort bzw. -ausgabe verknüpft; die Anteile liegen zwischen 0 und 1 und müssen sich zu eins summieren, andernfalls wird ein Fehler ausgelöst und das Modell läuft nicht
     - bei genau zwei Einheiten (binäre Mischung) wird nur der Anteil der ersten Einheit eingegeben; der Anteil der zweiten Einheit wird als 1 minus diesem Wert berechnet. Der Anteil der ersten Einheit kann kalibriert werden (siehe [Mischungsanteile](#mixing-fractions-de))
-- Angabe, ob ein stationärer Tracer-Eingang berücksichtigt werden soll, der für die Zeit vor dem Beginn der Datensätze gilt
-- Angabe der Warmlauf-Zeitspanne
-    - dies stellt den stationären Tracer-Eingang für die Dauer der hier angegebenen Anzahl von Tracer-Halbwertszeiten voran
-    - der Modell-Warmlauf hilft, unerwünschte Unregelmäßigkeiten zu entfernen, die in frühen Phasen von Simulationen auftreten können; weitere Details finden Sie [hier](#model-warmup-de)
-    - im Fall von zwei Tracern wird **die längere der beiden Halbwertszeiten verwendet**
+- Angabe des stationären Eingangs: die Tracerkonzentration der Grundwasserneubildung vor dem Beginn der Eingangszeitreihe (z. B. natürliches Tritium vor den 1950er-Jahren), ein Wert je Tracer
+    - er wird für das gesamte Wasser verwendet, das älter als die Eingangszeitreihe ist (siehe [Eingang vor dem Beginn der Eingangszeitreihe](#steady-state-input-de))
+    - ist das Kästchen nicht angekreuzt, wird angenommen, dass Wasser, das vor dem Beginn der Eingangszeitreihe neu gebildet wurde, **keinen Tracer** enthält; der Model-Tab und die Meldung nach jedem Lauf weisen darauf hin
 
 ```{important}
 Der stationäre Eingangswert wird in denselben Einheiten interpretiert, die in den Tracer-Eingangs- und Beobachtungsdatensätzen verwendet werden. Einheiten werden intern nicht überprüft. **Wenn die Einheiten nicht übereinstimmen, werden unerwünschte und falsche Ergebnisse erzielt!**
@@ -531,7 +529,7 @@ print(pem.mtt_aquifer)  # mittlere Fließzeit des gesamten Grundwasserleiters
 
 **Fließzeitklassen-Modell (formfreie Fließzeitverteilung).** Statt eine Form vorzugeben, wird die Fließzeitverteilung als Histogramm beschrieben: Sie wählen $K$ Klassen mit festen Grenzen $0 \le a_0 < a_1 < \dots < a_K$, und der Anteil des Wassers in jeder Klasse (Klassengewichte $w_k \ge 0$ mit $\sum_k w_k = 1$) wird kalibriert; innerhalb einer Klasse sind die Fließzeiten gleichverteilt (Visser et al., 2013; McCallum et al., 2014). Die mittlere Fließzeit, $\sum_k w_k\,(a_{k-1} + a_k)/2$, ergibt sich aus den Gewichten. Da sich die Gewichte zu eins summieren müssen, wird die Einheit durch $K-1$ Koordinaten `u1`, …, `u(K-1)` zwischen 0 und 1 beschrieben, die durch „Stick-Breaking“ in die Gewichte umgerechnet werden. Jede Kombination von Koordinaten ergibt ein gültiges Histogramm, sodass alle Solver verwendet werden können, und die voreingestellte gleichförmige Prior-Verteilung von MCMC und DREAM gibt jedem Histogramm dieselbe Prior-Wahrscheinlichkeit. Bei zwei Klassen ist `u1` das Gewicht der ersten Klasse.
 
-- Die letzte Klassengrenze muss innerhalb des Simulationszeitraums liegen (Eingangszeitreihe plus Warmlaufzeit). Altes, tracerfreies Wasser kann durch eine breite letzte Klasse (z. B. 60–1000 Jahre) zusammen mit einer ausreichend langen Warmlaufzeit dargestellt werden oder durch eine zweite Einheit (z. B. ein PM) mit einem [Mischungsanteil](#mixing-fractions-de).
+- Klassen dürfen über den Beginn der Eingangszeitreihe hinausreichen, z. B. eine breite letzte Klasse (60–1000 Jahre) für altes Wasser; wie bei allen Einheiten hat Wasser, das älter als die Eingangszeitreihe ist, die Konzentration des [stationären Eingangs](#steady-state-input-de). Alternativ kann altes Wasser durch eine zweite Einheit (z. B. ein PM) mit einem [Mischungsanteil](#mixing-fractions-de) dargestellt werden.
 - Tracerdaten bestimmen meist nur einige Eigenschaften der Fließzeitverteilung, etwa die mittlere Fließzeit und den Anteil jungen Wassers, nicht aber ihre vollständige Form (McCallum et al., 2014). Verwenden Sie wenige Klassen (z. B. 3–6) und MCMC oder DREAM, um zu sehen, welche Gewichte durch die Daten bestimmt sind; PyTracerLab warnt, wenn es mehr freie Parameter als Beobachtungen gibt. Es wird keine Glättungsbedingung (Regularisierung) verwendet.
 - Das Fließzeitklassen-Modell ist nur in Python verfügbar.
 
@@ -539,7 +537,7 @@ print(pem.mtt_aquifer)  # mittlere Fließzeit des gesamten Grundwasserleiters
 bins = lab.AgeBinUnit(edges=[0, 10, 20, 40, 60, 1000])  # Jahre; gleiche Anfangsgewichte
 m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
               input_series=inp.values, target_series=obs.values,
-              steady_state_input=5.0, n_warmup_steps=1000)  # Warmlaufzeit deckt die letzte Klasse ab
+              steady_state_input=5.0)  # Tritium vor der Eingangszeitreihe
 m.add_unit(bins, fraction=1.0, prefix="bins")  # Grenzen (0, 1) der Koordinaten werden gesetzt
 res = lab.Solver(m).dream_sample(n_samples=2000, sigma_rel=0.1)
 w = bins.weights_from_samples(res, "bins")  # Klassengewichte jeder Stichprobe, Form (n, K)
@@ -575,5 +573,21 @@ m.set_fixed("young.fraction", False)        # Mischungsanteil kalibrieren
 m.set_bounds("young.fraction", (0.2, 0.8))  # optional, Standard (0, 1)
 ```
 
-(model-warmup-de)=
-## Modell-Warmlauf
+(steady-state-input-de)=
+## Eingang vor dem Beginn der Eingangszeitreihe
+Heute beprobtes Grundwasser kann älter sein als die Tracer-Eingangszeitreihe. Für dieses Wasser verwendet PyTracerLab den **stationären Eingang**: die Tracerkonzentration der Grundwasserneubildung vor dem Beginn der Eingangszeitreihe, die als zeitlich konstant angenommen wird (z. B. die natürliche Tritiumkonzentration des Niederschlags vor den 1950er-Jahren). Der radioaktive Zerfall während der Fließzeit wird wie für alles andere Wasser berücksichtigt.
+
+Der Beitrag dieses Wassers wird exakt aus der Fließzeitverteilung berechnet: In jedem Zeitschritt ist er der stationäre Eingang multipliziert mit dem (zerfallskorrigierten) Anteil des Wassers, das älter ist als die seit dem Beginn der Eingangszeitreihe vergangene Zeit. Es muss daher keine Warmlaufzeit gewählt werden, es gibt keine Begrenzung der Fließzeiten oder Halbwertszeiten (z. B. ¹⁴C oder sehr altes Wasser), und die Fließzeitverteilungen werden am Beginn der Eingangszeitreihe nicht abgeschnitten.
+
+**Ohne stationären Eingang** wird angenommen, dass Wasser, das vor dem Beginn der Eingangszeitreihe neu gebildet wurde, **keinen Tracer** enthält. Das trifft für Tracer zu, die es vorher nicht gab (z. B. SF₆, FCKW, ⁸⁵Kr, sofern die Eingangszeitreihe früh genug beginnt), nicht aber für Tritium oder ¹⁴C. Da dies leicht übersehen wird, zeigt PyTracerLab einen Hinweis:
+
+- in der GUI unter dem Kästchen für den stationären Eingang im Model-Tab und in der Meldung nach einer Simulation oder Kalibrierung;
+- in Python als Warnung bei der ersten Simulation eines Modells. Um zu bestätigen, dass das Wasser vor der Eingangszeitreihe tracerfrei ist, geben Sie `steady_state_input=0` an; dann erscheint die Warnung nicht mehr.
+
+```python
+m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
+              input_series=inp.values, target_series=obs.values,
+              steady_state_input=5.0)  # TU vor dem Beginn der Eingangszeitreihe
+```
+
+Bei zwei Tracern geben Sie einen Wert je Tracer an (z. B. `steady_state_input=[5.0, 0.0]` für Tritium und SF₆). Für tritiogenes ³He geben Sie den stationären Tritium-Eingang an. Die Argumente `n_warmup_half_lives` und `n_warmup_steps` früherer Versionen werden weiterhin akzeptiert, haben aber keine Wirkung.

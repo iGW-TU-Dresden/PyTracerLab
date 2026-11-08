@@ -175,25 +175,16 @@ def test_report_shows_fractions(tmp_path):
     assert "fraction        1%-Quantile=0.3, 50%-Quantile (Median)=0.4, 99%-Quantile=0.5" in text
 
 
-# ------------------------------------------------------------ O.23 warm-up
-def test_warmup_ignores_stable_tracers():
+# ----------------------------------------------- O.23, superseded by O.29
+def test_stable_tracers_with_steady_state_input():
+    """lambda = 0 used to break the warm-up length (O.23); no warm-up since O.29."""
     m = Model(
         dt=1.0,
         lambda_=[LAM_3H, 0.0],
-        input_series=np.column_stack([X, np.linspace(0, 10, len(T))]),
-        steady_state_input=[5.0, 0.0],
-        n_warmup_half_lives=2,
+        input_series=np.column_stack([X, np.full(len(T), 2.0)]),
+        steady_state_input=[5.0, 2.0],
     )
     m.add_unit(EMUnit(mtt=5.0), fraction=1.0)
-    m.simulate()
-    assert m.n_warmup == 2 * int(0.693 / LAM_3H)
-
-
-def test_warmup_all_stable_needs_steps():
-    m = Model(dt=1.0, lambda_=0.0, input_series=X, steady_state_input=1.0)
-    m.add_unit(EMUnit(mtt=5.0), fraction=1.0)
-    with pytest.raises(ValueError, match="n_warmup_steps"):
-        m.simulate()
-    m = Model(dt=1.0, lambda_=0.0, input_series=X)  # no warm-up: no error
-    m.add_unit(EMUnit(mtt=5.0), fraction=1.0)
-    assert m.simulate().shape == X.shape
+    sim = m.simulate()
+    assert m.n_warmup == 0
+    np.testing.assert_allclose(sim[:, 1], 2.0)  # stable tracer in steady state

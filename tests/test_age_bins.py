@@ -14,15 +14,8 @@ EDGES = [0.0, 5.0, 15.0, 30.0, 60.0]
 TRUE_W = np.array([0.3, 0.2, 0.4, 0.1])
 
 
-def _model(obs=None, weights=None, edges=EDGES, n_warmup_steps=60):
-    m = lab.Model(
-        dt=1.0,
-        lambda_=LAM,
-        input_series=X,
-        target_series=obs,
-        steady_state_input=5.0,
-        n_warmup_steps=n_warmup_steps,
-    )
+def _model(obs=None, weights=None, edges=EDGES):
+    m = lab.Model(dt=1.0, lambda_=LAM, input_series=X, target_series=obs, steady_state_input=5.0)
     m.add_unit(lab.AgeBinUnit(edges, weights), fraction=1.0, prefix="bins")
     return m
 
@@ -134,33 +127,23 @@ def test_simulation_is_weighted_sum_of_bins():
     sim = _model(weights=TRUE_W).simulate()
     parts = []
     for a, b in zip(EDGES[:-1], EDGES[1:]):
-        m = lab.Model(
-            dt=1.0, lambda_=LAM, input_series=X, steady_state_input=5.0, n_warmup_steps=60
-        )
+        m = lab.Model(dt=1.0, lambda_=LAM, input_series=X, steady_state_input=5.0)
         m.add_unit(lab.AgeBinUnit([a, b]), fraction=1.0)
         parts.append(m.simulate())
     np.testing.assert_allclose(sim, TRUE_W @ np.array(parts), rtol=1e-12)
 
 
 # ------------------------------------------------------- simulation window
-def test_last_edge_must_lie_within_the_simulation_period():
-    # 71 input steps + 60 warm-up steps -> travel times up to 130 years
-    ok = _model(obs=_observations(), edges=[0.0, 30.0, 130.0])
-    lab.Solver(ok)  # checked before the warm-up is applied ...
-    ok.simulate()
-    lab.Solver(ok)  # ... and after
-    too_long = _model(obs=_observations(), edges=[0.0, 30.0, 131.0])
-    with pytest.raises(ValueError, match=r"last bin edge \(131\) lies beyond"):
-        lab.Solver(too_long)
-    with pytest.raises(ValueError, match="last bin edge"):
-        too_long.simulate()
-
-
-def test_other_units_are_not_checked():
-    """Units with unbounded TTDs keep working with short series (no new errors)."""
-    m = lab.Model(dt=1.0, lambda_=LAM, input_series=X[:20], target_series=X[:20])
-    m.add_unit(lab.EMUnit(mtt=500.0), fraction=1.0, bounds=[(1.0, 1000.0)])
-    lab.Solver(m)
+def test_bins_older_than_the_input_series():
+    """A wide old bin beyond the 71-year input gets the steady-state input (O.29)."""
+    edges, w = [0.0, 30.0, 1000.0], [0.6, 0.4]
+    sim = _model(weights=w, edges=edges).simulate()
+    # the same steady state written out as a long constant input before the series
+    ref = lab.Model(
+        dt=1.0, lambda_=LAM, input_series=np.r_[np.full(1200, 5.0), X], steady_state_input=0.0
+    )
+    ref.add_unit(lab.AgeBinUnit(edges, w), fraction=1.0)
+    np.testing.assert_allclose(sim, ref.simulate()[1200:], rtol=1e-10, atol=1e-12)
 
 
 # ----------------------------------------------------------------- registry
@@ -191,7 +174,7 @@ def test_parameter_order_of_existing_units_unchanged():
 
 
 def test_binary_mixture_with_old_component():
-    m = lab.Model(dt=1.0, lambda_=LAM, input_series=X, steady_state_input=5.0, n_warmup_steps=60)
+    m = lab.Model(dt=1.0, lambda_=LAM, input_series=X, steady_state_input=5.0)
     m.add_unit(lab.AgeBinUnit(EDGES), fraction=0.8, prefix="bins")
     m.add_unit(lab.PMUnit(mtt=100.0), fraction=0.2, prefix="old", bounds=[(50.0, 120.0)])
     assert m.fraction_key() == "bins.fraction"

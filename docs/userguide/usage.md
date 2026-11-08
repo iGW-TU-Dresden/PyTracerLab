@@ -283,11 +283,9 @@ In this **Tab**, the different model parts are selected that are included in the
     - the travel time distributions and parameters of all units are described in [Model Units](#model-units)
     - each unit is associated with a corresponding fraction of the total system response or output; the fractions are between 0 and 1 and must sum to one, otherwise an error is raised, and the model will not run
     - with exactly two units (binary mixture), only the fraction of the first unit is entered; the fraction of the second unit is calculated as 1 minus this value. The fraction of the first unit can be calibrated (see [Mixing Fractions](#mixing-fractions))
-- specify if there is a steady state tracer input that should be considered for the time prior to the start of the datasets
-- specify the warmup time span
-    - this prepends the steady state tracer input for the time of the number of tracer half lives specified here
-    - model warmup helps to remove unwanted irregularities that can appear in early phases of simulations; see [here](#model-warmup) for more details
-    - in the case of two tracers, **the longer of the two half lives is used**
+- specify the steady-state input: the tracer concentration of the recharge before the start of the input series (e.g. natural tritium before the 1950s), one value per tracer
+    - it is used for all water that is older than the input series (see [Input Before the Start of the Input Series](#steady-state-input))
+    - if the box is not ticked, water that recharged before the start of the input series is assumed to contain **no tracer**; the Model tab and the message after each run point this out
 
 ```{important}
 The steady state input value is interpreted in the same units that are used in the tracer input and observation datasets. Units are not checked internally. **If units are not equal, unwanted and wrong results are obtained!**
@@ -504,7 +502,7 @@ print(pem.mtt_aquifer)  # mean travel time of the whole aquifer
 
 **Age-bin model (shape-free TTD).** Instead of prescribing a shape, the TTD is a histogram: you choose $K$ bins with fixed edges $0 \le a_0 < a_1 < \dots < a_K$, and the fraction of water in each bin (bin weights $w_k \ge 0$ with $\sum_k w_k = 1$) is calibrated; within a bin, travel times are uniformly distributed (Visser et al., 2013; McCallum et al., 2014). The mean travel time, $\sum_k w_k\,(a_{k-1} + a_k)/2$, follows from the weights. Because the weights must sum to one, the unit is parameterised by $K-1$ coordinates `u1`, …, `u(K-1)` between 0 and 1, which are converted to the weights by stick-breaking. Every combination of coordinates gives a valid histogram, so all solvers can be used, and the default uniform prior of MCMC and DREAM gives every histogram the same prior probability. With two bins, `u1` is the weight of the first bin.
 
-- The last edge must lie within the simulation period (input series plus warm-up). Old, tracer-free water can be represented by a wide last bin (e.g. 60–1000 years) together with a sufficiently long warm-up, or by a second unit (e.g. a PM) with a [mixing fraction](#mixing-fractions).
+- Bins may reach beyond the start of the input series, e.g. a wide last bin (60–1000 years) for old water; like for all units, water older than the input series has the [steady-state input](#steady-state-input) concentration. Alternatively, old water can be represented by a second unit (e.g. a PM) with a [mixing fraction](#mixing-fractions).
 - Tracer data usually constrain only some properties of the TTD, such as the mean travel time and the fraction of young water, but not its full shape (McCallum et al., 2014). Use few bins (e.g. 3–6) and MCMC or DREAM to see which weights the data determine; PyTracerLab warns if there are more free parameters than observations. No smoothness constraint (regularisation) is applied.
 - The age-bin model is available in Python only.
 
@@ -512,7 +510,7 @@ print(pem.mtt_aquifer)  # mean travel time of the whole aquifer
 bins = lab.AgeBinUnit(edges=[0, 10, 20, 40, 60, 1000])  # years; equal initial weights
 m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
               input_series=inp.values, target_series=obs.values,
-              steady_state_input=5.0, n_warmup_steps=1000)  # warm-up covers the last bin
+              steady_state_input=5.0)  # tritium before the input series
 m.add_unit(bins, fraction=1.0, prefix="bins")  # bounds (0, 1) of the coordinates are set
 res = lab.Solver(m).dream_sample(n_samples=2000, sigma_rel=0.1)
 w = bins.weights_from_samples(res, "bins")  # bin weights of each sample, shape (n, K)
@@ -548,5 +546,21 @@ m.set_fixed("young.fraction", False)        # calibrate the mixing fraction
 m.set_bounds("young.fraction", (0.2, 0.8))  # optional, default (0, 1)
 ```
 
-(model-warmup)=
-## Model Warmup
+(steady-state-input)=
+## Input Before the Start of the Input Series
+Groundwater sampled today can be older than the tracer input series. For this water, PyTracerLab uses the **steady-state input**: the tracer concentration of the recharge before the start of the input series, assumed constant over time (e.g. the natural tritium concentration of precipitation before the 1950s). Radioactive decay during the travel time is applied as for all other water.
+
+The contribution of this water is calculated exactly from the travel time distribution: at each time step, it is the steady-state input times the (decayed) share of the water that is older than the time since the start of the input series. There is therefore no "warm-up" period to choose and no limit on the travel times or half-lives (e.g. ¹⁴C or very old water), and the travel time distributions are not cut off at the start of the input series.
+
+**Without a steady-state input**, water that recharged before the start of the input series is assumed to contain **no tracer**. This is correct for tracers that did not exist before (e.g. SF₆, CFCs, ⁸⁵Kr, if the input series starts early enough), but not for tritium or ¹⁴C. Because this is easily overlooked, PyTracerLab shows a note:
+
+- in the GUI, below the steady-state check box in the Model tab, and in the message after a simulation or calibration;
+- in Python, as a warning when a model is first simulated. To confirm that the water before the input series is tracer-free, give `steady_state_input=0`; the warning then no longer appears.
+
+```python
+m = lab.Model(dt=1.0, lambda_=lab.decay_constant("Tritium"),
+              input_series=inp.values, target_series=obs.values,
+              steady_state_input=5.0)  # TU before the start of the input series
+```
+
+For two tracers, give one value per tracer (e.g. `steady_state_input=[5.0, 0.0]` for tritium and SF₆). For tritiogenic ³He, give the steady-state tritium input. The arguments `n_warmup_half_lives` and `n_warmup_steps` of earlier versions are still accepted, but have no effect.

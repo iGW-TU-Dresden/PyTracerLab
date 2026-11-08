@@ -96,14 +96,14 @@ def test_wrong_sigma_shape_is_an_error():
         s._sigma_matrix(None, np.ones(len(T)))
 
 
-def test_per_observation_sigma_with_warmup():
-    """sigma refers to the observations without the warm-up period."""
+def test_per_observation_sigma_with_steady_state():
+    """sigma refers to the observations; the steady state adds no rows (O.29)."""
     m, obs = _model()
     s = Solver(m)
     sd = np.where(np.isnan(obs), np.nan, 1.0 + 0.1 * np.abs(obs))
     before = s._sigma_matrix(sd, None)
-    m.simulate()  # prepends the warm-up to target_series
-    assert m.n_warmup > 0 and len(m.target_series) == len(obs) + m.n_warmup
+    m.simulate()  # used to prepend a warm-up to target_series
+    assert m.n_warmup == 0 and len(m.target_series) == len(obs)
     np.testing.assert_array_equal(s._sigma_matrix(sd, None), before)
     sd[OBS_ROWS[0]] = np.nan
     with pytest.raises(ValueError, match="1955-01-01"):

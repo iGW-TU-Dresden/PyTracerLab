@@ -245,11 +245,14 @@ def test_invalid_parameters_raise(unit, msg):
         unit.get_impulse_response(np.arange(0.0, 50.0), 1.0, 0.0)
 
 
-def test_response_outside_window_raises():
-    """All mass beyond the simulation window (PEM screen deep, short series)."""
+def test_response_outside_window_comes_from_steady_state():
+    """All travel times beyond the input series (PEM screen deep, short series, O.29)."""
     pem = lab.PEMUnit(mtt=500.0, above=40.0, screen=1.0, below=1.0)
-    with pytest.raises(ValueError, match="area"):
-        pem.get_impulse_response(np.arange(0.0, 50.0), 1.0, 0.0)
+    tau = np.arange(0.0, 50.0)
+    assert np.abs(pem.get_impulse_response(tau, 1.0, 0.0)).max() == 0.0
+    m = lab.Model(dt=1.0, lambda_=LAM, input_series=np.full(50, 100.0), steady_state_input=8.0)
+    m.add_unit(pem, fraction=1.0)
+    np.testing.assert_allclose(m.simulate(), 8.0 * pem.total_response(LAM))
 
 
 def test_registry_and_defaults():

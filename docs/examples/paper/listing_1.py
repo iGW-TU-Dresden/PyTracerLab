@@ -11,6 +11,7 @@ m = lab.Model(
     lambda_=lab.decay_constant("Tritium"),
     input_series=inp.values,
     target_series=obs.values,
+    steady_state_input=6.0,  # tritium input before 1850 (TU)
     time_steps=inp.times,
 )
 

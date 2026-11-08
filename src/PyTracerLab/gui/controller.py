@@ -119,7 +119,6 @@ class Controller(QObject):
                 input_series=x[1] if x else None,
                 target_series=y[1] if y else None,
                 steady_state_input=ss_val,
-                n_warmup_half_lives=self.state.n_warmup_half_lives,
                 time_steps=x[0] if x else None,
                 production=prod,
             )
@@ -200,16 +199,41 @@ class Controller(QObject):
             self.error.emit(str(e))
             self.ml = None
 
+    @staticmethod
+    def _run_with_notes(func, *args):
+        """Run ``func`` and return ``(result, notes)``.
+
+        ``notes`` are the messages of :class:`~PyTracerLab.model.model.PyTracerLabWarning`
+        (e.g. a missing steady-state input or more free parameters than
+        observations), shown to the user with the status message; other
+        warnings go to the console as before.
+        """
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", mm.PyTracerLabWarning)
+            result = func(*args)
+        notes = []
+        for w in caught:
+            if issubclass(w.category, mm.PyTracerLabWarning):
+                notes.append(str(w.message))
+            else:
+                warnings.showwarning(w.message, w.category, w.filename, w.lineno)
+        return result, list(dict.fromkeys(notes))
+
+    @staticmethod
+    def _with_notes(msg: str, notes) -> str:
+        """Status message followed by the notes, if any."""
+        return msg + ("\n\nNote:\n" + "\n\n".join(notes) if notes else "")
+
     def simulate(self):
         """Run a forward simulation and emit the result via ``simulated``."""
         try:
             self.build_model()
             if self.ml is None:
                 return
-            sim = self.ml.simulate()
+            sim, notes = self._run_with_notes(self.ml.simulate)
             self.state.last_simulation = sim
             self.simulated.emit(sim)
-            self.status.emit("Simulation finished.")
+            self.status.emit(self._with_notes("Simulation finished.", notes))
         except Exception as e:
             self.error.emit(str(e))
 
@@ -230,21 +254,10 @@ class Controller(QObject):
             params.update(solver_sigma_kwargs(self.state))
             # show notes on the setup (e.g. more free parameters than
             # observations) together with the status message
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", mm.PyTracerLabWarning)
-                payload = ms.run_solver(self.ml, key, params)
-            notes = []
-            for w in caught:
-                if issubclass(w.category, mm.PyTracerLabWarning):
-                    notes.append(str(w.message))
-                else:  # other warnings go to the console as before
-                    warnings.showwarning(w.message, w.category, w.filename, w.lineno)
+            payload, notes = self._run_with_notes(ms.run_solver, self.ml, key, params)
             self.state.last_simulation = payload
             self.calibrated.emit(payload)
-            msg = "Calibration finished."
-            if notes:
-                msg += "\n\nNote:\n" + "\n".join(dict.fromkeys(notes))
-            self.status.emit(msg)
+            self.status.emit(self._with_notes("Calibration finished.", notes))
         except Exception as e:
             self.error.emit(str(e))
 

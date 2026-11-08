@@ -15,15 +15,22 @@ from .units import Unit
 # Each registry record stores numeric state + metadata used by the solver.
 ParamRecord = Dict[str, object]
 
-# Upper limit for the number of warm-up time steps.
-_MAX_WARMUP_STEPS = 5000
-
 # Local name of the mixing-fraction parameter in the registry.
 FRACTION = "fraction"
 
 
 class PyTracerLabWarning(UserWarning):
     """Warning about the model or calibration setup (e.g. a capped warm-up)."""
+
+
+def _hook(unit: object, name: str, default: object):
+    """Optional unit method ``name``; a callable returning ``default`` if missing.
+
+    Units that do not derive from :class:`~PyTracerLab.model.units.Unit`
+    (duck typing) need only ``param_values``, ``set_param_values`` and
+    ``get_impulse_response``.
+    """
+    return getattr(unit, name, None) or (lambda *args, **kwargs: default)
 
 
 def _check_within(
@@ -77,16 +84,29 @@ class Model:
         Observed output series of shape ``(N,)`` or ``(N, K)``; used only for
         calibration/loss and reporting.
     steady_state_input : float or sequence of float, optional
-        If provided, a warmup of constant input is prepended. Supply a scalar
-        for single-tracer runs or one value per tracer for multi-tracer runs.
+        Tracer input before the start of ``input_series``, assumed constant
+        (steady state) for all earlier times. Supply a scalar for
+        single-tracer runs or one value per tracer for multi-tracer runs
+        (for a produced tracer, e.g. tritiogenic 3He, the value of its
+        parent). If omitted, water that recharged before the start of the
+        input series is assumed to contain no tracer, and a warning is
+        issued; give ``0`` to confirm this without a warning.
     n_warmup_half_lives : int, optional
-        Heuristic warmup scaling in half-lives (kept for compatibility).
+        No effect since v0.3.0 (kept for compatibility): the steady-state
+        input is accounted for exactly, without a warm-up period.
     n_warmup_steps : int, optional
-        Number of warmup time steps prepended to the input series. If given,
-        it overrides the warmup steps calculated from ``n_warmup_half_lives``.
+        No effect since v0.3.0 (kept for compatibility).
 
     Notes
     -----
+    - **Input before the record.** The contribution of the steady-state input
+      to the output at time step ``i`` is computed exactly as
+      ``steady_state_input * (M - sum(h[:i + 1]))`` for each unit, where
+      ``h`` is the unit's response within the input series and ``M`` its
+      response summed over all travel times
+      (:meth:`~PyTracerLab.model.units.Unit.total_response`). No warm-up
+      period is simulated, so there is no limit on the length of the
+      steady-state period (e.g. for 14C) or of the travel times.
     - Units are added via :meth:`add_unit`. The method also registers unit
       parameters into the model's registry.
     - Bounds are **optimization bounds** only and can be provided at add time
@@ -143,9 +163,8 @@ class Model:
     # values.
     param_map: Dict[str, float] = None
 
-    # Internal warmup state
-    _is_warm: bool = field(default=False, init=False, repr=False)
-    _n_warmup: int = field(default=0, init=False, repr=False)
+    # the warning about a missing steady-state input is issued once per model
+    _warned_no_steady_state: bool = field(default=False, init=False, repr=False)
 
     def add_unit(
         self,
@@ -199,7 +218,7 @@ class Model:
         prefix = prefix or f"u{idx}"
         frac = float(fraction)
         local_params = list(unit.param_values().items())
-        intrinsic = unit.intrinsic_bounds()
+        intrinsic = _hook(unit, "intrinsic_bounds", {})()
 
         # validate everything before the model is changed
         if bounds is not None and len(bounds) != len(local_params):
@@ -389,7 +408,9 @@ class Model:
             )
         if rec["local_name"] != FRACTION:
             unit = self.units[int(rec["unit_index"])]  # type: ignore[arg-type]
-            _check_within(key, (lo, hi), unit.intrinsic_bounds().get(str(rec["local_name"])))
+            _check_within(
+                key, (lo, hi), _hook(unit, "intrinsic_bounds", {})().get(str(rec["local_name"]))
+            )
         rec["bounds"] = (lo, hi)
 
     def set_fixed(self, key: str, fixed: bool = True) -> None:
@@ -412,8 +433,12 @@ class Model:
 
     @property
     def n_warmup(self) -> int:
-        """Number of warmup steps prepended to the series."""
-        return self._n_warmup
+        """Number of warm-up steps prepended to the series: always 0 since v0.3.0.
+
+        Kept for compatibility; the steady-state input before the record is
+        accounted for exactly (see :class:`Model`).
+        """
+        return 0
 
     def _steady_state_vector(self, n_tracers: int) -> np.ndarray:
         """Return steady-state input as a 1D vector matching ``n_tracers``.
@@ -445,89 +470,23 @@ class Model:
             return np.full(n_tracers, float(arr.reshape(-1)[0]))
         raise ValueError("steady_state_input must be scalar or length equal to number of tracers")
 
-    def _requested_warmup_steps(self) -> int:
-        """Number of warm-up steps requested by the settings (before the cap)."""
-        if self.steady_state_input is None:
-            return 0
-        if self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
-            lam = np.atleast_1d(np.asarray(self.lambda_, dtype=float))
-            lam = lam[lam > 0.0]
-            if lam.size == 0:
-                raise ValueError(
-                    "The warm-up length cannot be derived from half-lives because all "
-                    "tracers are stable (decay constant 0); give n_warmup_steps instead."
-                )
-            t12 = 0.693 / lam
-            return int(np.max(t12)) * self.n_warmup_half_lives
-        return int(self.n_warmup_steps)
-
-    def _check_units(self) -> None:
-        """Check that units with a finite travel time range fit into the simulation period.
-
-        The period is the input series plus the warm-up (also before the
-        warm-up has been applied). Called when a
-        :class:`~PyTracerLab.model.solver.Solver` is created, so that the
-        error is reported instead of failing every simulation of a run.
-
-        Raises
-        ------
-        ValueError
-            If, e.g., the last edge of an
-            :class:`~PyTracerLab.model.units.AgeBinUnit` lies beyond the
-            simulation period.
-        """
-        checked = [u for u in self.units if type(u).check_window is not Unit.check_window]
-        if not checked or self.input_series is None:
+    def _warn_no_steady_state(self) -> None:
+        """Warn (once per model) that water older than the input series is tracer-free."""
+        if self.steady_state_input is not None or self._warned_no_steady_state:
             return
-        n = len(self.input_series)
-        if not self._is_warm:
-            n += min(max(self._requested_warmup_steps(), 0), _MAX_WARMUP_STEPS)
-        for unit in checked:
-            unit.check_window((n - 1) * float(self.dt))
-
-    def _warmup(self) -> None:
-        """Prepend a steady-state warmup to input/target and set bookkeeping.
-
-        Uses ``n_warmup_half_lives`` and the decay constant to determine the
-        warmup length. If ``steady_state_input`` is not provided or length is
-        non-positive, no warmup is applied. Stable tracers (decay constant 0)
-        are ignored when the length is derived from half-lives; if all tracers
-        are stable, ``n_warmup_steps`` must be given.
-        """
-        self._n_warmup = self._requested_warmup_steps()
-
-        if self.steady_state_input is None or self._n_warmup <= 0:
-            # no warmup requested → ensure we don't slice anything off
-            self._n_warmup = 0
-            self._is_warm = True
-            return
-
-        # Ensure that warmup is not too long
-        if self._n_warmup > _MAX_WARMUP_STEPS:
-            warnings.warn(
-                f"The warm-up period was limited to {_MAX_WARMUP_STEPS} time steps "
-                f"(requested: {self._n_warmup}).",
-                PyTracerLabWarning,
-                stacklevel=3,
-            )
-            self._n_warmup = _MAX_WARMUP_STEPS
-        # prepend steady-state warmup to input; support 1D or 2D inputs
-        if self.input_series.ndim == 1:
-            val = self._steady_state_vector(1)[0]
-            warm = np.full(self._n_warmup, float(val))
-        else:
-            n_tr = int(self.input_series.shape[1])
-            vals = self._steady_state_vector(n_tr)
-            warm = np.repeat(vals[np.newaxis, :], self._n_warmup, axis=0)
-        self.input_series = np.concatenate((warm, self.input_series))
-        if self.target_series is not None:
-            if self.target_series.ndim == 1:
-                warm_nan = np.full(self._n_warmup, np.nan)
-            else:
-                n_tr_tg = int(self.target_series.shape[1])
-                warm_nan = np.full((self._n_warmup, n_tr_tg), np.nan)
-            self.target_series = np.concatenate((warm_nan, self.target_series))
-        self._is_warm = True
+        self._warned_no_steady_state = True
+        start = "the start of the input series"
+        if self.time_steps is not None and len(self.time_steps):
+            t0 = self.time_steps[0]
+            start += f" ({t0:%Y-%m})" if hasattr(t0, "strftime") else f" ({t0})"
+        warnings.warn(
+            f"No steady-state input was given, so the model assumes that water which "
+            f"recharged before {start} contains no tracer. If it did contain tracer "
+            "(e.g. natural tritium before the 1950s), give a steady-state input. "
+            "To confirm that this water is tracer-free, set the steady-state input to 0.",
+            PyTracerLabWarning,
+            stacklevel=3,
+        )
 
     def _validate_series(self) -> None:
         """Check that ``target_series`` is given on the time grid of ``input_series``.
@@ -557,7 +516,7 @@ class Model:
             )
 
     def _check(self) -> None:
-        """Ensure warmup is applied and mixture fractions are properly normalized.
+        """Ensure mixture fractions are properly normalized.
 
         Raises
         ------
@@ -565,8 +524,6 @@ class Model:
             If a unit fraction is not between 0 and 1 or the sum of unit
             fractions deviates too much from 1.0.
         """
-        if not self._is_warm:
-            self._warmup()
         if any(not -1e-12 <= f <= 1.0 + 1e-12 for f in self.unit_fractions):
             raise ValueError(
                 "Unit fractions must be between 0 and 1 (got "
@@ -615,13 +572,18 @@ class Model:
     def simulate(self) -> np.ndarray:
         """Run the forward model using current registry values.
 
+        Water older than the input series has the steady-state input
+        concentration (decayed according to its travel time); without a
+        steady-state input, it contains no tracer (see :class:`Model`).
+
         Returns
         -------
         ndarray
-            Simulated output aligned with ``target_series`` (warmup removed).
+            Simulated output aligned with ``input_series`` and ``target_series``.
         """
         # Check before simulating
         self._check()
+        self._warn_no_steady_state()
 
         # Determine number of tracers from input dimensionality
         x = np.asarray(self.input_series, dtype=float)
@@ -650,6 +612,12 @@ class Model:
         else:
             prod_vec = self.production
 
+        # input before the record (steady state); none -> tracer-free
+        if self.steady_state_input is None:
+            ss = np.zeros(k)
+        else:
+            ss = self._steady_state_vector(k)
+
         sim = np.zeros((n, k), dtype=float)
         for frac, unit in zip(self.unit_fractions, self.units):
             # per-tracer impulse responses and contributions
@@ -661,10 +629,12 @@ class Model:
                 # of radioactive decay.
 
                 contrib = scipy.signal.fftconvolve(x[:, j], h)[:n]  # * self.dt
+                if ss[j] != 0.0:
+                    # water older than the time since the start of the series
+                    total = _hook(unit, "total_response", None)(float(lam_vec[j]), prod_vec[j])
+                    if total is not None:
+                        contrib += ss[j] * np.maximum(total - np.cumsum(h), 0.0)
                 sim[:, j] += float(frac) * contrib
-
-        # Remove warmup
-        sim = sim[self._n_warmup :, :]
 
         # Return 1D for single-tracer to preserve backward compatibility
         if sim.shape[1] == 1:
@@ -751,9 +721,8 @@ class Model:
                 lines.append(f"Tracers: {', '.join(tracer)}")
             else:
                 raise ValueError("Tracer must be a string or sequence of strings.")
-        lines.append(f"Warmup steps: {self._n_warmup} (auto)")
         if self.steady_state_input is None:
-            steady = "n/a"
+            steady = "none (water older than the input series contains no tracer)"
         else:
             arr = np.asarray(self.steady_state_input, dtype=float)
             if arr.ndim == 0 or arr.size == 1:
@@ -769,7 +738,7 @@ class Model:
         if self.target_series is not None:
             if sim is None:
                 sim = self.simulate()
-            y = self.target_series[self._n_warmup :]
+            y = self.target_series
             # coerce to 2D for uniform handling
             y2 = np.asarray(y, dtype=float)
             s2 = np.asarray(sim, dtype=float)
@@ -929,7 +898,8 @@ class Model:
                         lines.append("")
             # derived quantities of the unit (e.g. weights of age bins)
             if 0 <= uidx < len(self.units):
-                lines.extend(self.units[uidx].report_lines(12.0 if convert_mtt_to_years else 1.0))
+                divisor = 12.0 if convert_mtt_to_years else 1.0
+                lines.extend(_hook(self.units[uidx], "report_lines", [])(divisor))
             lines.append("")
 
         report_text = "\n".join(lines)

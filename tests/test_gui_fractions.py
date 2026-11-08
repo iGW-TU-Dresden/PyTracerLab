@@ -103,6 +103,8 @@ def test_controller_calibrates_fraction(qapp, monkeypatch):
     design, params = _tabs(tab.state)
     _select(design, "EM", "PM")
     design.rows[0]["frac"].setText("0.5")
+    design.ss_checkbox.setChecked(True)  # steady-state input: no note about it (O.29)
+    design.ss_inputs[0].setText("5.0")
     params.fraction_editor.fixed.setChecked(False)
     params.fraction_editor.lb.setText("0.2")
     params.fraction_editor.ub.setText("0.8")

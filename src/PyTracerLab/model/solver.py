@@ -158,10 +158,8 @@ class Solver:
 
     def __post_init__(self) -> None:
         # Fail early with a clear message instead of a silently infinite
-        # objective if observations are not aligned with the input series
-        # or a unit does not fit into the simulation period (age bins).
+        # objective if observations are not aligned with the input series.
         self.model._validate_series()
-        self.model._check_units()
 
     # ------------------------- internals ---------------------------------
     def _reduced_bounds(self) -> List[Tuple[float, float]]:
@@ -169,15 +167,10 @@ class Solver:
         return self.model.get_bounds(free_only=True)
 
     def _obs_matrix(self) -> np.ndarray:
-        """Observations without the warm-up period as a 2D array ``(N, K)``.
-
-        Slicing off ``n_warmup`` rows gives the original observations both
-        before and after the warm-up has been prepended to
-        ``model.target_series``.
-        """
+        """Observations as a 2D array ``(N, K)``."""
         if self.model.target_series is None:
             raise ValueError("Calibration requires observations (target_series) on the model.")
-        y = np.asarray(self.model.target_series[self.model.n_warmup :], dtype=float)
+        y = np.asarray(self.model.target_series, dtype=float)
         if y.ndim == 1:
             y = y.reshape(-1, 1)
         if not np.any(~np.isnan(y)):
@@ -207,7 +200,7 @@ class Solver:
         """Human-readable position of an observation for error messages."""
         label = f"row {row}"
         times = self.model.time_steps
-        if times is not None and len(times) == len(self.model.input_series) - self.model.n_warmup:
+        if times is not None and len(times) == len(self.model.input_series):
             t = times[row]
             label = t.strftime("%Y-%m-%d") if hasattr(t, "strftime") else str(t)
         if n_tracers > 1:

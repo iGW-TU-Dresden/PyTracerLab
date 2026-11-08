@@ -24,8 +24,8 @@ TRACERS: Dict[str, Dict[str, object]] = {
     "Carbon-14": {"half_life": 5700.0, "production": False},
     "Tritium": {"half_life": 12.32, "production": False},
     "Krypton-85": {"half_life": 10.73, "production": False},
-    # artificially long half-life instead of zero decay (keeps the warm-up
-    # computation of the model finite)
+    # artificially long half-life instead of zero decay (historical: kept the
+    # warm-up length finite before v0.3.0); the decay is negligible
     "Stable tracer (no decay)": {"half_life": 1e12, "production": False},
     "Helium (tritiogenic)": {"half_life": 12.32, "production": True},
 }
