@@ -105,6 +105,26 @@ def _observation_sigma(
     return sig
 
 
+def _outlier_chains(logpost_hist: np.ndarray) -> np.ndarray:
+    """Indices of outlier chains of a DREAM run (Vrugt et al., 2009; Vrugt, 2016).
+
+    Parameters
+    ----------
+    logpost_hist : ndarray
+        Log-posterior values of shape ``(n_steps, n_chains)`` (usually the
+        second half of the history so far).
+
+    Returns
+    -------
+    ndarray
+        Indices of the chains whose mean log-posterior is below
+        ``Q1 - 2 IQR`` of the means of all chains.
+    """
+    omega = np.mean(np.asarray(logpost_hist, dtype=float), axis=0)
+    q1, q3 = np.quantile(omega, [0.25, 0.75])
+    return np.where(omega < q1 - 2.0 * (q3 - q1))[0]
+
+
 @dataclass
 class Solver:
     """Optimization wrapper for :class:`~PyTracerLab.model.model.Model`.
@@ -717,11 +737,21 @@ class Solver:
         return_sim: bool = False,
         set_model_state: bool = True,
         sigma_rel: Union[float, Sequence[float], None] = None,
+        outlier_check: bool = True,
     ):
         """Basic DREAM sampler.
 
         Uses multiple chains and differential-evolution proposals with
         crossover/subspace updates. Returns samples after burn-in and thinning.
+
+        During burn-in, chains that are caught in a region of low posterior
+        density (e.g. a local optimum) are moved to the current state of the
+        best chain (outlier test of Vrugt et al., 2009, and Vrugt, 2016): ten
+        times during burn-in, the mean log-posterior of each chain over the
+        second half of its history so far is compared with the other chains;
+        chains below ``Q1 - 2 IQR`` (first quartile minus twice the
+        interquartile range) are outliers. The test is not applied after
+        burn-in, so the returned samples are not affected by it.
 
         Parameters
         ----------
@@ -771,14 +801,18 @@ class Solver:
             Relative measurement uncertainty as a fraction of the observed
             value (e.g. ``0.05``), scalar or one value per tracer. Used for
             all observations for which ``sigma`` gives no value.
+        outlier_check : bool, optional
+            Move outlier chains to the best chain during burn-in (default
+            ``True``, see above). Has no effect without burn-in.
 
         Returns
         -------
         dict
             Dictionary with keys: 'param_names', 'samples', 'logpost',
             'accept_rate', 'posterior_mean', 'posterior_median',
-            'posterior_map', 'map_logpost', plus chain-level arrays and
-            ['sims' if requested].
+            'posterior_map', 'map_logpost', 'gelman_rubin',
+            'n_outlier_resets' (number of outlier chains moved during
+            burn-in), plus chain-level arrays and ['sims' if requested].
         """
         rng = (
             np.random.default_rng(random_state)
@@ -910,6 +944,11 @@ class Solver:
         # Precompute jitter scale
         eps_scale = np.where((hi - lo) > 0.0, (hi - lo), 1.0)
 
+        # Outlier chains during burn-in (log-posterior history of all chains)
+        lp_hist = np.empty((burn_in, n_chains), dtype=float) if outlier_check else None
+        check_every = max(1, burn_in // 10)
+        n_outlier_resets = 0
+
         for it in range(total_needed):
             for i in range(n_chains):
                 proposals[i] += 1
@@ -984,6 +1023,19 @@ class Solver:
 
                 accepts[i] += int(accept)
 
+            if lp_hist is not None and it < burn_in:
+                lp_hist[it] = chain_logpost
+                if (it + 1) % check_every == 0:
+                    outliers = _outlier_chains(lp_hist[(it + 1) // 2 : it + 1])
+                    if outliers.size:
+                        best = int(np.argmax(chain_logpost))
+                        for j in outliers:
+                            chains[j] = chains[best].copy()
+                            chain_logpost[j] = chain_logpost[best]
+                            chain_sim[j] = chain_sim[best].copy()
+                            lp_hist[: it + 1, j] = lp_hist[: it + 1, best]
+                        n_outlier_resets += int(outliers.size)
+
             if it >= burn_in and ((it - burn_in) % thin == 0):
                 for i in range(n_chains):
                     samples_chain[i, keep_idx, :] = chains[i]
@@ -1028,6 +1080,7 @@ class Solver:
             "posterior_map": posterior_map,
             "map_logpost": float(logposts[map_idx]),
             "gelman_rubin": gr,
+            "n_outlier_resets": n_outlier_resets,
         }
         if return_sim:
             sims_arr = np.asarray(sims_chain, dtype=float)
