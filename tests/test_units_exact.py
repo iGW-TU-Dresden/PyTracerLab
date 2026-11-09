@@ -228,12 +228,32 @@ def test_pm_response_independent_of_time_step():
         assert m.simulate()[-1] == pytest.approx(10.0 * np.exp(-LAM * 10.0))
 
 
+def test_pm_zero_travel_time_is_current_input():
+    """O.30: PM with mtt = 0 gave a zero response (tracer-free water)."""
+    x = np.array([5.0, 100.0, 40.0, 20.0, 10.0])
+    for dt in (1.0, 1.0 / 12.0):
+        m = lab.Model(dt=dt, lambda_=LAM, input_series=x, steady_state_input=5.0)
+        m.add_unit(lab.PMUnit(mtt=0.0), fraction=1.0)
+        np.testing.assert_allclose(m.simulate(), x)
+    # binary mixture as in TracerLPM's BMM-EMM-PFM with a PFM of age 0
+    m = lab.Model(dt=1.0, lambda_=LAM, input_series=x, steady_state_input=5.0)
+    m.add_unit(lab.EMUnit(mtt=5.0), fraction=0.6, prefix="young")
+    m.add_unit(lab.PMUnit(mtt=0.0), fraction=0.4, prefix="old")
+    em = lab.Model(dt=1.0, lambda_=LAM, input_series=x, steady_state_input=5.0)
+    em.add_unit(lab.EMUnit(mtt=5.0), fraction=1.0)
+    np.testing.assert_allclose(m.simulate(), 0.6 * em.simulate() + 0.4 * x)
+    # small positive travel times still use the previous time step
+    h = lab.PMUnit(mtt=0.2).get_impulse_response(np.arange(0.0, 5.0), 1.0, 0.0)
+    np.testing.assert_array_equal(h, [0.0, 1.0, 0.0, 0.0, 0.0])
+
+
 @pytest.mark.parametrize(
     "unit, msg",
     [
         (lab.GMUnit(mtt=10.0, alpha=0.0), "alpha"),
         (lab.GMUnit(mtt=-1.0, alpha=1.0), "mtt"),
         (lab.LMUnit(mtt=0.0), "mtt"),
+        (lab.PMUnit(mtt=-1.0), "mtt"),
         (lab.EPMUnit(mtt=10.0, eta=0.9), "eta"),
         (lab.ExEPMUnit(mtt=10.0, exp_part=0.0, piston_part=1.0), "exp_part"),
         (lab.PEMUnit(mtt=10.0, above=1.0, screen=0.0, below=1.0), "screen"),

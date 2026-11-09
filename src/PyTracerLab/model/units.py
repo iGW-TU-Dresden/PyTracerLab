@@ -760,7 +760,12 @@ class PMUnit(Unit):
         """Discrete delta response on the grid with exponential decay.
 
         The delta is represented by setting the bin at ``round(mtt/dt)`` to
-        ``1`` (times the decay factor), which preserves unit mass.
+        ``1`` (times the decay factor), which preserves unit mass. Travel times
+        between 0 and 1.5 time steps use the bin ``1`` (the input of the
+        previous time step). ``mtt = 0`` uses the bin ``0``: water with zero
+        travel time, which has the input concentration of the current time
+        step (e.g. the "piston flow with age 0" component of a binary mixture
+        in TracerLPM).
 
         Parameters
         ----------
@@ -779,19 +784,16 @@ class PMUnit(Unit):
         ndarray
             Impulse response evaluated at ``tau``.
         """
-        # Check for edge cases
-        if self.mtt <= 0.0:
-            return np.zeros_like(tau)
+        if not (np.isfinite(self.mtt) and self.mtt >= 0.0):
+            raise ValueError(f"PMUnit: parameter 'mtt' must be zero or positive (got {self.mtt}).")
 
-        # Note: a non-zero response at h[0] corresponds to a response at the
-        # same time step as the forcing. This is usually not what we want, so
-        # we need to make sure the first time bin is 0.
-
-        # We don't need to shift the travel time grid here because we (almost surely)
-        # avoid having non-zero response at h[0] anyways for the PM.
-
+        # A non-zero response at h[0] is a response within the time step of the
+        # forcing. The block responses of the other units are zero there (they
+        # integrate over (tau[k-1], tau[k]]); only a travel time of exactly zero
+        # puts the delta into h[0]. (Before v0.3.0, mtt = 0 gave a zero response,
+        # i.e. tracer-free water.)
         h = np.zeros_like(tau)
-        idx = max(1, int(round(self.mtt / dt)))
+        idx = 0 if self.mtt == 0.0 else max(1, int(round(self.mtt / dt)))
 
         # All mass in a single time step: like the block responses of the
         # other units, the weights sum to 1 (before decay). (Before v0.3.0,
