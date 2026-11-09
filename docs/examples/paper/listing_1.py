@@ -1,13 +1,13 @@
 # import PyTracerLab
 import PyTracerLab as lab
 
-# load tracer input time series and observations
-inp = lab.read_series("tritium_input.csv")
-obs = lab.read_series("tritium_observations.csv", align_to=inp)
+# load tracer input time series and observations (monthly time steps)
+inp = lab.read_series("tritium_input_monthly.csv")
+obs = lab.read_series("tritium_observations_monthly.csv", align_to=inp)
 
-# define model (yearly time steps, decay constant of tritium in 1/yr)
+# define model (time step in years, decay constant of tritium in 1/yr)
 m = lab.Model(
-    dt=1.0,
+    dt=1 / 12,
     lambda_=lab.decay_constant("Tritium"),
     input_series=inp.values,
     target_series=obs.values,
@@ -15,11 +15,14 @@ m = lab.Model(
     time_steps=inp.times,
 )
 
-# add LPM unit with initial parameter values and bounds
-epm = lab.EPMUnit(mtt=10.0, eta=1.5)
-m.add_unit(epm, fraction=1.0, bounds=[(0.5, 100.0), (1.0, 5.0)])
+# binary mixture: groundwater (exponential model) and runoff of the current
+# time step (piston flow with zero travel time)
+m.add_unit(lab.EMUnit(mtt=5.0), fraction=0.5, prefix="gw", bounds=[(0.5, 50.0)])
+m.add_unit(lab.PMUnit(mtt=0.0), fraction=0.5, prefix="runoff")
+m.set_fixed("runoff.mtt")
+m.set_fixed("gw.fraction", False)  # calibrate the mixing fraction
 
-# create solver and calibrate model parameters
+# calibrate with differential evolution (relative measurement uncertainty 20 %)
 solver = lab.Solver(m)
-opt_param, opt_sim = solver.differential_evolution()
+opt_param, opt_sim = solver.differential_evolution(sigma_rel=0.2)
 print(opt_param)
