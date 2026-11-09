@@ -56,3 +56,16 @@ def test_example_4_matches_tracerlpm(tmp_path):
     assert abs(float(mine["gw.fraction"]) - 0.56) < 0.02
     assert float(mine["objective"]) <= float(rows["TracerLPM best fit"]["objective"])
     assert (tmp_path / "example_4.png").exists()
+
+
+def test_example_5_matches_tracerlpm(tmp_path):
+    _main("example_5")(quick=True, out=tmp_path)
+    with open(tmp_path / "example_5_results.csv", encoding="utf-8") as f:
+        rows = {r["quantity"]: r for r in csv.DictReader(f) if r.get("quantity")}
+    # dispersion model (DP 0.8) for mean travel times 1-500 yr vs TracerLPM
+    diff = rows["max abs diff DM to TracerLPM (mtt 1-500 yr)"]
+    assert float(diff["3H"]) < 0.1  # TU
+    assert float(diff["3He(trit)"]) < 0.1  # TU
+    assert float(diff["SF6"]) < 0.05  # pptv
+    for name in ("tracer_tracer", "posterior"):
+        assert (tmp_path / f"example_5_{name}.png").exists()

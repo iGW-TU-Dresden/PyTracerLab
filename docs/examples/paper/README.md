@@ -22,6 +22,7 @@ are executed by the automated tests of PyTracerLab (`tests/test_paper_listing.py
 | `example_2.py` | Example 2: recovery of known parameters from synthetic observations with all four solvers; run times |
 | `example_3.py` | Example 3: river water from a groundwater flow model (MODFLOW 6, synthetic input); exponential model with calibrated mixing fraction and age-bin model, compared with the travel times from particle tracking |
 | `example_4.py` | Example 4: measured tritium time series of the Missouri River (Example 3 of TracerLPM), compared with TracerLPM; parameter uncertainty with DREAM |
+| `example_5.py` | Example 5: multi-tracer analysis (tritium, tritiogenic helium-3, SF6; Example 1 of TracerLPM): tracer-tracer plots for several model types, dispersion model compared with TracerLPM; parameter uncertainty with DREAM |
 
 | Data file | Content |
 |---|---|
@@ -35,6 +36,9 @@ are executed by the automated tests of PyTracerLab (`tests/test_paper_listing.py
 | `example_3_observations.csv` | Tracer concentrations in river water simulated with the MODFLOW model (every 5 years; all other months empty) |
 | `example_3_particle_travel_times.csv` | Travel times (days) and flux weights of the particles from particle tracking (groundwater only; particles reaching the infiltration well are excluded) |
 | `example_4_tracerlpm.csv` | TracerLPM simulation at its best fit for Example 4 (BMM-EMM-PFM with a PFM of age 0: mean travel time 6.8 yr, fraction 0.56), sampling dates only |
+| `example_5_input.csv` | Semi-annual input time series of tritium (TU) and SF6 (pptv), 1900-2020, of Example 1 of TracerLPM (Jurgens et al., 2012), as distributed with TracerLPM; the 3He(trit) column repeats the tritium input (tritiogenic helium-3 is produced by the decay of tritium) |
+| `example_5_observations.csv` | The groundwater sample of the same example (17 August 2004): tritium, tritiogenic helium-3 (TU) and SF6 (pptv) as reported there, with the uncertainties assumed in Example 5 (`_sd` columns) |
+| `example_5_tracerlpm.csv` | TracerLPM simulation of the same sample with a dispersion model (DP 0.8) for mean travel times of 1-500 yr |
 
 Reference: Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1):
 An Excel workbook for interpreting groundwater age distributions from environmental
