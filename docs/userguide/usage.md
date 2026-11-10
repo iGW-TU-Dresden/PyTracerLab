@@ -314,7 +314,7 @@ In this **Tab**, simulations can be performed, model parameters can be calibrate
 - perform a model simulation using the current parameters
 - perform model calibration
     - select a solver
-    - change solver parameters (requires at lease a basic understanding of the solvers)
+    - change solver parameters (requires at least a basic understanding of the solvers; see [Choosing a Solver](#choosing-a-solver))
     - set the measurement uncertainty of the observations (applies to all solvers; see [Measurement Uncertainty](#measurement-uncertainty)); the current setting is shown below the button *Edit Solver Parameters*
     - run automatic calibration
 - plot results of current simulation / calibrated model simulation
@@ -426,6 +426,52 @@ model = lab.Model(
 
 The result of `read_series` contains the dates (`times`), the values (`values`), the tracer names from the header line (`tracers`), the measurement uncertainties from the `_sd` columns (`uncertainty`) and the time step (`step`). See the {py:func}`API documentation <PyTracerLab.model.io.read_series>` for details.
 
+(choosing-a-solver)=
+## Choosing a Solver
+PyTracerLab has four solvers. Two of them search for the parameter values that fit the observations best (**calibration**). The other two also show how uncertain the parameter values are (**Bayesian inference** with Markov chain Monte Carlo, MCMC).
+
+| Solver | Python method | Result | Starting values | Recommended for |
+|---|---|---|---|---|
+| Least squares | `least_squares` | best fit near the starting values | the initial values of the parameters | fast calibration of smooth problems; run it from several starting values |
+| Differential evolution | `differential_evolution` | best fit within the bounds | not needed | calibration in general, and always for models with a PM |
+| Metropolis–Hastings (MCMC) | `mcmc_sample` | samples of the posterior distribution, one chain | the initial values of the parameters | simple problems, if the step size is tuned |
+| DREAM (MCMC) | `dream_sample` | samples of the posterior distribution, several chains | not needed | parameter uncertainty |
+
+[Paper Example 2](../examples/paper/paper_example_2.ipynb) compares all four solvers on the same problem (two DM units, 241 time steps, 10 observations). One simulation took about 0.5 ms, one least-squares run about 0.1 s, differential evolution about 10 s, and Metropolis–Hastings and DREAM about 20 s each (32 000 simulations).
+
+**Least squares** is a gradient-based method: the trust-region reflective algorithm of SciPy, which is related to the Levenberg–Marquardt algorithm but respects the parameter bounds. It is by far the fastest solver, but it finds the best fit *closest to the initial values*. If several parameter combinations fit the observations reasonably well, it can stop at a poorer one: in Paper Example 2, 6 of 10 runs from random starting values reached the best fit, while 4 stopped at a much poorer one. Run it from several starting values (Paper Example 2 shows how) and keep the best result. Least squares is not suited to the mean travel time of a PM: the PM shifts all water by whole time steps, so the simulated values change in steps and least squares can stop far from the best fit.
+
+**Differential evolution** searches the whole parameter range within the bounds with a population of parameter sets and needs no starting values. It is slower than least squares, but much less likely to stop at a poor fit, and it also works for models with a PM. Pass `random_state` to get reproducible results. If a calibrated value lies at one of its bounds, widen the bound if this is physically plausible.
+
+**Metropolis–Hastings and DREAM** draw samples from the posterior distribution: the parameter values that are compatible with the observations and their [measurement uncertainty](#measurement-uncertainty). The bounds of the parameters act as the prior: before the observations are considered, all values within the bounds are equally likely. Choose bounds that are physically plausible; if the samples pile up at a bound, it is the bound and not the data that limits the result.
+
+- **DREAM** runs several chains at the same time and builds its proposals from the differences between the chains, so it adapts by itself to the scale of each parameter and to correlations between parameters (Vrugt, 2016). It is the recommended MCMC solver.
+- **Metropolis–Hastings** runs one chain with a fixed step size `rw_scale`, given in the units of the parameters (travel times are in months in the GUI, and in the time unit of `dt` in Python). With a step size that does not suit the parameters, the chain moves very slowly through the parameter range. Tune the step size so that about 20–30 % of the proposals are accepted (Vrugt, 2016; Python: `res["accept_rate"]`). With only one chain, R̂ (see below) cannot be calculated, so prefer DREAM where possible.
+
+**Checking convergence.** MCMC results can only be interpreted once the chains have converged, i.e. once they sample the same distribution regardless of where they started. Check:
+
+- the **chain plot**, which the GUI shows after an MCMC or DREAM run: all chains should move within the same range of values. A chain that stays apart from the others has not converged;
+- the **Gelman–Rubin statistic R̂** of each parameter (Gelman and Rubin, 1992), which compares the spread within the chains with the spread between them. The GUI shows it in the chain plot of DREAM ("R=…"); in Python, it is `res["gelman_rubin"]`. The usual criterion for DREAM is R̂ below 1.2 for all parameters (Vrugt, 2016); the closer to 1, the better. The DREAM runs of the [paper examples](../examples/index.md) reach R̂ ≤ 1.02.
+
+During burn-in, DREAM moves chains that are stuck in a region of low posterior density (e.g. at a poor local optimum) to the current position of the best chain (outlier test of Vrugt et al., 2008, at 10 %, 20 %, …, 90 % of the burn-in). The returned samples, which are drawn after the burn-in, are not affected by this. The number of moved chains is `res["n_outlier_resets"]`; `outlier_check=False` switches the test off. The test compares the chains with each other and therefore needs at least 4 chains; PyTracerLab warns if fewer are used. The GUI uses 8 chains by default, like the paper examples.
+
+**If R̂ is too large:**
+
+- use a longer burn-in and more samples, e.g. twice as many;
+- use more chains, e.g. 8 or twice the number of free parameters;
+- look at the chain plot: chains that stay in different regions point to several parameter combinations that fit the observations about equally well (e.g. the mixing fraction and the mean travel times of a binary mixture, see [Mixing Fractions](#mixing-fractions)). Such a posterior needs longer runs or fewer free parameters;
+- the chains of the mean travel time of a PM move in steps of one time step. A chain can then remain at a neighbouring step for a long time, which increases R̂ in short runs ([Tutorial 2](../examples/example_02.ipynb)).
+
+```python
+solver = lab.Solver(m)
+res = solver.dream_sample(n_samples=4000, burn_in=4000, n_chains=8,
+                          sigma_rel=0.05, random_state=42)
+print(res["gelman_rubin"])      # R-hat of each parameter: should be below 1.2
+print(res["n_outlier_resets"])  # chains moved to the best chain during burn-in
+```
+
+References: Gelman, A., Rubin, D.B., 1992. Inference from iterative simulation using multiple sequences. Stat. Sci. 7, 457–472 · Vrugt, J.A., ter Braak, C.J.F., Clark, M.P., Hyman, J.M., Robinson, B.A., 2008. Treatment of input uncertainty in hydrologic modeling: Doing hydrology backward with Markov chain Monte Carlo simulation. Water Resour. Res. 44, W00B09 · Vrugt, J.A., 2016. Markov chain Monte Carlo simulation using the DREAM software package: Theory, concepts, and MATLAB implementation. Environ. Model. Softw. 75, 273–316.
+
 (measurement-uncertainty)=
 ## Measurement Uncertainty
 The measurement uncertainty of the observations determines how strongly each observation is weighted in the calibration: each residual (simulated minus observed value) is divided by the standard deviation σ of the observation. This matters in particular for tracers whose values span orders of magnitude, such as tritium. With a single σ for all observations, the observations with the largest values (and the largest absolute deviations) dominate the calibration.
@@ -475,7 +521,7 @@ Each unit describes one travel time distribution (TTD) $g(\tau)$ with unit area.
 
 | Unit | Python class | Parameters | Travel time distribution | Source |
 |---|---|---|---|---|
-| PM | `PMUnit` | `mtt` | all water has the travel time $\bar\tau$ | Maloszewski and Zuber (1982) |
+| PM | `PMUnit` | `mtt` | all water has the travel time $\bar\tau$; `mtt = 0`: water without delay, which carries the tracer input of the same time step (e.g. surface water that reaches the sampling point within one time step) | Maloszewski and Zuber (1982) |
 | EM | `EMUnit` | `mtt` | $g(\tau) = e^{-\tau/\bar\tau}/\bar\tau$ | Maloszewski and Zuber (1982) |
 | EPM | `EPMUnit`; GUI: `ExEPMUnit` | `mtt`, `eta`; GUI: `exp_part`, `piston_part` with $\eta$ = piston part / exponential part + 1 | exponential TTD with rate $\eta/\bar\tau$, shifted by the piston-flow time $\bar\tau\,(1 - 1/\eta)$; $\eta = 1$: EM | Maloszewski and Zuber (1982) |
 | DM | `DMUnit` | `mtt`, `DP` (dispersion parameter) | solution of the one-dimensional advection–dispersion equation | Maloszewski and Zuber (1982) |
@@ -519,7 +565,7 @@ young = w[:, :2].sum(axis=1)                # fraction of water younger than 20 
 print(bins.weights, bins.cumulative, bins.mtt)  # current state of the unit
 ```
 
-**Time discretisation.** For the EPM, GM, LM, PEM and the age-bin model, each time step receives the exact integral of the TTD (including decay) over the time step, as in TracerLPM. This keeps the results accurate also with yearly time steps, and the simulated values change smoothly with the parameters. The EM and DM evaluate the TTD at the time steps (trapezoidal rule); the PM assigns all water to the time step closest to `mtt`.
+**Time discretisation.** For the EPM, GM, LM, PEM and the age-bin model, each time step receives the exact integral of the TTD (including decay) over the time step, as in TracerLPM. This keeps the results accurate also with yearly time steps, and the simulated values change smoothly with the parameters. The EM and DM evaluate the TTD at the time steps (trapezoidal rule); the PM assigns all water to the time step closest to `mtt` (with `mtt = 0`, to the current time step). The simulated values of a PM therefore change in steps of one time step when `mtt` changes (see [Choosing a Solver](#choosing-a-solver)).
 
 References: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231 · McCallum, J.L., Engdahl, N.B., Ginn, T.R., Cook, P.G., 2014. Nonparametric estimation of groundwater residence time distributions: What can environmental tracer data tell us about groundwater residence time? Water Resour. Res. 50, 2022–2038 · Visser, A., Broers, H.P., Purtschert, R., Sültenfuß, J., de Jonge, M., 2013. Groundwater age distributions at a public drinking water supply well field derived from multiple age tracers (⁸⁵Kr, ³H/³He, and ³⁹Ar). Water Resour. Res. 49, 7778–7796.
 

@@ -59,7 +59,7 @@ In PyTracerLab stehen verschiedene Kalibrierungsansätze zur Verfügung. Alle di
 ```
 
 ```{warning}
-Solver-Parameter sind grundsätzlich auf robuste Standardwerte gesetzt. Sie sollten nur geändert werden, wenn Sie wissen, was Sie tun. Prüfen Sie die API-Dokumentation für weitere Informationen und ziehen Sie auch die vorhandene Literatur dazu heran, wie die verschiedenen Ansätze funktionieren (least squares, differential evolution, Metropolis-Hastings MCMC, DREAM MCMC).
+Solver-Parameter sind grundsätzlich auf robuste Standardwerte gesetzt. Sie sollten nur geändert werden, wenn Sie wissen, was Sie tun. Unter [Wahl des Solvers](#choosing-a-solver-de) im Benutzerhandbuch steht, wann welcher Solver geeignet ist und wie MCMC-Ergebnisse geprüft werden. Prüfen Sie die API-Dokumentation für weitere Informationen und ziehen Sie auch die vorhandene Literatur dazu heran, wie die verschiedenen Ansätze funktionieren (least squares, differential evolution, Metropolis-Hastings MCMC, DREAM MCMC).
 ```
 
 ![Ein Bild des Simulations-Tabs.](ex04.png)

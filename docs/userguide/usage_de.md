@@ -341,7 +341,7 @@ In diesem **Tab** können Simulationen durchgeführt, Modellparameter automatisc
 - Durchführung einer Modellsimulation mit den aktuellen Parametern
 - Durchführung einer Modellkalibrierung
     - Auswahl eines Solvers
-    - Änderung der Solver-Parameter (erfordert mindestens ein grundlegendes Verständnis der Solver)
+    - Änderung der Solver-Parameter (erfordert mindestens ein grundlegendes Verständnis der Solver; siehe [Wahl des Solvers](#choosing-a-solver-de))
     - Festlegen der Messunsicherheit der Beobachtungen (gilt für alle Solver; siehe [Messunsicherheit](#measurement-uncertainty-de)); die aktuelle Einstellung wird unter der Schaltfläche *Edit Solver Parameters* angezeigt
     - Ausführung der automatischen Kalibrierung
 - Plotten der Ergebnisse der aktuellen Simulation / der kalibrierten Modellsimulation
@@ -453,6 +453,52 @@ model = lab.Model(
 
 Das Ergebnis von `read_series` enthält die Daten (`times`), die Werte (`values`), die Tracer-Namen aus der Kopfzeile (`tracers`), die Messunsicherheiten aus den `_sd`-Spalten (`uncertainty`) und den Zeitschritt (`step`). Details finden Sie in der {py:func}`API-Dokumentation <PyTracerLab.model.io.read_series>`.
 
+(choosing-a-solver-de)=
+## Wahl des Solvers
+PyTracerLab bietet vier Solver. Zwei davon suchen die Parameterwerte, mit denen die Beobachtungen am besten wiedergegeben werden (**Kalibrierung**). Die beiden anderen zeigen zusätzlich, wie unsicher die Parameterwerte sind (**Bayes'sche Inferenz** mit Markov-Chain-Monte-Carlo-Verfahren, MCMC).
+
+| Solver | Python-Methode | Ergebnis | Startwerte | Empfohlen für |
+|---|---|---|---|---|
+| Kleinste Quadrate (Least Squares) | `least_squares` | beste Anpassung in der Nähe der Startwerte | die Anfangswerte der Parameter | schnelle Kalibrierung glatter Probleme; von mehreren Startwerten aus rechnen |
+| Differential Evolution | `differential_evolution` | beste Anpassung innerhalb der Grenzen | nicht nötig | Kalibrierung allgemein und immer bei Modellen mit einem PM |
+| Metropolis–Hastings (MCMC) | `mcmc_sample` | Stichproben der A-posteriori-Verteilung, eine Kette | die Anfangswerte der Parameter | einfache Probleme, wenn die Schrittweite abgestimmt ist |
+| DREAM (MCMC) | `dream_sample` | Stichproben der A-posteriori-Verteilung, mehrere Ketten | nicht nötig | Parameterunsicherheit |
+
+[Paper-Beispiel 2](../examples/paper/paper_example_2.ipynb) vergleicht alle vier Solver an demselben Problem (zwei DM-Einheiten, 241 Zeitschritte, 10 Beobachtungen). Eine Simulation dauerte etwa 0,5 ms, ein Least-Squares-Lauf etwa 0,1 s, Differential Evolution etwa 10 s und Metropolis–Hastings und DREAM jeweils etwa 20 s (32 000 Simulationen).
+
+**Least Squares** ist ein gradientenbasiertes Verfahren: der Trust-Region-Reflective-Algorithmus von SciPy, der mit dem Levenberg-Marquardt-Algorithmus verwandt ist, aber die Parametergrenzen einhält. Er ist mit Abstand der schnellste Solver, findet aber die beste Anpassung *in der Nähe der Anfangswerte*. Wenn mehrere Parameterkombinationen die Beobachtungen einigermaßen gut wiedergeben, kann er bei einer schlechteren stehen bleiben: In Paper-Beispiel 2 erreichten 6 von 10 Läufen mit zufälligen Startwerten die beste Anpassung, 4 blieben bei einer deutlich schlechteren stehen. Rechnen Sie daher von mehreren Startwerten aus (wie in Paper-Beispiel 2) und verwenden Sie das beste Ergebnis. Für die mittlere Fließzeit eines PM ist Least Squares nicht geeignet: Das PM verschiebt das gesamte Wasser um ganze Zeitschritte, die simulierten Werte ändern sich daher in Stufen, und Least Squares kann weit von der besten Anpassung entfernt stehen bleiben.
+
+**Differential Evolution** durchsucht den gesamten Parameterbereich innerhalb der Grenzen mit einer Population von Parametersätzen und benötigt keine Startwerte. Das Verfahren ist langsamer als Least Squares, bleibt aber viel seltener bei einer schlechten Anpassung stehen und eignet sich auch für Modelle mit einem PM. Geben Sie `random_state` an, um reproduzierbare Ergebnisse zu erhalten. Liegt ein kalibrierter Wert an einer seiner Grenzen, erweitern Sie die Grenze, wenn das physikalisch plausibel ist.
+
+**Metropolis–Hastings und DREAM** ziehen Stichproben aus der A-posteriori-Verteilung: den Parameterwerten, die mit den Beobachtungen und ihrer [Messunsicherheit](#measurement-uncertainty-de) vereinbar sind. Die Parametergrenzen wirken dabei als A-priori-Verteilung: Bevor die Beobachtungen berücksichtigt werden, sind alle Werte innerhalb der Grenzen gleich wahrscheinlich. Wählen Sie physikalisch plausible Grenzen; häufen sich die Stichproben an einer Grenze, begrenzt diese Grenze das Ergebnis und nicht die Daten.
+
+- **DREAM** rechnet mehrere Ketten gleichzeitig und bildet seine Vorschläge aus den Differenzen zwischen den Ketten. Dadurch passt es sich selbst an die Größenordnung jedes Parameters und an Korrelationen zwischen Parametern an (Vrugt, 2016). Es ist der empfohlene MCMC-Solver.
+- **Metropolis–Hastings** rechnet eine Kette mit einer festen Schrittweite `rw_scale` in den Einheiten der Parameter (in der GUI sind Fließzeiten in Monaten angegeben, in Python in der Zeiteinheit von `dt`). Passt die Schrittweite nicht zu den Parametern, bewegt sich die Kette nur sehr langsam durch den Parameterbereich. Stimmen Sie die Schrittweite so ab, dass etwa 20–30 % der Vorschläge angenommen werden (Vrugt, 2016; Python: `res["accept_rate"]`). Mit nur einer Kette lässt sich R̂ (siehe unten) nicht berechnen; verwenden Sie daher nach Möglichkeit DREAM.
+
+**Konvergenz prüfen.** MCMC-Ergebnisse dürfen erst interpretiert werden, wenn die Ketten konvergiert sind, d. h. wenn sie unabhängig von ihrem Startpunkt dieselbe Verteilung abtasten. Prüfen Sie:
+
+- den **Ketten-Plot**, den die GUI nach einem MCMC- oder DREAM-Lauf anzeigt: Alle Ketten sollten sich im selben Wertebereich bewegen. Eine Kette, die abseits der anderen bleibt, ist nicht konvergiert;
+- die **Gelman-Rubin-Statistik R̂** jedes Parameters (Gelman und Rubin, 1992), die die Streuung innerhalb der Ketten mit der Streuung zwischen den Ketten vergleicht. Die GUI zeigt sie im Ketten-Plot von DREAM an („R=…“), in Python ist es `res["gelman_rubin"]`. Das übliche Kriterium für DREAM ist R̂ unter 1,2 für alle Parameter (Vrugt, 2016); je näher an 1, desto besser. Die DREAM-Läufe der [Paper-Beispiele](../examples/index.md) erreichen R̂ ≤ 1,02.
+
+Während des Burn-ins verschiebt DREAM Ketten, die in einem Bereich geringer A-posteriori-Dichte feststecken (z. B. an einem schlechten lokalen Optimum), an die aktuelle Position der besten Kette (Ausreißertest nach Vrugt et al., 2008, bei 10 %, 20 %, …, 90 % des Burn-ins). Die zurückgegebenen Stichproben, die nach dem Burn-in gezogen werden, sind davon nicht betroffen. Die Anzahl der verschobenen Ketten steht in `res["n_outlier_resets"]`; mit `outlier_check=False` wird der Test abgeschaltet. Der Test vergleicht die Ketten miteinander und benötigt daher mindestens 4 Ketten; PyTracerLab warnt, wenn weniger verwendet werden. Die GUI verwendet standardmäßig 8 Ketten, wie die Paper-Beispiele.
+
+**Wenn R̂ zu groß ist:**
+
+- verwenden Sie ein längeres Burn-in und mehr Stichproben, z. B. doppelt so viele;
+- verwenden Sie mehr Ketten, z. B. 8 oder doppelt so viele wie freie Parameter;
+- sehen Sie sich den Ketten-Plot an: Ketten, die in verschiedenen Bereichen bleiben, deuten auf mehrere Parameterkombinationen hin, die die Beobachtungen etwa gleich gut wiedergeben (z. B. der Mischungsanteil und die mittleren Fließzeiten einer binären Mischung, siehe [Mischungsanteile](#mixing-fractions-de)). Eine solche A-posteriori-Verteilung erfordert längere Läufe oder weniger freie Parameter;
+- die Ketten der mittleren Fließzeit eines PM bewegen sich in Stufen von einem Zeitschritt. Eine Kette kann dann lange auf einer benachbarten Stufe bleiben, was R̂ bei kurzen Läufen erhöht ([Tutorial 2](../examples/example_02.ipynb)).
+
+```python
+solver = lab.Solver(m)
+res = solver.dream_sample(n_samples=4000, burn_in=4000, n_chains=8,
+                          sigma_rel=0.05, random_state=42)
+print(res["gelman_rubin"])      # R-hat jedes Parameters: sollte unter 1,2 liegen
+print(res["n_outlier_resets"])  # während des Burn-ins zur besten Kette verschobene Ketten
+```
+
+Literatur: Gelman, A., Rubin, D.B., 1992. Inference from iterative simulation using multiple sequences. Stat. Sci. 7, 457–472 · Vrugt, J.A., ter Braak, C.J.F., Clark, M.P., Hyman, J.M., Robinson, B.A., 2008. Treatment of input uncertainty in hydrologic modeling: Doing hydrology backward with Markov chain Monte Carlo simulation. Water Resour. Res. 44, W00B09 · Vrugt, J.A., 2016. Markov chain Monte Carlo simulation using the DREAM software package: Theory, concepts, and MATLAB implementation. Environ. Model. Softw. 75, 273–316.
+
 (measurement-uncertainty-de)=
 ## Messunsicherheit
 Die Messunsicherheit der Beobachtungen bestimmt, wie stark jede Beobachtung bei der Kalibrierung gewichtet wird: Jedes Residuum (simulierter minus beobachteter Wert) wird durch die Standardabweichung σ der Beobachtung geteilt. Das ist besonders wichtig für Tracer, deren Werte sich über Größenordnungen erstrecken, wie z. B. Tritium. Mit einem einzigen σ für alle Beobachtungen dominieren die Beobachtungen mit den größten Werten (und den größten absoluten Abweichungen) die Kalibrierung.
@@ -502,7 +548,7 @@ Jede Einheit beschreibt eine Fließzeitverteilung $g(\tau)$ mit der Fläche eins
 
 | Einheit | Python-Klasse | Parameter | Fließzeitverteilung | Quelle |
 |---|---|---|---|---|
-| PM | `PMUnit` | `mtt` | das gesamte Wasser hat die Fließzeit $\bar\tau$ | Maloszewski und Zuber (1982) |
+| PM | `PMUnit` | `mtt` | das gesamte Wasser hat die Fließzeit $\bar\tau$; `mtt = 0`: Wasser ohne Verzögerung, das den Tracereingang desselben Zeitschritts enthält (z. B. Oberflächenwasser, das die Probenahmestelle innerhalb eines Zeitschritts erreicht) | Maloszewski und Zuber (1982) |
 | EM | `EMUnit` | `mtt` | $g(\tau) = e^{-\tau/\bar\tau}/\bar\tau$ | Maloszewski und Zuber (1982) |
 | EPM | `EPMUnit`; GUI: `ExEPMUnit` | `mtt`, `eta`; GUI: `exp_part`, `piston_part` mit $\eta$ = Piston-Anteil / Exponential-Anteil + 1 | exponentielle Verteilung mit der Rate $\eta/\bar\tau$, verschoben um die Piston-Flow-Fließzeit $\bar\tau\,(1 - 1/\eta)$; $\eta = 1$: EM | Maloszewski und Zuber (1982) |
 | DM | `DMUnit` | `mtt`, `DP` (Dispersionsparameter) | Lösung der eindimensionalen Advektions-Dispersions-Gleichung | Maloszewski und Zuber (1982) |
@@ -546,7 +592,7 @@ young = w[:, :2].sum(axis=1)                # Anteil des Wassers jünger als 20 
 print(bins.weights, bins.cumulative, bins.mtt)  # aktueller Zustand der Einheit
 ```
 
-**Zeitliche Diskretisierung.** Beim EPM, GM, LM, PEM und Fließzeitklassen-Modell erhält jeder Zeitschritt das exakte Integral der Fließzeitverteilung (einschließlich Zerfall) über den Zeitschritt, wie in TracerLPM. Dadurch bleiben die Ergebnisse auch mit jährlichen Zeitschritten genau, und die simulierten Werte ändern sich stetig mit den Parametern. EM und DM werten die Fließzeitverteilung an den Zeitschritten aus (Trapezregel); das PM ordnet das gesamte Wasser dem Zeitschritt zu, der `mtt` am nächsten liegt.
+**Zeitliche Diskretisierung.** Beim EPM, GM, LM, PEM und Fließzeitklassen-Modell erhält jeder Zeitschritt das exakte Integral der Fließzeitverteilung (einschließlich Zerfall) über den Zeitschritt, wie in TracerLPM. Dadurch bleiben die Ergebnisse auch mit jährlichen Zeitschritten genau, und die simulierten Werte ändern sich stetig mit den Parametern. EM und DM werten die Fließzeitverteilung an den Zeitschritten aus (Trapezregel); das PM ordnet das gesamte Wasser dem Zeitschritt zu, der `mtt` am nächsten liegt (bei `mtt = 0` dem aktuellen Zeitschritt). Die simulierten Werte eines PM ändern sich daher in Stufen von einem Zeitschritt, wenn sich `mtt` ändert (siehe [Wahl des Solvers](#choosing-a-solver-de)).
 
 Literatur: Amin, I.E., Campana, M.E., 1996. A general lumped parameter model for the interpretation of tracer data and transit time calculation in hydrologic systems. J. Hydrol. 179, 1–21 · Jurgens, B.C., Böhlke, J.K., Eberts, S.M., 2012. TracerLPM (Version 1): An Excel® workbook for interpreting groundwater age distributions from environmental tracer data. U.S. Geological Survey Techniques and Methods 4-F3 · Jurgens, B.C., Böhlke, J.K., Kauffman, L.J., Belitz, K., Esser, B.K., 2016. A partial exponential lumped parameter model to evaluate groundwater age distributions and nitrate trends in long-screened wells. J. Hydrol. 543, 109–126 · Kirchner, J.W., Feng, X., Neal, C., 2000. Fractal stream chemistry and its implications for contaminant transport in catchments. Nature 403, 524–527 · Maloszewski, P., Zuber, A., 1982. Determining the turnover time of groundwater systems with the aid of environmental tracers. 1. Models and their applicability. J. Hydrol. 57, 207–231 · McCallum, J.L., Engdahl, N.B., Ginn, T.R., Cook, P.G., 2014. Nonparametric estimation of groundwater residence time distributions: What can environmental tracer data tell us about groundwater residence time? Water Resour. Res. 50, 2022–2038 · Visser, A., Broers, H.P., Purtschert, R., Sültenfuß, J., de Jonge, M., 2013. Groundwater age distributions at a public drinking water supply well field derived from multiple age tracers (⁸⁵Kr, ³H/³He, and ³⁹Ar). Water Resour. Res. 49, 7778–7796.
 
