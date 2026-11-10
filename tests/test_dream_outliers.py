@@ -3,8 +3,10 @@
 import warnings
 
 import numpy as np
+import pytest
 
 import PyTracerLab as lab
+from PyTracerLab.model.model import PyTracerLabWarning
 from PyTracerLab.model.solver import _outlier_chains
 
 
@@ -80,3 +82,63 @@ def test_dream_without_outlier_check_keeps_stuck_chain():
     stuck = res["samples_chain"][7, :, 0]
     assert np.all(np.abs(stuck - 8.0) < 1.0)
     assert max(res["gelman_rubin"].values()) > 10.0
+
+
+def test_outlier_rule_needs_four_chains():
+    """With 3 chains, Q1 - 2 IQR is always below the lowest chain (O.33)."""
+    hist = np.full((50, 3), -10.0)
+    hist[:, 0] = -1e6  # one chain stuck far below the others
+    assert _outlier_chains(hist).size == 0
+    hist = np.full((50, 4), -10.0)
+    hist[:, 0] = -1e6
+    np.testing.assert_array_equal(_outlier_chains(hist), [0])
+
+
+def _one_parameter_model():
+    target = np.full(10, np.nan)
+    target[-1] = 1.0
+    m = lab.Model(
+        dt=1.0, lambda_=0.05, input_series=np.ones(10), target_series=target, steady_state_input=0.0
+    )
+    m.add_unit(lab.EMUnit(mtt=2.0), fraction=1.0, bounds=[(0.1, 10.0)])
+    return m
+
+
+def test_default_chains_work_with_default_difference_pairs():
+    """Default arguments failed for 1-3 free parameters (3 pairs need 7 chains, O.33)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", PyTracerLabWarning)
+        res = lab.Solver(_one_parameter_model()).dream_sample(
+            n_samples=5, burn_in=10, sigma=1.0, random_state=0
+        )
+    assert res["samples_chain"].shape[0] == 7  # max(4, 2 * 1, 2 * 3 + 1)
+    res = lab.Solver(_one_parameter_model()).dream_sample(
+        n_samples=5, burn_in=10, n_diff_pairs=1, sigma=1.0, random_state=0
+    )
+    assert res["samples_chain"].shape[0] == 4  # max(4, 2 * 1, 2 * 1 + 1)
+
+
+def test_warning_with_three_chains():
+    solver = lab.Solver(_one_parameter_model())
+    with pytest.warns(PyTracerLabWarning, match="at least 4 chains"):
+        solver.dream_sample(
+            n_samples=5, burn_in=10, n_chains=3, n_diff_pairs=1, sigma=1.0, random_state=0
+        )
+    with warnings.catch_warnings():  # no warning without the check
+        warnings.simplefilter("error", PyTracerLabWarning)
+        solver.dream_sample(
+            n_samples=5,
+            burn_in=10,
+            n_chains=3,
+            n_diff_pairs=1,
+            sigma=1.0,
+            random_state=0,
+            outlier_check=False,
+        )
+
+
+def test_too_many_difference_pairs_names_the_needed_chains():
+    with pytest.raises(ValueError, match="needs at least 5 chains"):
+        lab.Solver(_one_parameter_model()).dream_sample(
+            n_samples=5, burn_in=10, n_chains=4, n_diff_pairs=2, sigma=1.0
+        )

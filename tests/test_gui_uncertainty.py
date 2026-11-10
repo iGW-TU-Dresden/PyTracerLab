@@ -146,7 +146,7 @@ def test_dialog_reset_to_defaults(qapp, messages):
     dlg = SolverParamsDialog(state)
     assert dlg.rb_rel.isChecked()
     dlg._on_reset()
-    assert dlg._dream_widgets["n_chains"].text() == "3"
+    assert dlg._dream_widgets["n_chains"].text() == "8"
     assert dlg.rb_none.isChecked() and dlg.ed_rel.text() == ""
 
 

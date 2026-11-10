@@ -291,7 +291,7 @@ class SolverParamsDialog(QDialog):
 
         dr = params.get("dream") or {}
         self._dream_widgets["n_samples"].setText(str(int(dr.get("n_samples", 2000))))
-        self._dream_widgets["n_chains"].setText(str(int(dr.get("n_chains", 3))))
+        self._dream_widgets["n_chains"].setText(str(int(dr.get("n_chains", 8))))
         self._dream_widgets["burn_in"].setText(str(int(dr.get("burn_in", 2000))))
         self._dream_widgets["thin"].setText(str(int(dr.get("thin", 1))))
         self._dream_widgets["n_diff_pairs"].setText(str(int(dr.get("n_diff_pairs", 2))))
@@ -335,7 +335,7 @@ class SolverParamsDialog(QDialog):
             "dream": {
                 "n_samples": 2000,
                 "burn_in": 2000,
-                "n_chains": 3,
+                "n_chains": 8,
                 "thin": 1,
                 "n_diff_pairs": 2,
                 "n_cr": 4,

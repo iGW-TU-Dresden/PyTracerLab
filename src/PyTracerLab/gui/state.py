@@ -93,7 +93,7 @@ class AppState:
                 "n_samples": 2000,
                 "burn_in": 2000,
                 "thin": 1,
-                "n_chains": 3,
+                "n_chains": 8,
                 "n_diff_pairs": 2,
                 "n_cr": 4,
             },

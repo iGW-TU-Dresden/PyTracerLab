@@ -754,14 +754,17 @@ class Solver:
         check in the last tenth of the burn-in, so every moved chain has at
         least a tenth of the burn-in left before sampling starts (Vrugt et al.,
         2008, apply another burn-in after an outlier). The test is not applied
-        after burn-in, so the returned samples are not affected by it.
+        after burn-in, so the returned samples are not affected by it. It needs
+        at least 4 chains (with 3 chains, no chain can fall below the threshold).
 
         Parameters
         ----------
         n_samples : int
             Number of samples to keep per chain.
         n_chains : int, optional
-            Number of parallel chains. Default is max(3, 2 * d).
+            Number of parallel chains (at least 3; at least 4 for the outlier
+            test; at least ``2 * n_diff_pairs + 1``). Default is
+            ``max(4, 2 * d, 2 * n_diff_pairs + 1)`` for ``d`` free parameters.
         burn_in : int, optional
             Number of samples to discard as burn-in.
         thin : int, optional
@@ -861,11 +864,25 @@ class Solver:
                 n_chains = int(start_arr.shape[0])
 
         if n_chains is None:
-            n_chains = max(3, 2 * d)
+            # the outlier check compares the chains (needs at least 4), and each
+            # proposal needs 2 * n_diff_pairs other chains
+            n_chains = max(4, 2 * d, 2 * n_diff_pairs + 1)
         if n_chains < 3:
             raise ValueError("n_chains must be at least 3 for DREAM.")
         if 2 * n_diff_pairs > (n_chains - 1):
-            raise ValueError("n_diff_pairs too large for the number of chains.")
+            raise ValueError(
+                f"DREAM with n_diff_pairs={n_diff_pairs} needs at least "
+                f"{2 * n_diff_pairs + 1} chains, but n_chains={n_chains}. "
+                "Use more chains or fewer difference pairs."
+            )
+        if outlier_check and burn_in > 0 and n_chains < 4:
+            warnings.warn(
+                f"With only {n_chains} chains, DREAM cannot detect chains that get "
+                "stuck in a poor region during burn-in, because this check compares "
+                "the chains with each other. Use at least 4 chains (e.g. 8).",
+                PyTracerLabWarning,
+                stacklevel=2,
+            )
 
         # Crossover probabilities
         if isinstance(cr, (list, tuple, np.ndarray)):
