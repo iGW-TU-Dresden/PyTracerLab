@@ -238,9 +238,11 @@ def main(quick=False, out=OUT):
     dream, t_dream = timed(solver.dream_sample, **dream_kw, **sig)
 
     # --- DREAM with free mixing fraction (Supplementary Material) ---
+    # five free parameters: more chains, a longer burn-in and more samples
+    # (R-hat <= 1.02)
     m_f = make_model(inp, target=obs, free_fraction=True)
     dream_f = lab.Solver(m_f).dream_sample(
-        **{**dream_kw, "n_chains": 10, "burn_in": n_b * 2}, **sig
+        **{**dream_kw, "n_chains": 10, "burn_in": n_b * 2, "n_samples": n_s * 3}, **sig
     )
     keys_f = m_f.param_keys(free_only=True)
 

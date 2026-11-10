@@ -106,7 +106,7 @@ def _observation_sigma(
 
 
 def _outlier_chains(logpost_hist: np.ndarray) -> np.ndarray:
-    """Indices of outlier chains of a DREAM run (Vrugt et al., 2009; Vrugt, 2016).
+    """Indices of outlier chains of a DREAM run (Vrugt et al., 2008, para. 35).
 
     Parameters
     ----------
@@ -746,12 +746,15 @@ class Solver:
 
         During burn-in, chains that are caught in a region of low posterior
         density (e.g. a local optimum) are moved to the current state of the
-        best chain (outlier test of Vrugt et al., 2009, and Vrugt, 2016): ten
-        times during burn-in, the mean log-posterior of each chain over the
-        second half of its history so far is compared with the other chains;
-        chains below ``Q1 - 2 IQR`` (first quartile minus twice the
-        interquartile range) are outliers. The test is not applied after
-        burn-in, so the returned samples are not affected by it.
+        best chain (outlier test of Vrugt et al., 2008, para. 35; see also
+        Vrugt, 2016): at 10 %, 20 %, ..., 90 % of the burn-in, the mean
+        log-posterior of each chain over the second half of its history so far
+        is compared with the other chains; chains below ``Q1 - 2 IQR`` (first
+        quartile minus twice the interquartile range) are outliers. There is no
+        check in the last tenth of the burn-in, so every moved chain has at
+        least a tenth of the burn-in left before sampling starts (Vrugt et al.,
+        2008, apply another burn-in after an outlier). The test is not applied
+        after burn-in, so the returned samples are not affected by it.
 
         Parameters
         ----------
@@ -944,9 +947,12 @@ class Solver:
         # Precompute jitter scale
         eps_scale = np.where((hi - lo) > 0.0, (hi - lo), 1.0)
 
-        # Outlier chains during burn-in (log-posterior history of all chains)
-        lp_hist = np.empty((burn_in, n_chains), dtype=float) if outlier_check else None
+        # Outlier chains during burn-in (log-posterior history of all chains):
+        # checks at 10 %, 20 %, ..., 90 % of burn-in; none in the last tenth, so
+        # that a moved chain has another tenth of the burn-in before sampling
         check_every = max(1, burn_in // 10)
+        n_check = burn_in - check_every
+        lp_hist = np.empty((max(n_check, 0), n_chains), dtype=float) if outlier_check else None
         n_outlier_resets = 0
 
         for it in range(total_needed):
@@ -1023,7 +1029,7 @@ class Solver:
 
                 accepts[i] += int(accept)
 
-            if lp_hist is not None and it < burn_in:
+            if lp_hist is not None and it < n_check:
                 lp_hist[it] = chain_logpost
                 if (it + 1) % check_every == 0:
                     outliers = _outlier_chains(lp_hist[(it + 1) // 2 : it + 1])

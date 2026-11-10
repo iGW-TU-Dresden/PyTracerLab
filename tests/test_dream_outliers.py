@@ -56,6 +56,24 @@ def test_dream_moves_outlier_chain_during_burn_in():
     assert max(res["gelman_rubin"].values()) < 1.2
 
 
+def test_no_outlier_check_in_last_tenth_of_burn_in(monkeypatch):
+    """Checks at 10 %, ..., 90 % of burn-in (Vrugt et al., 2008: a moved chain
+    needs another burn-in before sampling)."""
+    import PyTracerLab.model.solver as solver_mod
+
+    calls = []
+    original = solver_mod._outlier_chains
+
+    def recording(hist):
+        calls.append(len(hist))
+        return original(hist)
+
+    monkeypatch.setattr(solver_mod, "_outlier_chains", recording)
+    _run(outlier_check=True)  # burn_in = 200
+    # history passed = second half of steps 1..k for k = 20, 40, ..., 180
+    assert calls == [10, 20, 30, 40, 50, 60, 70, 80, 90]
+
+
 def test_dream_without_outlier_check_keeps_stuck_chain():
     res = _run(outlier_check=False)
     assert res["n_outlier_resets"] == 0
