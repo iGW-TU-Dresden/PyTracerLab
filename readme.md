@@ -9,8 +9,8 @@
 
 <img src="https://github.com/iGW-TU-Dresden/PyTracerLab/blob/main/logo.png" width="400">
 
-> [!IMPORTANT]
-> PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
+> [!NOTE]
+> The PyTracerLab paper (Rudolph et al., *Environmental Modelling & Software*) describes version 0.3.0. To install exactly this version, use `pip install PyTracerLab==0.3.0`; the GUI of this version is available from the [v0.3.0 release](https://github.com/iGW-TU-Dresden/PyTracerLab/releases/tag/v0.3.0). The code and data of the examples in the paper are in [`docs/examples/paper`](docs/examples/paper). Changes in later versions are listed in the [releases](https://github.com/iGW-TU-Dresden/PyTracerLab/releases).
 
 # PyTracerLab
 

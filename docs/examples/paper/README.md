@@ -15,6 +15,11 @@ Carlo runs accept `--quick` (a few iterations only, for testing). All scripts
 are executed by the automated tests of PyTracerLab (`tests/test_paper_listing.py`,
 `tests/test_paper_examples.py`), so they always work with the current version.
 
+The notebooks `paper_example_1.ipynb` ... `paper_example_5.ipynb` are step-by-step
+versions of the five examples, with the same data and settings, for the
+[documentation](https://igw-tu-dresden.github.io/PyTracerLab/). The scripts remain the
+reference for the figures and numbers of the paper.
+
 | Script | Content |
 |---|---|
 | `listing_1.py` | Listing 1 of the paper (reproduced verbatim): load data, set up a binary mixture with a calibrated mixing fraction, calibrate it with differential evolution (data of Example 4) |

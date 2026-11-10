@@ -1,6 +1,6 @@
 # Using the GUI: a Detailed Example
 
-This example demonstrates the GUI functionality. We use pre-existing data of tracer input and observations that were synthetically generated (see (Example 5)[../examples/example_05]) but the exact same steps can be carried out with any data you may have on hand. This example here considers the case of two tracers (tritium and Kr-85). Observations of tracer concentrations in groundwater are available for a number of dates, where always both tracer concentrations were measured. The GUI can also handle cases where, at certain dates, only one of the tracers is observed. See the [user guide](usage.md) for more information.
+This example demonstrates the GUI functionality. We use pre-existing data of tracer input and observations that were synthetically generated (see [Tutorial 5](../examples/example_05.ipynb)) but the exact same steps can be carried out with any data you may have on hand. This example here considers the case of two tracers (tritium and Kr-85). Observations of tracer concentrations in groundwater are available for a number of dates, where always both tracer concentrations were measured. The GUI can also handle cases where, at certain dates, only one of the tracers is observed. See the [user guide](usage.md) for more information.
 
 ```{tip}
 Refer to this guide when encountering problems with the GUI. Most of the functionality of the GUI is covered here, which should answer most of the questions that may come up.
