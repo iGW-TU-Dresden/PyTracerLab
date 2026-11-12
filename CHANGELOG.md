@@ -4,7 +4,7 @@ All notable changes to PyTracerLab are listed here. Versions follow the tags and
 [releases](https://github.com/iGW-TU-Dresden/PyTracerLab/releases) on GitHub and the
 packages on [PyPI](https://pypi.org/project/PyTracerLab/).
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-11-12)
 
 The version described in the PyTracerLab paper (Rudolph et al., *Environmental Modelling &
 Software*). Some results differ from version 0.2.9; see **Changed results** below.
