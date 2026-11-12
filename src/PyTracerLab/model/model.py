@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import warnings
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -12,6 +14,45 @@ from .units import Unit
 
 # Each registry record stores numeric state + metadata used by the solver.
 ParamRecord = Dict[str, object]
+
+# Local name of the mixing-fraction parameter in the registry.
+FRACTION = "fraction"
+
+
+class PyTracerLabWarning(UserWarning):
+    """Warning about the model or calibration setup (e.g. a capped warm-up)."""
+
+
+def _hook(unit: object, name: str, default: object):
+    """Optional unit method ``name``; a callable returning ``default`` if missing.
+
+    Units that do not derive from :class:`~PyTracerLab.model.units.Unit`
+    (duck typing) need only ``param_values``, ``set_param_values`` and
+    ``get_impulse_response``.
+    """
+    return getattr(unit, name, None) or (lambda *args, **kwargs: default)
+
+
+def _check_within(
+    key: str, bounds: Optional[Tuple[float, float]], allowed: Optional[Tuple[float, float]]
+) -> None:
+    """Raise a ValueError if ``bounds`` lie outside the intrinsic range ``allowed``."""
+    if bounds is None or allowed is None:
+        return
+    lo, hi = float(bounds[0]), float(bounds[1])
+    if not allowed[0] <= lo <= hi <= allowed[1]:
+        raise ValueError(
+            f"Bounds of '{key}' must satisfy {allowed[0]:g} <= lower <= upper <= {allowed[1]:g} "
+            f"(got ({lo:g}, {hi:g}))."
+        )
+
+
+def _natural_key(name: str) -> list:
+    """Sort key that orders embedded numbers numerically ("u2" before "u10").
+
+    Names without digits sort exactly as with plain string comparison.
+    """
+    return [int(part) if i % 2 else part for i, part in enumerate(re.split(r"(\d+)", name))]
 
 
 @dataclass
@@ -43,20 +84,52 @@ class Model:
         Observed output series of shape ``(N,)`` or ``(N, K)``; used only for
         calibration/loss and reporting.
     steady_state_input : float or sequence of float, optional
-        If provided, a warmup of constant input is prepended. Supply a scalar
-        for single-tracer runs or one value per tracer for multi-tracer runs.
+        Tracer input before the start of ``input_series``, assumed constant
+        (steady state) for all earlier times. Supply a scalar for
+        single-tracer runs or one value per tracer for multi-tracer runs
+        (for a produced tracer, e.g. tritiogenic 3He, the value of its
+        parent). If omitted, water that recharged before the start of the
+        input series is assumed to contain no tracer, and a warning is
+        issued; give ``0`` to confirm this without a warning.
     n_warmup_half_lives : int, optional
-        Heuristic warmup scaling in half-lives (kept for compatibility).
+        No effect since v0.3.0 (kept for compatibility): the steady-state
+        input is accounted for exactly, without a warm-up period.
     n_warmup_steps : int, optional
-        Number of warmup time steps prepended to the input series. If given,
-        it overrides the warmup steps calculated from ``n_warmup_half_lives``.
+        No effect since v0.3.0 (kept for compatibility).
 
     Notes
     -----
+    - **Input before the record.** The contribution of the steady-state input
+      to the output at time step ``i`` is computed exactly as
+      ``steady_state_input * (M - sum(h[:i + 1]))`` for each unit, where
+      ``h`` is the unit's response within the input series and ``M`` its
+      response summed over all travel times
+      (:meth:`~PyTracerLab.model.units.Unit.total_response`). No warm-up
+      period is simulated, so there is no limit on the length of the
+      steady-state period (e.g. for 14C) or of the travel times.
     - Units are added via :meth:`add_unit`. The method also registers unit
       parameters into the model's registry.
     - Bounds are **optimization bounds** only and can be provided at add time
       or later via :meth:`set_bounds`.
+    - **Mixing fraction.** For a binary mixture (exactly two units), the
+      fraction of the first unit is a registry parameter
+      ``"<prefix>.fraction"`` (bounds ``(0, 1)``); the second unit
+      contributes ``1 - fraction``. It is fixed by default and can be
+      calibrated like any other parameter::
+
+          m.add_unit(lab.EPMUnit(mtt=10.0, eta=1.5), fraction=0.6, prefix="young",
+                     bounds=[(1.0, 100.0), (1.0, 3.0)])
+          m.add_unit(lab.PMUnit(mtt=500.0), fraction=0.4, prefix="old",
+                     bounds=[(100.0, 1000.0)])
+          m.set_fixed("old.mtt")                 # often necessary, see below
+          m.set_fixed("young.fraction", False)   # calibrate the mixing fraction
+          m.set_bounds("young.fraction", (0.2, 0.8))
+
+      Whether the fraction and the mean travel times of both units can be
+      determined together depends on the number of independent observations
+      and on the tracers (e.g. tracers with contrasting input histories). If
+      the information is limited, fix one mean travel time. With three or
+      more units, the fractions are fixed model properties.
 
     """
 
@@ -72,6 +145,8 @@ class Model:
 
     units: List[Unit] = field(default_factory=list)
     unit_fractions: List[float] = field(default_factory=list)
+    # parameter prefix of each unit (same order as ``units``)
+    unit_prefixes: List[str] = field(default_factory=list, init=False, repr=False)
 
     # Parameter registry: key -> record
     params: Dict[str, ParamRecord] = field(default_factory=dict, init=False)
@@ -88,9 +163,8 @@ class Model:
     # values.
     param_map: Dict[str, float] = None
 
-    # Internal warmup state
-    _is_warm: bool = field(default=False, init=False, repr=False)
-    _n_warmup: int = field(default=0, init=False, repr=False)
+    # the warning about a missing steady-state input is issued once per model
+    _warned_no_steady_state: bool = field(default=False, init=False, repr=False)
 
     def add_unit(
         self,
@@ -101,47 +175,139 @@ class Model:
     ) -> None:
         """Add a unit, register its parameters, and set its mixture fraction.
 
+        Adding the second unit also registers the mixing fraction of the
+        first unit as parameter ``"<prefix>.fraction"`` (fixed by default,
+        bounds ``(0, 1)``); adding a third unit removes it again, because
+        mixing fractions can only be calibrated for binary mixtures (see
+        :class:`Model`).
+
+        Unit parameters are registered as free, except those the unit marks
+        as fixed by default (``"fixed": True`` in its ``PARAMS``, e.g. the
+        screen geometry of :class:`~PyTracerLab.model.units.PEMUnit`); free
+        them with :meth:`set_fixed`. Parameters with a range fixed by their
+        definition (``unit.intrinsic_bounds()``, e.g. the coordinates of
+        :class:`~PyTracerLab.model.units.AgeBinUnit` in ``[0, 1]``) get this
+        range as bounds if ``bounds`` is omitted.
+
         Parameters
         ----------
         unit : :class:`~PyTracerLab.model.units.Unit`
             The unit instance to add.
         fraction : float
-            Mixture fraction of this unit in the overall response. Fractions
-            should sum to ~1 across all units.
+            Mixture fraction of this unit in the overall response, between 0
+            and 1. Fractions must sum to ~1 across all units.
         prefix : str, optional
             Namespace prefix for the unit's parameters (e.g., ``"epm"``). If
             omitted, ``"u{index}"`` is used in insertion order.
         bounds : list of (float, float), optional
             Optimizer bounds for the unit's parameters in the same order as
             returned by ``unit.param_values()``. If omitted, bounds are left
-            as ``None`` and can be supplied later via :meth:`set_bounds`.
+            as ``None`` (except for intrinsic ranges, see above) and can be
+            supplied later via :meth:`set_bounds`.
 
         Raises
         ------
         ValueError
             If ``bounds`` is provided and its length does not match the number
-            of unit parameters.
+            of unit parameters or a bound lies outside an intrinsic range, if
+            ``fraction`` is not between 0 and 1, if the prefix is already
+            used, or if a third unit is added while the mixing fraction of a
+            binary mixture is free.
         """
         idx = len(self.units)
-        self.units.append(unit)
-        self.unit_fractions.append(float(fraction))
-
         prefix = prefix or f"u{idx}"
+        frac = float(fraction)
         local_params = list(unit.param_values().items())
+        intrinsic = _hook(unit, "intrinsic_bounds", {})()
+
+        # validate everything before the model is changed
         if bounds is not None and len(bounds) != len(local_params):
             raise ValueError("Length of bounds list must match number of unit parameters")
+        if bounds is not None:
+            for (local_name, _), b in zip(local_params, bounds):
+                _check_within(f"{prefix}.{local_name}", b, intrinsic.get(local_name))
+        if not 0.0 <= frac <= 1.0:
+            raise ValueError(
+                f"The fraction of unit '{prefix}' must be between 0 and 1 (got {frac})."
+            )
+        if prefix in self.unit_prefixes:
+            raise ValueError(f"The prefix '{prefix}' is already used by another unit.")
+        if any(name == FRACTION for name, _ in local_params):
+            raise ValueError(f"Unit parameters must not be named '{FRACTION}' (reserved).")
+        frac_key = self.fraction_key()
+        if frac_key is not None and not self.params[frac_key]["fixed"]:
+            raise ValueError(
+                f"The mixing fraction can only be calibrated for two units, but '{frac_key}' "
+                f"is free. Fix it with set_fixed('{frac_key}') before adding a third unit."
+            )
 
+        if frac_key is not None:
+            del self.params[frac_key]  # three or more units: fractions are fixed
+        self.units.append(unit)
+        self.unit_fractions.append(frac)
+        self.unit_prefixes.append(prefix)
+
+        # parameters a unit marks as fixed by default (e.g. the PEM geometry)
+        spec = {p.get("key"): p for p in getattr(type(unit), "PARAMS", [])}
         for i, (local_name, val) in enumerate(local_params):
             key = f"{prefix}.{local_name}"
-            b = bounds[i] if bounds is not None else None
+            b = bounds[i] if bounds is not None else intrinsic.get(local_name)
             self.params[key] = {
                 "value": float(val),
                 "initial": float(val),
                 "bounds": b,
-                "fixed": False,
+                "fixed": bool(spec.get(local_name, {}).get("fixed", False)),
                 "unit_index": idx,
                 "local_name": local_name,
             }
+
+        if idx == 1:
+            # binary mixture: fraction of the first unit as (fixed) parameter
+            f0 = float(self.unit_fractions[0])
+            self.params[f"{self.unit_prefixes[0]}.{FRACTION}"] = {
+                "value": f0,
+                "initial": f0,
+                "bounds": (0.0, 1.0),
+                "fixed": True,
+                "unit_index": 0,
+                "local_name": FRACTION,
+            }
+
+    def fraction_key(self) -> Optional[str]:
+        """Key of the mixing-fraction parameter, or ``None``.
+
+        The parameter exists only for binary mixtures (exactly two units);
+        it holds the fraction of the first unit.
+        """
+        for key, rec in self.params.items():
+            if rec["local_name"] == FRACTION:
+                return key
+        return None
+
+    def _record(self, key: str) -> ParamRecord:
+        """Registry record of ``key`` with a helpful error for fraction keys."""
+        try:
+            return self.params[key]
+        except KeyError:
+            if key.endswith("." + FRACTION):
+                raise KeyError(
+                    f"No parameter '{key}': the mixing fraction is a parameter only for "
+                    "exactly two units, named after the prefix of the first unit "
+                    f"(available: {self.fraction_key()})."
+                ) from None
+            raise
+
+    def _write_through(self, key: str, value: float) -> None:
+        """Push a parameter value to its unit (or to the mixing fractions)."""
+        rec = self.params[key]
+        idx = int(rec["unit_index"])  # type: ignore[arg-type]
+        local = str(rec["local_name"])
+        if local == FRACTION:
+            # binary mixture: the second unit contributes the remainder
+            self.unit_fractions[0] = value
+            self.unit_fractions[1] = 1.0 - value
+        else:
+            self.units[idx].set_param_values({local: value})
 
     def param_keys(self, free_only: bool = False) -> List[str]:
         """Return parameter keys in a stable order.
@@ -157,7 +323,8 @@ class Model:
             Fully-qualified parameter keys (e.g., ``"epm.mtt"``).
         """
         items = sorted(
-            self.params.items(), key=lambda kv: (kv[1]["unit_index"], kv[1]["local_name"])  # type: ignore
+            self.params.items(),
+            key=lambda kv: (kv[1]["unit_index"], _natural_key(str(kv[1]["local_name"]))),
         )
         return [k for k, rec in items if not (free_only and rec.get("fixed"))]
 
@@ -202,23 +369,22 @@ class Model:
             self.params[k][which] = v
             if which == "value":
                 # push through to owning unit immediately
-                idx = int(self.params[k]["unit_index"])  # type: ignore
-                local = str(self.params[k]["local_name"])  # type: ignore
-                self.units[idx].set_param_values({local: v})
+                self._write_through(k, v)
 
     def set_param(self, key: str, value: float) -> None:
         """Set a single parameter's **current** value and update the unit.
 
         This is a convenience wrapper around :meth:`set_vector` for one value.
+        Setting the mixing fraction also sets the fraction of the second unit
+        to ``1 - value``.
         """
-        self.params[key]["value"] = float(value)
-        idx = int(self.params[key]["unit_index"])  # type: ignore
-        local = str(self.params[key]["local_name"])  # type: ignore
-        self.units[idx].set_param_values({local: float(value)})
+        rec = self._record(key)
+        rec["value"] = float(value)
+        self._write_through(key, float(value))
 
     def set_initial(self, key: str, value: float) -> None:
         """Set a single parameter's **initial** value used for optimization seeding."""
-        self.params[key]["initial"] = float(value)
+        self._record(key)["initial"] = float(value)
 
     def set_bounds(self, key: str, bounds: Tuple[float, float]) -> None:
         """Set optimizer bounds for a single parameter.
@@ -228,14 +394,28 @@ class Model:
         key : str
             Fully-qualified parameter key (e.g., ``"epm.mtt"``).
         bounds : (float, float)
-            Lower and upper search bounds for the optimizer.
+            Lower and upper search bounds for the optimizer. Bounds of the
+            mixing fraction must lie within ``[0, 1]``, bounds of parameters
+            with an intrinsic range (``unit.intrinsic_bounds()``) within
+            that range.
         """
-        lo, hi = bounds
-        self.params[key]["bounds"] = (float(lo), float(hi))
+        rec = self._record(key)
+        lo, hi = float(bounds[0]), float(bounds[1])
+        if rec["local_name"] == FRACTION and not 0.0 <= lo <= hi <= 1.0:
+            raise ValueError(
+                f"Bounds of the mixing fraction '{key}' must satisfy 0 <= lower <= upper <= 1 "
+                f"(got ({lo}, {hi}))."
+            )
+        if rec["local_name"] != FRACTION:
+            unit = self.units[int(rec["unit_index"])]  # type: ignore[arg-type]
+            _check_within(
+                key, (lo, hi), _hook(unit, "intrinsic_bounds", {})().get(str(rec["local_name"]))
+            )
+        rec["bounds"] = (lo, hi)
 
     def set_fixed(self, key: str, fixed: bool = True) -> None:
-        """Mark a parameter as fixed (not optimized)."""
-        self.params[key]["fixed"] = bool(fixed)
+        """Mark a parameter as fixed (not optimized) or, with ``fixed=False``, as free."""
+        self._record(key)["fixed"] = bool(fixed)
 
     def get_bounds(self, free_only: bool = False) -> List[Tuple[float, float]]:
         """Return bounds for parameters in registry order.
@@ -253,8 +433,12 @@ class Model:
 
     @property
     def n_warmup(self) -> int:
-        """Number of warmup steps prepended to the series."""
-        return self._n_warmup
+        """Number of warm-up steps prepended to the series: always 0 since v0.3.0.
+
+        Kept for compatibility; the steady-state input before the record is
+        accounted for exactly (see :class:`Model`).
+        """
+        return 0
 
     def _steady_state_vector(self, n_tracers: int) -> np.ndarray:
         """Return steady-state input as a 1D vector matching ``n_tracers``.
@@ -286,58 +470,66 @@ class Model:
             return np.full(n_tracers, float(arr.reshape(-1)[0]))
         raise ValueError("steady_state_input must be scalar or length equal to number of tracers")
 
-    def _warmup(self) -> None:
-        """Prepend a steady-state warmup to input/target and set bookkeeping.
-
-        Uses ``n_warmup_half_lives`` and the decay constant to determine the
-        warmup length. If ``steady_state_input`` is not provided or length is
-        non-positive, no warmup is applied.
-        """
-        if self.n_warmup_half_lives is not None and self.n_warmup_steps is None:
-            t12 = 0.693 / np.asarray(self.lambda_)
-            t12 = np.asarray(t12, dtype=float)
-            self._n_warmup = int(np.max(t12)) * self.n_warmup_half_lives
-        else:
-            self._n_warmup = int(self.n_warmup_steps)
-
-        # Ensure that warmup is not too long
-        if self._n_warmup > 5000:
-            # limit warmup to 5000
-            self._n_warmup = 5000
-
-        if self.steady_state_input is None or self._n_warmup <= 0:
-            # no warmup requested → ensure we don't slice anything off
-            self._n_warmup = 0
-            self._is_warm = True
+    def _warn_no_steady_state(self) -> None:
+        """Warn (once per model) that water older than the input series is tracer-free."""
+        if self.steady_state_input is not None or self._warned_no_steady_state:
             return
-        # prepend steady-state warmup to input; support 1D or 2D inputs
-        if self.input_series.ndim == 1:
-            val = self._steady_state_vector(1)[0]
-            warm = np.full(self._n_warmup, float(val))
-        else:
-            n_tr = int(self.input_series.shape[1])
-            vals = self._steady_state_vector(n_tr)
-            warm = np.repeat(vals[np.newaxis, :], self._n_warmup, axis=0)
-        self.input_series = np.concatenate((warm, self.input_series))
-        if self.target_series is not None:
-            if self.target_series.ndim == 1:
-                warm_nan = np.full(self._n_warmup, np.nan)
-            else:
-                n_tr_tg = int(self.target_series.shape[1])
-                warm_nan = np.full((self._n_warmup, n_tr_tg), np.nan)
-            self.target_series = np.concatenate((warm_nan, self.target_series))
-        self._is_warm = True
+        self._warned_no_steady_state = True
+        start = "the start of the input series"
+        if self.time_steps is not None and len(self.time_steps):
+            t0 = self.time_steps[0]
+            start += f" ({t0:%Y-%m})" if hasattr(t0, "strftime") else f" ({t0})"
+        warnings.warn(
+            f"No steady-state input was given, so the model assumes that water which "
+            f"recharged before {start} contains no tracer. If it did contain tracer "
+            "(e.g. natural tritium before the 1950s), give a steady-state input. "
+            "To confirm that this water is tracer-free, set the steady-state input to 0.",
+            PyTracerLabWarning,
+            stacklevel=3,
+        )
 
-    def _check(self) -> None:
-        """Ensure warmup is applied and mixture fractions are properly normalized.
+    def _validate_series(self) -> None:
+        """Check that ``target_series`` is given on the time grid of ``input_series``.
 
         Raises
         ------
         ValueError
-            If the sum of unit fractions deviates too much from 1.0.
+            If the number of time steps (or, for 2D arrays, of tracers) of
+            ``target_series`` and ``input_series`` differ.
         """
-        if not self._is_warm:
-            self._warmup()
+        if self.input_series is None or self.target_series is None:
+            return
+        shape_in = np.shape(self.input_series)
+        shape_obs = np.shape(self.target_series)
+        if shape_in[0] != shape_obs[0]:
+            raise ValueError(
+                f"target_series has {shape_obs[0]} time steps but input_series has "
+                f"{shape_in[0]}. Observations must be given on the time grid of the "
+                "input series, with NaN where nothing was observed. "
+                "PyTracerLab.read_series(path, align_to=input_series) does this for "
+                "observation files that list only the sampling dates."
+            )
+        if len(shape_in) == 2 and len(shape_obs) == 2 and shape_in[1] != shape_obs[1]:
+            raise ValueError(
+                f"target_series has {shape_obs[1]} tracer columns but input_series has "
+                f"{shape_in[1]}."
+            )
+
+    def _check(self) -> None:
+        """Ensure mixture fractions are properly normalized.
+
+        Raises
+        ------
+        ValueError
+            If a unit fraction is not between 0 and 1 or the sum of unit
+            fractions deviates too much from 1.0.
+        """
+        if any(not -1e-12 <= f <= 1.0 + 1e-12 for f in self.unit_fractions):
+            raise ValueError(
+                "Unit fractions must be between 0 and 1 (got "
+                + ", ".join(f"{f:.6g}" for f in self.unit_fractions)
+                + ")."
+            )
         s = sum(self.unit_fractions) if self.unit_fractions else 0.0
         if not (0.99 <= s <= 1.01):
             raise ValueError("Sum of unit fractions must be ~1.0.")
@@ -380,13 +572,18 @@ class Model:
     def simulate(self) -> np.ndarray:
         """Run the forward model using current registry values.
 
+        Water older than the input series has the steady-state input
+        concentration (decayed according to its travel time); without a
+        steady-state input, it contains no tracer (see :class:`Model`).
+
         Returns
         -------
         ndarray
-            Simulated output aligned with ``target_series`` (warmup removed).
+            Simulated output aligned with ``input_series`` and ``target_series``.
         """
         # Check before simulating
         self._check()
+        self._warn_no_steady_state()
 
         # Determine number of tracers from input dimensionality
         x = np.asarray(self.input_series, dtype=float)
@@ -415,6 +612,12 @@ class Model:
         else:
             prod_vec = self.production
 
+        # input before the record (steady state); none -> tracer-free
+        if self.steady_state_input is None:
+            ss = np.zeros(k)
+        else:
+            ss = self._steady_state_vector(k)
+
         sim = np.zeros((n, k), dtype=float)
         for frac, unit in zip(self.unit_fractions, self.units):
             # per-tracer impulse responses and contributions
@@ -426,10 +629,12 @@ class Model:
                 # of radioactive decay.
 
                 contrib = scipy.signal.fftconvolve(x[:, j], h)[:n]  # * self.dt
+                if ss[j] != 0.0:
+                    # water older than the time since the start of the series
+                    total = _hook(unit, "total_response", None)(float(lam_vec[j]), prod_vec[j])
+                    if total is not None:
+                        contrib += ss[j] * np.maximum(total - np.cumsum(h), 0.0)
                 sim[:, j] += float(frac) * contrib
-
-        # Remove warmup
-        sim = sim[self._n_warmup :, :]
 
         # Return 1D for single-tracer to preserve backward compatibility
         if sim.shape[1] == 1:
@@ -516,9 +721,8 @@ class Model:
                 lines.append(f"Tracers: {', '.join(tracer)}")
             else:
                 raise ValueError("Tracer must be a string or sequence of strings.")
-        lines.append(f"Warmup steps: {self._n_warmup} (auto)")
         if self.steady_state_input is None:
-            steady = "n/a"
+            steady = "none (water older than the input series contains no tracer)"
         else:
             arr = np.asarray(self.steady_state_input, dtype=float)
             if arr.ndim == 0 or arr.size == 1:
@@ -534,7 +738,7 @@ class Model:
         if self.target_series is not None:
             if sim is None:
                 sim = self.simulate()
-            y = self.target_series[self._n_warmup :]
+            y = self.target_series
             # coerce to 2D for uniform handling
             y2 = np.asarray(y, dtype=float)
             s2 = np.asarray(sim, dtype=float)
@@ -564,17 +768,20 @@ class Model:
         # We make a separate table for each tracer. This is mainly because
         # for multiple tracers, the number of observations may be different
 
-        # Make list of tracer names if not given
-        if tracer is None:
+        if self.target_series is None:  # O.28: forward run without observations
+            tracer_ = []
+            lines.append("No observations given.")
+            lines.append("")
+        elif tracer is None:  # make list of tracer names if not given
             tracer_ = [str(i) for i in range(1, y2.shape[1] + 1)]
         else:
-            tracer_ = tracer
+            tracer_ = [tracer] if isinstance(tracer, str) else tracer
 
         # Make list of time steps if not given
-        if self.time_steps is None:
-            timesteps = [i for i in range(y2.shape[0])]
-        else:
+        if self.time_steps is not None:
             timesteps = self.time_steps
+        else:
+            timesteps = list(range(y2.shape[0])) if tracer_ else []
 
         for i, tracer in enumerate(list(tracer_)):
             # append column headers
@@ -619,11 +826,28 @@ class Model:
         lines.append("-- --\nATTENTION: Travel Time Parameters are Always Given in [Years]!\n-- --")
 
         # pretty print per group with correct fraction association
+        frac_key = self.fraction_key()
         for prefix, uidx in prefix_order:
             frac = self.unit_fractions[uidx] if 0 <= uidx < len(self.unit_fractions) else None
             frac_str = f"fraction={frac:.3f}" if frac is not None else ""
+            if frac_key is not None and uidx == 1:
+                # binary mixture: the second unit contributes the remainder
+                frac_str += f" (= 1 - {frac_key})"
             lines.append(f"[{prefix}] {frac_str}")
-            keys = sorted(grouped[prefix], key=lambda k: self.params[k]["local_name"])  # type: ignore[index]
+            if (
+                frac_key is not None
+                and uidx == 1
+                and self.param_uncert is not None
+                and frac_key in self.param_uncert
+            ):
+                lo_f, med_f, hi_f = self.param_uncert[frac_key]
+                lines.append(
+                    f"  {'fraction':15s} 1%-Quantile={1.0 - hi_f:.6g}, "
+                    f"50%-Quantile (Median)={1.0 - med_f:.6g}, 99%-Quantile={1.0 - lo_f:.6g}"
+                )
+            keys = sorted(
+                grouped[prefix], key=lambda k: _natural_key(str(self.params[k]["local_name"]))
+            )
             for k in keys:
                 rec = self.params[k]
                 val = float(rec["value"])
@@ -672,6 +896,10 @@ class Model:
                         row += f"50%-Quantile (Median)={median:.6g}, 99%-Quantile={upper:.6g}"
                         lines.append(row)
                         lines.append("")
+            # derived quantities of the unit (e.g. weights of age bins)
+            if 0 <= uidx < len(self.units):
+                divisor = 12.0 if convert_mtt_to_years else 1.0
+                lines.extend(_hook(self.units[uidx], "report_lines", [])(divisor))
             lines.append("")
 
         report_text = "\n".join(lines)

@@ -1,0 +1,19 @@
+# PyTracerLab template: tracer input time series. Example values only - replace them with your data.
+# One row per time step (regular steps without gaps), first column = date, one column per tracer.
+Date, 3H
+2000, 9.0
+2001, 8.6
+2002, 8.3
+2003, 7.9
+2004, 7.6
+2005, 7.3
+2006, 7.0
+2007, 6.8
+2008, 6.5
+2009, 6.3
+2010, 6.1
+2011, 5.9
+2012, 5.7
+2013, 5.5
+2014, 5.4
+2015, 5.2

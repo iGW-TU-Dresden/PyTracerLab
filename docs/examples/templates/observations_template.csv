@@ -1,0 +1,7 @@
+# PyTracerLab template: observations. Example values only - replace them with your data.
+# List only the sampling dates; each sample is assigned to the time step of the input series that contains its date.
+# 3H_sd (optional): measurement uncertainty of 3H as standard deviation, in the same unit as 3H.
+Date, 3H, 3H_sd
+2004-05-12, 4.6, 0.3
+2009-09-30, 3.9, 0.3
+2014-03-05, 3.1, 0.2

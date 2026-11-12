@@ -16,10 +16,10 @@ before.
 User guide on installation, usage, and the basic concepts of PyTracerLab.
 :::
 :::{grid-item-card}  Examples
-:link: examples/example_01
+:link: examples/index
 :link-type: doc
 
-Examples of PyTracerLab in action.
+Tutorials and the examples of the PyTracerLab paper.
 :::
 ::::
 

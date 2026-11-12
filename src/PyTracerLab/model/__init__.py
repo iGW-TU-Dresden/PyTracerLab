@@ -1,8 +1,33 @@
-"""Public API for the :mod:`PyTracerLab.model` package."""
+"""Public API for the :mod:`PyTracerLab.model` package.
 
-# we intentionally omit the Solver class from __all__ to avoid trouble
-# with autodoc (through Solver we otherwise hava a duplication of Model)
-__all__ = ["Model", "Unit", "EPMUnit", "EMUnit", "PMUnit", "DMUnit"]
+All names are also available at package level (``import PyTracerLab as lab``),
+which is the recommended way to use PyTracerLab.
+"""
+
+from importlib import import_module
+
+# public name -> module that defines it
+_EXPORTS = {
+    "Model": "PyTracerLab.model.model",
+    "Solver": "PyTracerLab.model.solver",
+    "Unit": "PyTracerLab.model.units",
+    "EPMUnit": "PyTracerLab.model.units",
+    "ExEPMUnit": "PyTracerLab.model.units",
+    "EMUnit": "PyTracerLab.model.units",
+    "PMUnit": "PyTracerLab.model.units",
+    "DMUnit": "PyTracerLab.model.units",
+    "GMUnit": "PyTracerLab.model.units",
+    "LMUnit": "PyTracerLab.model.units",
+    "PEMUnit": "PyTracerLab.model.units",
+    "AgeBinUnit": "PyTracerLab.model.units",
+    "read_series": "PyTracerLab.model.io",
+    "TracerSeries": "PyTracerLab.model.io",
+    "DataFileError": "PyTracerLab.model.io",
+    "decay_constant": "PyTracerLab.model.tracers",
+    "TRACERS": "PyTracerLab.model.tracers",
+}
+
+__all__ = list(_EXPORTS)
 
 
 def __getattr__(name):
@@ -11,42 +36,11 @@ def __getattr__(name):
     This keeps import time light while still allowing patterns like
     ``from PyTracerLab.model import Model``.
     """
-    # Lazy re-exports so runtime imports still work:
-    if name == "Solver":
-        from .solver import Solver
-
-        return Solver
-    if name == "Model":
-        from .model import Model
-
-        return Model
-    if name == "Unit":
-        from .units import Unit
-
-        return Unit
-    if name == "EPMUnit":
-        from .units import EPMUnit
-
-        return EPMUnit
-    if name == "EMUnit":
-        from .units import EMUnit
-
-        return EMUnit
-    if name == "PMUnit":
-        from .units import PMUnit
-
-        return PMUnit
-    if name == "DMUnit":
-        from .units import DMUnit
-
-        return DMUnit
-    raise AttributeError(name)
+    module = _EXPORTS.get(name)
+    if module is None:
+        raise AttributeError(f"module 'PyTracerLab.model' has no attribute '{name}'")
+    return getattr(import_module(module), name)
 
 
 def __dir__():
-    """Limit ``dir(PyTracerLab.model)`` to the public API listed in ``__all__``.
-
-    This avoids showing ``Solver`` at the package level in autodoc listings.
-    """
-    # Keep Solver out of dir() so autodoc doesn't list it at the package level
-    return sorted(__all__)
+    return sorted(set(globals()) | set(_EXPORTS))

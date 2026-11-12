@@ -9,16 +9,20 @@ description = "Lumped parameter groundwater travel time simulations with a simpl
 readme = "README.md"
 authors = [{ name = "Max G. Rudolph" }]
 license = { text = "MIT" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "numpy>=1.24",
   "matplotlib>=3.7",
-  "scipy>=1.10",
+  "scipy>=1.15",
   "PyQt5>=5.15",
 ]
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Hydrology",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Education",

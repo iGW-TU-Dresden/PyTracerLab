@@ -54,7 +54,14 @@ myst_enable_extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/.ipynb_checkpoints"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "**/.ipynb_checkpoints",
+    # repository README of the paper code (not a docs page)
+    "examples/paper/README.md",
+]
 
 html_theme = "furo"
 html_static_path = ["_static"]
@@ -94,19 +101,25 @@ napoleon_type_aliases = {
     "Solver": "PyTracerLab.model.solver.Solver",
 }
 
-# Skip package-level re-exports in ``PyTracerLab.model`` to avoid duplicate
-# Python domain targets (e.g., both ``PyTracerLab.model.Model`` and
-# ``PyTracerLab.model.model.Model``).
-_MODEL_PACKAGE_REEXPORTS = {"Model", "Unit", "EPMUnit", "EMUnit", "PMUnit", "DMUnit"}
+# Skip package-level re-exports in ``PyTracerLab`` and ``PyTracerLab.model``
+# to avoid duplicate Python domain targets (e.g., both ``PyTracerLab.Model``
+# and ``PyTracerLab.model.model.Model``); the objects are documented in the
+# modules that define them.
+import PyTracerLab  # noqa: E402
+import PyTracerLab.model  # noqa: E402
+
+_PACKAGE_REEXPORTS = {
+    "PyTracerLab": set(PyTracerLab._EXPORTS),
+    "PyTracerLab.model": set(PyTracerLab.model._EXPORTS),
+}
 
 
 def _skip_model_reexports(app, what, name, obj, skip, options):
     env = getattr(app, "env", None)
     temp_data = getattr(env, "temp_data", {}) if env is not None else {}
     current_module = temp_data.get("autodoc:module")
-    if what == "module" and current_module == "PyTracerLab.model":
-        if name in _MODEL_PACKAGE_REEXPORTS:
-            return True
+    if what == "module" and name in _PACKAGE_REEXPORTS.get(current_module, ()):
+        return True
     return None
 
 

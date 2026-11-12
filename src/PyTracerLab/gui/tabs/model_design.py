@@ -1,4 +1,4 @@
-"""Tab to design the model layout: unit types, fractions, warmup."""
+"""Tab to design the model layout: unit types, fractions, steady-state input."""
 
 from functools import partial
 
@@ -22,10 +22,10 @@ from PyQt5.QtWidgets import (
 
 
 class ModelDesignTab(QWidget):
-    """Tab to select unit types, assign fractions, and set warmup options.
+    """Tab to select unit types, assign fractions, and set the steady-state input.
 
     Emits ``selection_changed`` whenever unit selection, fractions, or
-    warmup settings change. Updates fields in :class:`AppState` used by the
+    steady-state settings change. Updates fields in :class:`AppState` used by the
     parameters tab and controller.
     """
 
@@ -46,8 +46,6 @@ class ModelDesignTab(QWidget):
             self.state.steady_state_input = 0.0
         if not hasattr(self.state, "steady_state_enabled"):
             self.state.steady_state_enabled = False
-        if not hasattr(self.state, "n_warmup_half_lives"):
-            self.state.n_warmup_half_lives = 0.0
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(12, 12, 12, 12)
@@ -82,6 +80,8 @@ class ModelDesignTab(QWidget):
         validator.setNotation(QDoubleValidator.StandardNotation)
         validator.setDecimals(6)
         self.float_validator = validator
+        frac_validator = QDoubleValidator(0.0, 1.0, 6, self)
+        frac_validator.setNotation(QDoubleValidator.StandardNotation)
 
         # Width probe
         probe = QLineEdit()
@@ -102,7 +102,7 @@ class ModelDesignTab(QWidget):
             fx = QLineEdit(self)
             fx.setText("0.00")
             fx.setAlignment(Qt.AlignRight)
-            fx.setValidator(validator)
+            fx.setValidator(frac_validator)
             fx.setMaximumWidth(frac_width)
             fx.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             fx.setEnabled(False)
@@ -117,6 +117,17 @@ class ModelDesignTab(QWidget):
 
             self.rows.append({"combo": combo, "frac": fx})
             row += 1
+
+        # Binary mixtures: the second fraction is the remainder (D18)
+        self.binary_note = QLabel(
+            "Two units: the fraction of the second unit is 1 minus the fraction of the "
+            "first. The fraction of the first unit can be calibrated (Parameters tab)."
+        )
+        self.binary_note.setWordWrap(True)
+        self.binary_note.setStyleSheet("color: #666;")
+        self.binary_note.setVisible(False)
+        grid.addWidget(self.binary_note, row, 0, 1, 2)
+        row += 1
 
         # spacer between sections
         grid.addItem(QSpacerItem(0, 10, SP.Minimum, SP.Minimum), row, 0)
@@ -156,26 +167,12 @@ class ModelDesignTab(QWidget):
         self.ss_checkbox.toggled.connect(self._on_ss_toggle)
         row += 1
 
-        # spacer
-        grid.addItem(QSpacerItem(0, 10, SP.Minimum, SP.Minimum), row, 0)
+        # What the steady-state input means (text follows the checkbox, O.29)
+        self.ss_note = QLabel(self)
+        self.ss_note.setWordWrap(True)
+        grid.addWidget(self.ss_note, row, 0, 1, 2)
+        self._update_ss_note()
         row += 1
-
-        ### Warmup half lives header
-        hdr_warm = QLabel("Warmup half lives")
-        hdr_warm.setStyleSheet("font-weight: 600;")
-        grid.addWidget(hdr_warm, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
-        row += 1
-
-        # Warmup field (no checkbox, always enabled)
-        self.warmup_value = QLineEdit(self)
-        self.warmup_value.setText(f"{int(self.state.n_warmup_half_lives)}")
-        self.warmup_value.setAlignment(Qt.AlignRight)
-        self.warmup_value.setValidator(validator)
-        self.warmup_value.setMaximumWidth(frac_width)
-        self.warmup_value.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        grid.addWidget(self.warmup_value, row, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
-        self.warmup_value.textChanged.connect(self._update)
 
         # Try to restore previous design if present
         if hasattr(self.state, "design_units") and self.state.design_units:
@@ -196,9 +193,27 @@ class ModelDesignTab(QWidget):
         frac_edit.setEnabled(selected is not None)
         self._update()
 
+    # explanations below the steady-state checkbox (O.29)
+    SS_NOTE_ON = (
+        "The steady-state input is the tracer concentration of the recharge before the "
+        "start of the input series (e.g. natural tritium before the 1950s). It is used "
+        "for all water that is older than the input series."
+    )
+    SS_NOTE_OFF = (
+        "No steady-state input: water that recharged before the start of the input "
+        "series is assumed to contain no tracer. If it did contain tracer (e.g. natural "
+        "tritium before the 1950s), tick the box and enter its concentration."
+    )
+
+    def _update_ss_note(self):
+        on = self.ss_checkbox.isChecked()
+        self.ss_note.setText(self.SS_NOTE_ON if on else self.SS_NOTE_OFF)
+        self.ss_note.setStyleSheet("color: #666;" if on else "color: #C42136;")
+
     def _on_ss_toggle(self, checked: bool):
         self._set_ss_inputs_enabled(checked)
         self.state.steady_state_enabled = bool(checked)
+        self._update_ss_note()
         self._update()
 
     def _set_ss_inputs_enabled(self, enabled: bool):
@@ -265,18 +280,38 @@ class ModelDesignTab(QWidget):
         self.ss_container_layout.addStretch(1)
         self._set_ss_inputs_enabled(self.ss_checkbox.isChecked())
 
+    @staticmethod
+    def _fraction(edit: QLineEdit) -> float:
+        try:
+            return float(edit.text()) if edit.text() else 0.0
+        except ValueError:
+            return 0.0
+
+    def _sync_binary_fraction(self):
+        """With exactly two units, show the second fraction as 1 - first (read-only)."""
+        selected = [r for r in self.rows if r["combo"].currentData() is not None]
+        binary = len(selected) == 2
+        for r in selected:
+            r["frac"].setEnabled(True)
+            r["frac"].setToolTip("")
+        if binary:
+            second = selected[1]["frac"]
+            second.blockSignals(True)
+            second.setText(f"{1.0 - self._fraction(selected[0]['frac']):.4f}")
+            second.blockSignals(False)
+            second.setEnabled(False)
+            second.setToolTip("1 minus the fraction of the first unit")
+        self.binary_note.setVisible(binary)
+
     def _update(self):
+        self._sync_binary_fraction()
         # Gather selected units (up to 4) and their fractions
         design_units = []  # list of (unit_name, fraction)
         for r in self.rows:
             name = r["combo"].currentData()
             if name is None:
                 continue
-            try:
-                frac = float(r["frac"].text()) if r["frac"].text() else 0.0
-            except ValueError:
-                frac = 0.0
-            design_units.append((name, frac))
+            design_units.append((name, self._fraction(r["frac"])))
 
         # Persist basic list
         self.state.design_units = design_units
@@ -319,13 +354,5 @@ class ModelDesignTab(QWidget):
             self.state.steady_state_input = vals[0] if vals else 0.0
         else:
             self.state.steady_state_input = vals
-
-        # Warmup half lives
-        try:
-            self.state.n_warmup_half_lives = (
-                int(self.warmup_value.text()) if self.warmup_value.text() else 0.0
-            )
-        except ValueError:
-            pass
 
         self.selection_changed.emit()

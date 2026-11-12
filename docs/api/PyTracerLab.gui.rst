@@ -12,6 +12,7 @@ Submodules
    PyTracerLab.gui.database
    PyTracerLab.gui.main_window
    PyTracerLab.gui.state
+   PyTracerLab.gui.uncertainty
 
 Module contents
 ---------------

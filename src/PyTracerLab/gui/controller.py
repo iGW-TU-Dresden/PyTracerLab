@@ -1,5 +1,7 @@
 """Qt controller that builds the model and runs simulations/solvers."""
 
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -8,6 +10,7 @@ from ..model import model as mm
 from ..model import solver as ms
 from ..model.registry import UNIT_REGISTRY
 from .database import Tracers
+from .uncertainty import solver_sigma_kwargs
 
 
 class Controller(QObject):
@@ -116,7 +119,6 @@ class Controller(QObject):
                 input_series=x[1] if x else None,
                 target_series=y[1] if y else None,
                 steady_state_input=ss_val,
-                n_warmup_half_lives=self.state.n_warmup_half_lives,
                 time_steps=x[0] if x else None,
                 production=prod,
             )
@@ -180,12 +182,47 @@ class Controller(QObject):
                 for p in spec:
                     key = p["key"]
                     rec = self.state.params.get(prefix, {}).get(key)
-                    if rec is not None and rec.get("fixed", False):
-                        self.ml.set_fixed(f"{prefix}.{key}", True)
+                    default_fixed = bool(p.get("fixed", False))
+                    fixed = rec.get("fixed", default_fixed) if rec is not None else default_fixed
+                    self.ml.set_fixed(f"{prefix}.{key}", bool(fixed))
+
+            # Binary mixture: bounds and fixed flag of the mixing fraction
+            # (its value is the fraction of the first unit, set above)
+            frac_key = self.ml.fraction_key()
+            if frac_key is not None:
+                rec = self.state.params.get(instances[0]["prefix"], {}).get(mm.FRACTION)
+                if rec is not None:
+                    self.ml.set_bounds(frac_key, (rec["lb"], rec["ub"]))
+                    self.ml.set_fixed(frac_key, rec.get("fixed", True))
 
         except Exception as e:
             self.error.emit(str(e))
             self.ml = None
+
+    @staticmethod
+    def _run_with_notes(func, *args):
+        """Run ``func`` and return ``(result, notes)``.
+
+        ``notes`` are the messages of :class:`~PyTracerLab.model.model.PyTracerLabWarning`
+        (e.g. a missing steady-state input or more free parameters than
+        observations), shown to the user with the status message; other
+        warnings go to the console as before.
+        """
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", mm.PyTracerLabWarning)
+            result = func(*args)
+        notes = []
+        for w in caught:
+            if issubclass(w.category, mm.PyTracerLabWarning):
+                notes.append(str(w.message))
+            else:
+                warnings.showwarning(w.message, w.category, w.filename, w.lineno)
+        return result, list(dict.fromkeys(notes))
+
+    @staticmethod
+    def _with_notes(msg: str, notes) -> str:
+        """Status message followed by the notes, if any."""
+        return msg + ("\n\nNote:\n" + "\n\n".join(notes) if notes else "")
 
     def simulate(self):
         """Run a forward simulation and emit the result via ``simulated``."""
@@ -193,10 +230,10 @@ class Controller(QObject):
             self.build_model()
             if self.ml is None:
                 return
-            sim = self.ml.simulate()
+            sim, notes = self._run_with_notes(self.ml.simulate)
             self.state.last_simulation = sim
             self.simulated.emit(sim)
-            self.status.emit("Simulation finished.")
+            self.status.emit(self._with_notes("Simulation finished.", notes))
         except Exception as e:
             self.error.emit(str(e))
 
@@ -210,13 +247,17 @@ class Controller(QObject):
             self.build_model()
             if self.ml is None:
                 return
-            # Run selected solver via registry and emit standardized payload
+            # Run selected solver via registry and emit standardized payload;
+            # the measurement uncertainty is shared by all solvers
             key = getattr(self.state, "solver_key", "de")
-            params = getattr(self.state, "solver_params", {}).get(key, {})
-            payload = ms.run_solver(self.ml, key, params)
+            params = dict(getattr(self.state, "solver_params", {}).get(key, {}))
+            params.update(solver_sigma_kwargs(self.state))
+            # show notes on the setup (e.g. more free parameters than
+            # observations) together with the status message
+            payload, notes = self._run_with_notes(ms.run_solver, self.ml, key, params)
             self.state.last_simulation = payload
             self.calibrated.emit(payload)
-            self.status.emit("Calibration finished.")
+            self.status.emit(self._with_notes("Calibration finished.", notes))
         except Exception as e:
             self.error.emit(str(e))
 

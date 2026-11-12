@@ -20,3 +20,9 @@ Thumbs.db
 
 # Locally built docs
 docs/_build/
+
+# pub
+pub/
+
+# output of the paper example scripts
+docs/examples/paper/output/

@@ -1,6 +1,6 @@
 # Verwendung des GUI: ein detailliertes Beispiel
 
-Dieses Beispiel demonstriert die Funktionalität des GUI (Graphical User Interface). Wir verwenden bereits vorhandene Daten von Tracer-Eingang und Beobachtungen, die synthetisch erzeugt wurden (siehe (Beispiel 5)[../examples/example_05]), aber genau dieselben Schritte lassen sich mit beliebigen eigenen Daten durchführen. Dieses Beispiel behandelt den Fall zweier Tracer (Tritium und Kr-85). Beobachtungen der Tracer-Konzentrationen im Grundwasser liegen für eine Reihe von Zeitpunkten vor, wobei jeweils beide Tracer-Konzentrationen gemessen wurden. Das GUI kann auch Fälle behandeln, in denen zu bestimmten Zeitpunkten nur einer der beiden Tracer beobachtet wurde. Weitere Informationen finden Sie im [Benutzerhandbuch](usage.md).
+Dieses Beispiel demonstriert die Funktionalität des GUI (Graphical User Interface). Wir verwenden bereits vorhandene Daten von Tracer-Eingang und Beobachtungen, die synthetisch erzeugt wurden (siehe [Tutorial 5](../examples/example_05.ipynb)), aber genau dieselben Schritte lassen sich mit beliebigen eigenen Daten durchführen. Dieses Beispiel behandelt den Fall zweier Tracer (Tritium und Kr-85). Beobachtungen der Tracer-Konzentrationen im Grundwasser liegen für eine Reihe von Zeitpunkten vor, wobei jeweils beide Tracer-Konzentrationen gemessen wurden. Das GUI kann auch Fälle behandeln, in denen zu bestimmten Zeitpunkten nur einer der beiden Tracer beobachtet wurde. Weitere Informationen finden Sie im [Benutzerhandbuch](usage.md).
 
 ```{tip}
 Ziehen Sie diese Anleitung zu Rate, wenn Sie auf Probleme mit des GUI stoßen. Der größte Teil der GUI-Funktionalität wird hier behandelt, wodurch die meisten aufkommenden Fragen beantwortet werden sollten.
@@ -25,8 +25,7 @@ In diesem Beispiel gibt es ein bekanntes, wahres Referenzmodell, das in der Prax
 1. Wählen Sie das EPM (Exponential Piston Flow Model) aus der Liste.
 2. Geben Sie den Anteil an der Gesamtmodellausgabe ein, der durch diese Modelleinheit repräsentiert wird. Hier ist das EPM die einzige Modelleinheit, daher müssen wir hier einen Wert von `1.0` verwenden. Hätten wir mehrere Modelleinheiten parallel, könnten deren jeweilige Anteile unterschiedlich sein, sie müssen sich aber zu `1.0` summieren (z. B. `0.7` und `0.3` für zwei parallele Einheiten).
 3. Aktivieren Sie den stationären Tracer-Eingang (steady-state).
-4. Geben Sie die stationären Tracer-Eingangskonzentrationen ein (`1.0` für Tritium, `0.0` für Krypton-85).
-5. Legen Sie die Modell-Warmlaufzeit fest (Standard sind `10` Halbwertszeiten des Tracers mit der höheren Halbwertszeit).
+4. Geben Sie die stationären Tracer-Eingangskonzentrationen ein (`1.0` für Tritium, `0.0` für Krypton-85). Sie werden für das gesamte Wasser verwendet, das älter als die Eingangszeitreihe ist (siehe [Benutzerhandbuch](usage_de.md)).
 
 ```{tip}
 Die Verwendung mehrerer paralleler Modelleinheiten ermöglicht die Abbildung komplexerer Aquifer-Szenarien. Betrachten Sie zum Beispiel den Fall, in dem der beprobte Brunnen zwei durch eine Grundwassernichtleiterschicht getrennte Aquifere durchdringt. Das Brunnenwasser ist dann eine Mischung verschiedener Wässer mit unterschiedlichen Grundwasserströmungs- und Verweilzeiteigenschaften. Die Verwendung von z. B. zwei parallelen Einheiten ermöglicht eine detailliertere Abbildung solcher Fälle.
@@ -60,7 +59,7 @@ In PyTracerLab stehen verschiedene Kalibrierungsansätze zur Verfügung. Alle di
 ```
 
 ```{warning}
-Solver-Parameter sind grundsätzlich auf robuste Standardwerte gesetzt. Sie sollten nur geändert werden, wenn Sie wissen, was Sie tun. Prüfen Sie die API-Dokumentation für weitere Informationen und ziehen Sie auch die vorhandene Literatur dazu heran, wie die verschiedenen Ansätze funktionieren (least squares, differential evolution, Metropolis-Hastings MCMC, DREAM MCMC).
+Solver-Parameter sind grundsätzlich auf robuste Standardwerte gesetzt. Sie sollten nur geändert werden, wenn Sie wissen, was Sie tun. Unter [Wahl des Solvers](#choosing-a-solver-de) im Benutzerhandbuch steht, wann welcher Solver geeignet ist und wie MCMC-Ergebnisse geprüft werden. Prüfen Sie die API-Dokumentation für weitere Informationen und ziehen Sie auch die vorhandene Literatur dazu heran, wie die verschiedenen Ansätze funktionieren (least squares, differential evolution, Metropolis-Hastings MCMC, DREAM MCMC).
 ```
 
 ![Ein Bild des Simulations-Tabs.](ex04.png)

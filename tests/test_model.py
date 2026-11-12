@@ -59,3 +59,39 @@ def test_solver_respects_fixed():
     solver = Solver(m)
     sol, _ = solver.differential_evolution(maxiter=5, popsize=5)
     assert sol["epm.mtt"] == pytest.approx(fixed_before)
+
+
+def test_solver_rejects_observations_not_on_input_grid():
+    """Sparse observations used to give a silently infinite objective (O.15)."""
+    m = Model(dt=1.0, lambda_=0.01, input_series=np.ones(100), target_series=np.ones(5))
+    m.add_unit(PMUnit(mtt=10.0), fraction=1.0, bounds=[(1, 30)])
+    with pytest.raises(ValueError, match="align_to"):
+        Solver(m)
+
+
+def test_solver_rejects_tracer_column_mismatch():
+    m = Model(
+        dt=1.0,
+        lambda_=[0.01, 0.02],
+        input_series=np.ones((100, 2)),
+        target_series=np.ones((100, 1)),
+    )
+    m.add_unit(PMUnit(mtt=10.0), fraction=1.0, bounds=[(1, 30)])
+    with pytest.raises(ValueError, match="tracer columns"):
+        Solver(m)
+
+
+def test_report_without_observations(tmp_path):
+    """O.28: forward run without observations (used to raise UnboundLocalError)."""
+    m = make_simple_model(target_series=False)
+    text = m.write_report(str(tmp_path / "r.txt"), frequency="1 year")
+    assert "No observations given." in text and "MSE: n/a" in text
+    assert "epm.mtt" in text
+
+
+def test_report_with_single_tracer_name(tmp_path):
+    """O.28: a single tracer name as string (used to be split into characters)."""
+    m = make_simple_model()
+    text = m.write_report(str(tmp_path / "r.txt"), frequency="1 year", tracer="Tritium")
+    assert "Tracer: Tritium" in text and "Tracer Tritium" in text
+    assert "Tracer r" not in text
