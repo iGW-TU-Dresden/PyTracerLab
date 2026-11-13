@@ -2,7 +2,7 @@
 
 The reference system is a MODFLOW 6 model (Rudolph et al., 2026; details in the
 Supplementary Material): river water is a mixture of groundwater (recharge,
-77.9 %) and tracer-free water from an infiltration well (22.1 %). The tracer
+77.9 %) and tracer-free water from an injection well (22.1 %). The tracer
 input in recharge is synthetic (1970-2019, half-life of tritium, no tracer
 before 1970); ten tracer concentrations in river water (every 5 years) are the
 observations, and particle tracking gives the true travel time distribution
@@ -16,7 +16,7 @@ Two lumped parameter models are calibrated with DREAM:
   mean travel time and the mixing fraction are calibrated;
 - age bins: one age-bin unit for all river water (no assumption on the shape of
   the travel time distribution); the last bin (85-1000 yr) contains old
-  groundwater and the tracer-free infiltrated water, so that no second unit is
+  groundwater and the tracer-free injected water, so that no second unit is
   needed. Because the tracer input starts in 1970, water older than about
   50 yr carries no tracer in any observation: the weight of the bin 50-85 yr is
   not determined by the data.
