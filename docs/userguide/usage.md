@@ -240,10 +240,6 @@ The following example files can be downloaded and loaded directly into the GUI. 
 The GUI is structured into different **Tabs**. Those **Tabs** represent the typical workflow and should be considered in their present order. The individual **Tabs** are described in more detail below.
 
 ```{warning}
-PyTracerLab is still under active development. While the general functionality is well-tested, the GUI still poses some issues that we're actively working on.
-```
-
-```{warning}
 PyTracerLab does not support any pre-processing steps of input data at the moment. Precipitation weighting, gas exchange, etc. have to be performed by the user beforehand.
 ```
 
