@@ -307,7 +307,7 @@ In diesem **Tab** werden die verschiedenen Modellteile ausgewählt, die in die S
     - jede Einheit ist mit einem entsprechenden Anteil der gesamten Systemantwort bzw. -ausgabe verknüpft; die Anteile liegen zwischen 0 und 1 und müssen sich zu eins summieren, andernfalls wird ein Fehler ausgelöst und das Modell läuft nicht
     - bei genau zwei Einheiten (binäre Mischung) wird nur der Anteil der ersten Einheit eingegeben; der Anteil der zweiten Einheit wird als 1 minus diesem Wert berechnet. Der Anteil der ersten Einheit kann kalibriert werden (siehe [Mischungsanteile](#mixing-fractions-de))
 - Angabe des stationären Eingangs: die Tracerkonzentration der Grundwasserneubildung vor dem Beginn der Eingangszeitreihe (z. B. natürliches Tritium vor den 1950er-Jahren), ein Wert je Tracer
-    - er wird für das gesamte Wasser verwendet, das älter als die Eingangszeitreihe ist (siehe [Eingang vor dem Beginn der Eingangszeitreihe](#steady-state-input-de))
+    - er wird für das gesamte Wasser verwendet, das älter als die Eingangszeitreihe ist (siehe [Tracer-Eingangssignal vor dem Beginn der Eingangszeitreihe](#steady-state-input-de))
     - ist das Kästchen nicht angekreuzt, wird angenommen, dass Wasser, das vor dem Beginn der Eingangszeitreihe neu gebildet wurde, **keinen Tracer** enthält; der Model-Tab und die Meldung nach jedem Lauf weisen darauf hin
 
 ```{important}
@@ -616,7 +616,7 @@ m.set_bounds("young.fraction", (0.2, 0.8))  # optional, Standard (0, 1)
 ```
 
 (steady-state-input-de)=
-## Eingang vor dem Beginn der Eingangszeitreihe
+## Tracer-Eingangssignal vor dem Beginn der Eingangszeitreihe
 Heute beprobtes Grundwasser kann älter sein als die Tracer-Eingangszeitreihe. Für dieses Wasser verwendet PyTracerLab den **stationären Eingang**: die Tracerkonzentration der Grundwasserneubildung vor dem Beginn der Eingangszeitreihe, die als zeitlich konstant angenommen wird (z. B. die natürliche Tritiumkonzentration des Niederschlags vor den 1950er-Jahren). Der radioaktive Zerfall während der Fließzeit wird wie für alles andere Wasser berücksichtigt.
 
 Der Beitrag dieses Wassers wird exakt aus der Fließzeitverteilung berechnet: In jedem Zeitschritt ist er der stationäre Eingang multipliziert mit dem (zerfallskorrigierten) Anteil des Wassers, das älter ist als die seit dem Beginn der Eingangszeitreihe vergangene Zeit. Es muss daher keine Warmlaufzeit gewählt werden, es gibt keine Begrenzung der Fließzeiten oder Halbwertszeiten (z. B. ¹⁴C oder sehr altes Wasser), und die Fließzeitverteilungen werden am Beginn der Eingangszeitreihe nicht abgeschnitten.
